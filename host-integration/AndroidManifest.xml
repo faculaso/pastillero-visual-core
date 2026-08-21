@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  host-integration/AndroidManifest.xml
+
+  Archivo COMPLETO listo para reemplazar `android/app/src/main/AndroidManifest.xml`
+  en el proyecto host. Combina:
+    (a) el boilerplate estándar que genera `npx @react-native-community/cli init`
+        (sección <application>/<activity> — AJUSTAR nombre de paquete, ícono,
+        tema y label si tu proyecto usa otros valores);
+    (b) todos los permisos/queries que requieren las piezas de este Core
+        (notifee, react-native-image-picker, react-native-tts).
+
+  Si tu proyecto YA tiene un AndroidManifest.xml con personalizaciones propias
+  (deep links, otros permisos, activities adicionales), no reemplaces el
+  archivo entero — fusioná manualmente las secciones PERMISOS/QUERIES de acá
+  adentro del tuyo.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- =================================================================
+         PERMISOS
+         ================================================================= -->
+
+    <!-- Notificaciones/alarmas (notifee) -->
+
+    <!-- Android 13+ (API 33): sin esto, NINGUNA notificación se muestra —
+         ni siquiera las de canal HIGH. Se pide en runtime además
+         (`NotifeeNotificationScheduler.requestPermissions()`, ya se llama
+         automáticamente desde `bootstrap()`). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Android 12+ (API 31): requerido para AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE
+         — la alarma de toma dispara a la hora exacta incluso en Doze. Sin
+         esto, el sistema degrada la alarma a una ventana aproximada. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!-- Mostrar la notificación de toma a pantalla completa incluso con el
+         dispositivo bloqueado (CU-02, perfil de usuario Adulto Mayor). -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!-- Vibración continua del canal `dose-reminders`. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Reprogramar alarmas pendientes tras un reinicio del dispositivo —
+         prerrequisito para que la app pueda escuchar BOOT_COMPLETED
+         (implementación del receiver: fuera de este Core). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- notifee lo requiere para mantener el proceso vivo lo suficiente
+         como para procesar un evento de acción en background. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Captura de fotos de la caja (react-native-image-picker) -->
+
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Galería en Android 13+ (API 33): reemplaza a READ_EXTERNAL_STORAGE
+         para el caso específico de imágenes. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- Galería en Android <= 12 (API <= 32): permiso legacy, acotado a
+         esas versiones vía maxSdkVersion. -->
+    <uses-permission
+      android:name="android.permission.READ_EXTERNAL_STORAGE"
+      android:maxSdkVersion="32" />
+
+    <!-- NO hace falta declarar acá el <provider> de FileProvider que usa
+         `launchCamera()` para el archivo de salida — react-native-image-picker
+         ya lo aporta vía manifest merging de Gradle
+         (`android:authorities="${applicationId}.imagepickerprovider"`),
+         igual que notifee con sus propios receivers. No duplicar. -->
+
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- =================================================================
+         QUERIES (visibilidad de paquetes, Android 11+ / API 30+)
+         ================================================================= -->
+
+    <!--
+      Sin esto, `TextToSpeech`/`react-native-tts` puede no encontrar NINGÚN
+      motor TTS instalado en Android 11+ — las restricciones de
+      "package visibility" introducidas en esa versión ocultan por default
+      qué apps/servicios existen en el dispositivo, incluidos los motores
+      TTS del sistema (Google TTS, Samsung TTS, etc.). Sin esta declaración,
+      `Tts.getInitStatus()` puede rechazar con `no_engine` incluso con un
+      motor instalado y funcionando.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
+    <!-- =================================================================
+         APPLICATION (boilerplate estándar de RN — ajustar según tu proyecto)
+         ================================================================= -->
+    <application
+      android:name=".MainApplication"
+      android:label="@string/app_name"
+      android:icon="@mipmap/ic_launcher"
+      android:roundIcon="@mipmap/ic_launcher_round"
+      android:allowBackup="false"
+      android:theme="@style/AppTheme"
+      android:supportsRtl="true">
+
+        <!-- ============================================================
+             SONIDO DE ALARMA MÉDICA
+             ============================================================
+             El canal `dose-reminders` (notifee-notification-scheduler.ts)
+             referencia `sound: 'medical_alarm'` — el archivo tiene que
+             existir en res/raw ANTES de que `createChannel()` corra (la
+             primera vez que se programa o recibe una notificación),
+             porque Android fija el sonido de un canal al crearlo y no se
+             puede cambiar después sin borrar y recrear el canal con otro id.
+
+             Ubicación requerida (no se declara acá, es un archivo, no una
+             entrada de manifest):
+               android/app/src/main/res/raw/medical_alarm.mp3
+             `scripts/verify-host-env.ts` chequea que este archivo exista.
+        -->
+
+        <!-- ============================================================
+             ALMACENAMIENTO DE FOTOS DE CAJAS
+             ============================================================
+             `RNFSLocalImageStorageService` escribe en un directorio
+             PRIVADO de la app (`RNFS.DocumentDirectoryPath/box-images/`,
+             equivalente a `getFilesDir()`) — no requiere ningún permiso ni
+             entrada de manifest adicional más allá de los de LECTURA de
+             galería ya declarados arriba.
+        -->
+
+        <!-- ============================================================
+             TEXT-TO-SPEECH
+             ============================================================
+             Nada más que declarar acá además del <queries> de arriba —
+             react-native-tts usa el motor TTS ya instalado del SO vía
+             APIs públicas de Android, sin <provider>/<service> propios.
+        -->
+
+        <activity
+          android:name=".MainActivity"
+          android:label="@string/app_name"
+          android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+          android:launchMode="singleTask"
+          android:windowSoftInputMode="adjustResize"
+          android:exported="true">
+            <!-- notifee resuelve `pressAction`/`fullScreenAction` con
+                 `id: 'default'` automáticamente contra esta activity — no
+                 hace falta ningún intent-filter adicional para eso. Si en
+                 el futuro se agrega deep-linking a una pantalla específica
+                 según qué notificación se tocó, es acá donde se declararía. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+</manifest>

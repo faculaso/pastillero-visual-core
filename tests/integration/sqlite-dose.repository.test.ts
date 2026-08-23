@@ -93,4 +93,25 @@ describe('SqliteDoseRepository (integración)', () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.map((d) => d.id)).toEqual(['d1']);
   });
+
+  it('findAllByPatientAndDate trae tomas de CUALQUIER status del día (no solo PENDING)', async () => {
+    const { context } = await createTestDb();
+    await seedTreatment(context, { medication: { id: 'm1' }, treatment: { id: 't1', patientId: 'p1' } });
+    const repo = new SqliteDoseRepository(context);
+
+    const targetDate = new Date('2026-08-05T00:00:00.000Z');
+    await repo.createSlots([
+      buildDose({ id: 'd1', treatmentId: 't1', scheduledAt: new Date('2026-08-05T08:00:00.000Z') }),
+      buildDose({ id: 'd2', treatmentId: 't1', scheduledAt: new Date('2026-08-05T14:00:00.000Z') }),
+    ]);
+    await repo.confirmDose('d1', new Date('2026-08-05T08:05:00.000Z'));
+
+    const result = await repo.findAllByPatientAndDate('p1', targetDate);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.map((d) => d.id)).toEqual(['d1', 'd2']);
+      expect(result.value.find((d) => d.id === 'd1')?.status).toBe('TAKEN');
+      expect(result.value.find((d) => d.id === 'd2')?.status).toBe('PENDING');
+    }
+  });
 });

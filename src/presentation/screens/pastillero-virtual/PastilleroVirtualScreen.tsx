@@ -9,6 +9,8 @@ import { colors, spacing } from '../../design-system/tokens';
 import { CurrentDoseCard } from './components/CurrentDoseCard';
 import { EmptyState } from './components/EmptyState';
 import { ErrorBanner } from './components/ErrorBanner';
+import { DailyProgressBar } from './components/DailyProgressBar';
+import { CelebrationOverlay } from './components/CelebrationOverlay';
 
 export interface PastilleroVirtualScreenProps {
   /** Viene de la sesión/auth del dispositivo — fuera del alcance de este módulo. */
@@ -21,16 +23,23 @@ export interface PastilleroVirtualScreenProps {
  * 4-6) y el feedback háptico se dispara solo tras éxito confirmado por el
  * dominio — nunca de forma optimista antes de la respuesta del use case,
  * para no confirmarle al usuario algo que después falló.
+ *
+ * `DailyProgressBar` y `CelebrationOverlay` son puramente aditivos sobre
+ * ese flujo: leen `dailyProgress`/`celebrationTrigger` del store, que ya
+ * se actualizan solos tras cargar/confirmar — esta pantalla no orquesta
+ * nada nuevo para ellos, solo los renderiza.
  */
 export function PastilleroVirtualScreen({ patientId }: PastilleroVirtualScreenProps): React.JSX.Element {
-  const { getPendingDoses, confirmDose } = useUseCases();
+  const { getPendingDoses, confirmDose, getDailyProgress } = useUseCases();
   // Se instancia una sola vez por montaje de pantalla (ver justificación en el hook).
   const confirmationFeedback = useMemo(() => new NativeConfirmationFeedback(), []);
-  const useStore = usePastilleroVirtualStore({ getPendingDoses, confirmDose, confirmationFeedback });
+  const useStore = usePastilleroVirtualStore({ getPendingDoses, confirmDose, getDailyProgress, confirmationFeedback });
 
   const status = useStore((s) => s.status);
   const doses = useStore((s) => s.doses);
   const error = useStore((s) => s.error);
+  const dailyProgress = useStore((s) => s.dailyProgress);
+  const celebrationTrigger = useStore((s) => s.celebrationTrigger);
   const loadPendingDoses = useStore((s) => s.loadPendingDoses);
   const confirmCurrentDose = useStore((s) => s.confirmCurrentDose);
   const dismissError = useStore((s) => s.dismissError);
@@ -46,6 +55,10 @@ export function PastilleroVirtualScreen({ patientId }: PastilleroVirtualScreenPr
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
+        {dailyProgress ? (
+          <DailyProgressBar totalScheduled={dailyProgress.totalScheduled} totalTaken={dailyProgress.totalTaken} />
+        ) : null}
+
         {status === 'loading' || status === 'idle' ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -70,9 +83,11 @@ export function PastilleroVirtualScreen({ patientId }: PastilleroVirtualScreenPr
             </View>
           </>
         ) : (
-          <EmptyState />
+          <EmptyState dailyProgress={dailyProgress} />
         )}
       </View>
+
+      <CelebrationOverlay trigger={celebrationTrigger} />
     </SafeAreaView>
   );
 }

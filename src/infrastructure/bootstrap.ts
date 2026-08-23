@@ -21,6 +21,7 @@ import {
   GetPendingDosesForPatientUseCase,
   SearchMedicationCatalogUseCase,
   SuggestVisualProfileUseCase,
+  GetDailyProgressUseCase,
 } from '../application';
 import type { NotificationScheduler, LocalImageStorageService, VoiceGuidancePort } from '../application';
 
@@ -34,6 +35,7 @@ export interface BootstrapResult {
   readonly suggestVisualProfile: SuggestVisualProfileUseCase;
   readonly localImageStorage: LocalImageStorageService;
   readonly voiceGuidance: VoiceGuidancePort;
+  readonly getDailyProgress: GetDailyProgressUseCase;
 }
 
 export interface BootstrapOptions {
@@ -120,6 +122,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
     ),
     localImageStorage: new RNFSLocalImageStorageService(idGenerator),
     voiceGuidance: new ReactNativeTtsService(),
+    getDailyProgress: new GetDailyProgressUseCase(doseRepository, clock),
   };
 }
 

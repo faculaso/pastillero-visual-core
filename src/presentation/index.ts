@@ -9,6 +9,7 @@ export * from './hooks/usePastilleroVirtualStore';
 
 export * from './utils/pill-shape-labels';
 export * from './utils/format-dosage-label';
+export * from './utils/time-of-day-theme';
 
 export * from './providers/UseCasesProvider';
 export * from './providers/SessionContext';
@@ -25,6 +26,9 @@ export * from './screens/pastillero-virtual/voice-message';
 export * from './screens/pastillero-virtual/components/PillVisual';
 export * from './screens/pastillero-virtual/components/CurrentDoseCard';
 export * from './screens/pastillero-virtual/components/VoiceGuidanceButton';
+export * from './screens/pastillero-virtual/components/InstructionBadge';
+export * from './screens/pastillero-virtual/components/DailyProgressBar';
+export * from './screens/pastillero-virtual/components/CelebrationOverlay';
 export * from './screens/pastillero-virtual/components/EmptyState';
 export * from './screens/pastillero-virtual/components/ErrorBanner';
 

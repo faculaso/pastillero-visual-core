@@ -20,7 +20,14 @@ export interface VisualProfileEditorProps {
   readonly onChange: (value: VisualProfileFormValue) => void;
 }
 
-const COLOR_SWATCHES = ['#FFFFFF', '#F2C94C', '#EB5757', '#2D9CDB', '#27AE60', '#9B51E0', '#F2994A', '#4A4A4A'];
+const COLOR_SWATCHES: ReadonlyArray<{ readonly hex: string; readonly label: string }> = [
+  { hex: '#EB5757', label: 'Rojo' },
+  { hex: '#2D9CDB', label: 'Azul' },
+  { hex: '#F2C94C', label: 'Amarillo' },
+  { hex: '#27AE60', label: 'Verde' },
+  { hex: '#FFFFFF', label: 'Blanco' },
+  { hex: '#9B51E0', label: 'Violeta' },
+];
 
 /**
  * CU-01 pasos 6-7 / RF-02. La preview usa el mismo `PillVisual` que ve el
@@ -77,22 +84,28 @@ export function VisualProfileEditor({ value, onChange }: VisualProfileEditorProp
       </View>
 
       <AccessibleText variant="small" color={colors.textSecondary}>
-        Color
+        Color — tocá para pintar la pastilla
       </AccessibleText>
       <View style={styles.colorRow}>
-        {COLOR_SWATCHES.map((color) => (
+        {COLOR_SWATCHES.map(({ hex, label }) => (
           <Pressable
-            key={color}
-            onPress={() => update({ color })}
+            key={hex}
+            onPress={() => update({ color: hex })}
             accessibilityRole="radio"
-            accessibilityState={{ checked: value.color === color }}
-            accessibilityLabel={`Color ${color}`}
+            accessibilityState={{ checked: value.color === hex }}
+            accessibilityLabel={label}
             style={[
               styles.swatch,
-              { backgroundColor: color },
-              value.color === color && styles.swatchSelected,
+              { backgroundColor: hex },
+              value.color === hex && styles.swatchSelected,
             ]}
-          />
+          >
+            {value.color === hex ? (
+              <AccessibleText variant="label" bold color={hex === '#FFFFFF' || hex === '#F2C94C' ? colors.textPrimary : '#FFFFFF'}>
+                ✓
+              </AccessibleText>
+            ) : null}
+          </Pressable>
         ))}
       </View>
 
@@ -134,9 +147,11 @@ const styles = StyleSheet.create({
   swatch: {
     width: touchTarget.minWidth,
     height: touchTarget.minHeight,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     borderWidth: 2,
     borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   swatchSelected: {
     borderColor: colors.primary,

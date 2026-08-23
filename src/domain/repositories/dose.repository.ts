@@ -15,6 +15,11 @@ export interface DoseRepository {
     patientId: string,
     date: Date,
   ): Promise<Result<readonly Dose[], DomainError>>;
+  /** Todas las tomas del día (cualquier status) — usado para el progreso diario, no solo las pendientes. */
+  findAllByPatientAndDate(
+    patientId: string,
+    date: Date,
+  ): Promise<Result<readonly Dose[], DomainError>>;
   findByTreatmentInRange(
     treatmentId: string,
     from: Date,

@@ -118,6 +118,26 @@ export class InMemoryDoseRepository implements DoseRepository {
     return Ok(result);
   }
 
+  async findAllByPatientAndDate(
+    patientId: string,
+    date: Date,
+  ): Promise<Result<readonly Dose[], DomainError>> {
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const result = [...this.store.doses.values()].filter((d) => {
+      const treatment = this.store.treatments.get(d.treatmentId);
+      return (
+        treatment?.patientId === patientId &&
+        d.scheduledAt >= dayStart &&
+        d.scheduledAt <= dayEnd
+      );
+    });
+    return Ok(result);
+  }
+
   async findByTreatmentInRange(
     treatmentId: string,
     from: Date,

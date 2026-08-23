@@ -26,6 +26,7 @@ export function createFakeUseCases(overrides: Partial<UseCasesBundle> = {}): Use
       speak: notImplemented,
       stop: notImplemented,
     } as unknown as UseCasesBundle['voiceGuidance'],
+    getDailyProgress: { execute: notImplemented } as unknown as UseCasesBundle['getDailyProgress'],
     ...overrides,
   };
 }

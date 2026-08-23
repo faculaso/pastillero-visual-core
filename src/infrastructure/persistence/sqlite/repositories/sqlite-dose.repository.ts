@@ -41,16 +41,29 @@ export class SqliteDoseRepository implements DoseRepository {
     patientId: string,
     date: Date,
   ): Promise<Result<readonly Dose[], DomainError>> {
-    const dayStart = new Date(date);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(date);
-    dayEnd.setHours(23, 59, 59, 999);
+    const { dayStart, dayEnd } = dayBounds(date);
 
     return this.queryMany(
       `SELECT d.* FROM doses d
        JOIN treatments t ON t.id = d.treatment_id
        WHERE t.patient_id = ?
          AND d.status = 'PENDING'
+         AND d.scheduled_at BETWEEN ? AND ?
+       ORDER BY d.scheduled_at ASC`,
+      [patientId, dayStart.toISOString(), dayEnd.toISOString()],
+    );
+  }
+
+  async findAllByPatientAndDate(
+    patientId: string,
+    date: Date,
+  ): Promise<Result<readonly Dose[], DomainError>> {
+    const { dayStart, dayEnd } = dayBounds(date);
+
+    return this.queryMany(
+      `SELECT d.* FROM doses d
+       JOIN treatments t ON t.id = d.treatment_id
+       WHERE t.patient_id = ?
          AND d.scheduled_at BETWEEN ? AND ?
        ORDER BY d.scheduled_at ASC`,
       [patientId, dayStart.toISOString(), dayEnd.toISOString()],
@@ -139,4 +152,12 @@ export class SqliteDoseRepository implements DoseRepository {
       return Err(DomainErrors.repositoryFailure(cause));
     }
   }
+}
+
+function dayBounds(date: Date): { dayStart: Date; dayEnd: Date } {
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(date);
+  dayEnd.setHours(23, 59, 59, 999);
+  return { dayStart, dayEnd };
 }

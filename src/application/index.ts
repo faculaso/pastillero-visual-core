@@ -13,6 +13,7 @@ export * from './dto/register-treatment.dto';
 export * from './dto/monitor-adherence.dto';
 export * from './dto/update-stock.dto';
 export * from './dto/get-pending-doses.dto';
+export * from './dto/get-daily-progress.dto';
 export * from './dto/search-medication-catalog.dto';
 export * from './dto/suggest-visual-profile.dto';
 
@@ -21,5 +22,6 @@ export * from './use-cases/register-treatment.use-case';
 export * from './use-cases/monitor-adherence.use-case';
 export * from './use-cases/update-stock.use-case';
 export * from './use-cases/get-pending-doses.use-case';
+export * from './use-cases/get-daily-progress.use-case';
 export * from './use-cases/search-medication-catalog.use-case';
 export * from './use-cases/suggest-visual-profile.use-case';

@@ -244,6 +244,40 @@ Ninguna. `android-config-reference/AndroidManifest.snippet.xml` lo documenta exp
 - `tests/ui/VoiceGuidanceButton.test.tsx` (Jest) — toggle Escuchar/Detener, manejo de error.
 - `tests/ui/PastilleroVirtualScreen.test.tsx` — confirma que el botón aparece integrado en el flujo real de la pantalla, no solo en aislamiento.
 
+## Rediseño visual y de interacción (CU-01/CU-02)
+
+Capa puramente presentacional sobre lo ya construido — no toca dominio salvo una pieza real de datos que faltaba (ver abajo).
+
+### Código cromático por turno horario
+
+`src/presentation/utils/time-of-day-theme.ts` — función pura `getTimeOfDayTheme(date)` que deriva mañana (5-12hs, celeste)/tarde (12-19hs, ámbar)/noche (19-5hs, índigo con texto claro) del `scheduledAt` de la dosis. **No** viene de un campo de instrucciones explícito — `DosageScheme` no lo tiene; agregarlo es la extensión natural si el negocio necesita instrucciones libres. `CurrentDoseCard` aplica el tema al fondo completo de la tarjeta.
+
+Dos bugs de contraste encontrados y corregidos en el camino: el badge del turno tenía texto blanco sobre fondo blanco en la noche (su fondo es siempre blanco, independiente del tema), y el label de `InstructionBadge` usaba un gris fijo que se volvía ilegible sobre el fondo índigo oscuro — ambos ahora usan el color de texto correcto según a qué fondo se superponen.
+
+### Selector de colores por círculos
+
+`VisualProfileEditor` ya usaba chips tocables (no inputs de texto) desde una iteración anterior — se ajustó a círculos verdaderos (`borderRadius: pill`) con la paleta exacta pedida (rojo/azul/amarillo/verde/blanco/violeta) y un checkmark visible al seleccionar.
+
+### Iconografía por contexto de toma
+
+`InstructionBadge` — ícono con fondo circular derivado del turno (💧 agua en la mañana, 🍽️ comida en la tarde, 🌙 dormir en la noche). Mismo criterio que el tema de color: heurística sobre el horario, no un campo de dominio nuevo.
+
+### Estados vacíos diferenciados
+
+`EmptyState` ahora recibe `dailyProgress` (mismos datos que la barra de progreso, sin duplicar fuente de verdad) y distingue dos casos: "no tenés tomas pendientes" (neutro) vs. "¡Completaste todas tus tomas de hoy!" (festivo, con ilustración) cuando `totalTaken >= totalScheduled && totalScheduled > 0`.
+
+### Feedback de celebración
+
+`CelebrationOverlay` — checkmark con spring + destello verde esmeralda + confeti sutil, disparado por `celebrationTrigger` (contador en el store que se incrementa en cada confirmación exitosa). `pointerEvents="none"` y marcado oculto para accesibilidad (`accessibilityElementsHidden`) — es decorativo, nunca debe interceptar un toque ni ser leído por un lector de pantalla.
+
+**Nota de testing**: `getByText`/`getByLabelText` de Testing Library excluyen por default los elementos marcados como ocultos para accesibilidad (simulan lo que un lector de pantalla vería) — los tests de `CelebrationOverlay` necesitan `{ includeHiddenElements: true }` explícito para poder verificar su contenido sin dejar de estar ocultos en producción.
+
+### Barra de progreso diario — pieza de dominio real que faltaba
+
+"2 de 3 tomas completadas" necesita saber CUÁNTAS tomas hay programadas hoy en total, no solo las pendientes — `GetPendingDosesForPatientUseCase` (ya existente) solo trae PENDING. Se agregó `DoseRepository.findAllByPatientAndDate` (dominio + SQLite + fake in-memory, con tests de integración) y el nuevo `GetDailyProgressUseCase`, wireados en `bootstrap.ts`. `DailyProgressBar` es una cápsula redondeada (`radii.pill`) sin dependencias de SVG — el efecto "curva" viene de la forma, no de un arco radial.
+
+El store (`pastillero-virtual.store.ts`) refresca el progreso best-effort después de cargar y después de confirmar — con `try/catch` explícito: al ser una llamada fire-and-forget (`void refreshDailyProgress(...)`), un `reject` sin capturar (no solo un `Err` de dominio) rompía los tests con un *unhandled rejection*.
+
 ## Convenciones del código
 
 - **`Result<T, DomainError>` en vez de `throw`** en dominio y aplicación: todo caller debe manejar el camino de error explícitamente. Ver `src/domain/core/result.ts`.

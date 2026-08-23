@@ -2,6 +2,7 @@ import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import type {
   GetPendingDosesForPatientUseCase,
   ConfirmDoseUseCase,
+  GetDailyProgressUseCase,
   PendingDoseView,
 } from '../../application';
 import type { DomainError } from '../../domain';
@@ -9,10 +10,18 @@ import type { ConfirmationFeedback } from '../services/confirmation-feedback.ser
 
 export type PastilleroVirtualStatus = 'idle' | 'loading' | 'ready' | 'confirming' | 'error';
 
+export interface DailyProgress {
+  readonly totalScheduled: number;
+  readonly totalTaken: number;
+}
+
 export interface PastilleroVirtualState {
   readonly status: PastilleroVirtualStatus;
   readonly doses: readonly PendingDoseView[];
   readonly error: string | null;
+  readonly dailyProgress: DailyProgress | null;
+  /** Se incrementa en cada confirmación exitosa — la UI lo usa para disparar la animación de celebración sin necesitar resetear un booleano. */
+  readonly celebrationTrigger: number;
   loadPendingDoses(patientId: string): Promise<void>;
   confirmCurrentDose(patientId: string): Promise<void>;
   dismissError(): void;
@@ -21,6 +30,7 @@ export interface PastilleroVirtualState {
 export interface PastilleroVirtualDeps {
   readonly getPendingDoses: GetPendingDosesForPatientUseCase;
   readonly confirmDose: ConfirmDoseUseCase;
+  readonly getDailyProgress: GetDailyProgressUseCase;
   readonly confirmationFeedback: ConfirmationFeedback;
 }
 
@@ -36,10 +46,25 @@ export interface PastilleroVirtualDeps {
 export function createPastilleroVirtualStore(
   deps: PastilleroVirtualDeps,
 ): UseBoundStore<StoreApi<PastilleroVirtualState>> {
+  async function refreshDailyProgress(patientId: string, set: (partial: Partial<PastilleroVirtualState>) => void) {
+    // Best-effort real: ni un Err del dominio NI un reject de la promesa
+    // (p. ej. el use case ni siquiera está implementado en un contexto de
+    // test) deben propagarse — es una pieza puramente decorativa, nunca
+    // debe tumbar el flujo principal de confirmar/cargar tomas.
+    try {
+      const result = await deps.getDailyProgress.execute({ patientId });
+      if (result.ok) set({ dailyProgress: result.value });
+    } catch {
+      // silenciado a propósito
+    }
+  }
+
   return create<PastilleroVirtualState>((set, get) => ({
     status: 'idle',
     doses: [],
     error: null,
+    dailyProgress: null,
+    celebrationTrigger: 0,
 
     async loadPendingDoses(patientId: string) {
       set({ status: 'loading', error: null });
@@ -49,6 +74,7 @@ export function createPastilleroVirtualStore(
         return;
       }
       set({ status: 'ready', doses: result.value.doses });
+      void refreshDailyProgress(patientId, set);
     },
 
     async confirmCurrentDose(patientId: string) {
@@ -70,7 +96,9 @@ export function createPastilleroVirtualStore(
       set((state) => ({
         status: 'ready',
         doses: state.doses.filter((d) => d.doseId !== current.doseId),
+        celebrationTrigger: state.celebrationTrigger + 1,
       }));
+      void refreshDailyProgress(patientId, set);
     },
 
     dismissError() {

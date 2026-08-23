@@ -9,6 +9,7 @@ import type {
   SuggestVisualProfileUseCase,
   LocalImageStorageService,
   VoiceGuidancePort,
+  GetDailyProgressUseCase,
 } from '../../application';
 
 /**
@@ -29,6 +30,7 @@ export interface UseCasesBundle {
   readonly suggestVisualProfile: SuggestVisualProfileUseCase;
   readonly localImageStorage: LocalImageStorageService;
   readonly voiceGuidance: VoiceGuidancePort;
+  readonly getDailyProgress: GetDailyProgressUseCase;
 }
 
 const UseCasesContext = createContext<UseCasesBundle | null>(null);

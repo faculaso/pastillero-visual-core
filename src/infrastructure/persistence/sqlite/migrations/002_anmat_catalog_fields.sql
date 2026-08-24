@@ -36,7 +36,15 @@ CREATE INDEX IF NOT EXISTS idx_medications_active_ingredient ON medications (act
 -- hacia `medications`. `medications` es una tabla rowid normal (no declarada
 -- WITHOUT ROWID), así que `rowid` existe implícitamente y sirve como
 -- content_rowid sin necesidad de una columna INTEGER PK adicional.
+--
+-- Bloque OPTIONAL: builds de SQLite sin FTS5 compilado (algunos binarios de
+-- op-sqlite en Android, verificado en dispositivo real) tiran "no such
+-- module: fts5" acá. MigrationRunner ejecuta todo lo que está entre estos
+-- marcadores en un paso aparte del resto de la migración y descarta el error
+-- si falla, en vez de abortar (y hacer ROLLBACK de) la migración entera — las
+-- columnas/índices de arriba son la parte que de verdad no puede fallar.
 -- -----------------------------------------------------------------------------
+-- OPTIONAL:BEGIN
 CREATE VIRTUAL TABLE IF NOT EXISTS medications_fts USING fts5(
   name,
   active_ingredient,
@@ -65,3 +73,4 @@ CREATE TRIGGER IF NOT EXISTS medications_fts_au AFTER UPDATE ON medications BEGI
   INSERT INTO medications_fts(rowid, name, active_ingredient)
   VALUES (new.rowid, new.name, new.active_ingredient);
 END;
+-- OPTIONAL:END

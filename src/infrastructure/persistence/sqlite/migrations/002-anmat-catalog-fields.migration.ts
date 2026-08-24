@@ -15,6 +15,7 @@ DROP INDEX IF EXISTS idx_medications_name;
 CREATE INDEX IF NOT EXISTS idx_medications_name ON medications (name COLLATE NOCASE);
 CREATE INDEX IF NOT EXISTS idx_medications_active_ingredient ON medications (active_ingredient COLLATE NOCASE);
 
+-- OPTIONAL:BEGIN
 CREATE VIRTUAL TABLE IF NOT EXISTS medications_fts USING fts5(
   name,
   active_ingredient,
@@ -41,4 +42,5 @@ CREATE TRIGGER IF NOT EXISTS medications_fts_au AFTER UPDATE ON medications BEGI
   INSERT INTO medications_fts(rowid, name, active_ingredient)
   VALUES (new.rowid, new.name, new.active_ingredient);
 END;
+-- OPTIONAL:END
 `;

@@ -29,7 +29,7 @@ export function PillVisual({ visualProfile, size = 160, medicationName }: PillVi
   const imageLabel = medicationName ? `Foto del envase de ${medicationName}` : 'Foto del envase del medicamento';
 
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
+    <View style={[styles.container, !showImage && styles.backdrop, { width: size, height: size }]}>
       {showImage ? (
         <Image
           source={{ uri: imageUrl }}
@@ -104,6 +104,18 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  /**
+   * Fondo neutro detrás del fallback geométrico — sin esto, un comprimido
+   * blanco (color de swatch más elegido junto al resto) es indistinguible
+   * del fondo blanco de la pantalla (`colors.background`), forma que sea.
+   * Solo se aplica cuando NO hay foto real (esa ya cubre el área entera).
+   */
+  backdrop: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   image: {
     borderWidth: 2,

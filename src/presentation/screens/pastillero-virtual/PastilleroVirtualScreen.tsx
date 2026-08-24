@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUseCases } from '../../providers/UseCasesProvider';
 import { usePastilleroVirtualStore } from '../../hooks/usePastilleroVirtualStore';
 import { NativeConfirmationFeedback } from '../../services/confirmation-feedback.service';
@@ -51,9 +51,15 @@ export function PastilleroVirtualScreen({ patientId }: PastilleroVirtualScreenPr
   }, [patientId]);
 
   const currentDose = doses[0] ?? null;
+  // `SafeAreaView` (el componente) confirmado NO aplica el padding superior en
+  // este build (Fabric/New Architecture) aunque `useSafeAreaInsets()` calcule
+  // el valor correcto — el contenido quedaba dibujado debajo de la status bar
+  // en un dispositivo Android 16 real. Aplicar el inset a mano evita depender
+  // de esa pieza rota del componente.
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.container}>
         {dailyProgress ? (
           <DailyProgressBar totalScheduled={dailyProgress.totalScheduled} totalTaken={dailyProgress.totalTaken} />
@@ -88,7 +94,7 @@ export function PastilleroVirtualScreen({ patientId }: PastilleroVirtualScreenPr
       </View>
 
       <CelebrationOverlay trigger={celebrationTrigger} />
-    </SafeAreaView>
+    </View>
   );
 }
 

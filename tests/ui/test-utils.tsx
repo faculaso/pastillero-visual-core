@@ -1,6 +1,19 @@
 import React from 'react';
+import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 import { UseCasesProvider, type UseCasesBundle } from '../../src/presentation/providers/UseCasesProvider';
 import { SessionProvider, type UserRole } from '../../src/presentation/providers/SessionContext';
+
+/**
+ * En la app real, `SafeAreaProvider` mide sus insets vía `onLayout` de una
+ * vista nativa — eso nunca dispara bajo el renderer de pruebas, así que hay
+ * que pasarle `initialMetrics` a mano (0 en todos los insets es suficiente
+ * acá: lo que importa para los tests es que `useSafeAreaInsets()` no tire el
+ * error "No safe area value available", no el valor exacto del inset).
+ */
+const TEST_SAFE_AREA_METRICS: Metrics = {
+  frame: { x: 0, y: 0, width: 0, height: 0 },
+  insets: { top: 0, left: 0, right: 0, bottom: 0 },
+};
 
 /**
  * Fakes tipados como `jest.fn()` por método `execute` — no son dobles de
@@ -42,8 +55,10 @@ export function withProviders(
 ): React.JSX.Element {
   const useCases = createFakeUseCases(options.useCases);
   return (
-    <UseCasesProvider useCases={useCases}>
-      <SessionProvider initialRole={options.role}>{children}</SessionProvider>
-    </UseCasesProvider>
+    <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+      <UseCasesProvider useCases={useCases}>
+        <SessionProvider initialRole={options.role}>{children}</SessionProvider>
+      </UseCasesProvider>
+    </SafeAreaProvider>
   );
 }

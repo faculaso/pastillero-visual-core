@@ -41,6 +41,21 @@ export function PillVisual({ visualProfile, size = 160, medicationName }: PillVi
           accessibilityLabel={imageLabel}
           onError={() => setImageFailed(true)}
         />
+      ) : visualProfile.shape === PillShape.TRIANGULAR ? (
+        <View
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={`Representación de la forma y color del comprimido${medicationName ? ` de ${medicationName}` : ''}`}
+          style={[
+            styles.triangle,
+            {
+              borderLeftWidth: size / 2,
+              borderRightWidth: size / 2,
+              borderBottomWidth: size * 0.85,
+              borderBottomColor: visualProfile.color,
+            },
+          ]}
+        />
       ) : (
         <View
           accessible
@@ -97,6 +112,13 @@ const styles = StyleSheet.create({
   shapeFallback: {
     borderWidth: 2,
     borderColor: colors.border,
+  },
+  triangle: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
   },
   slotBadge: {
     position: 'absolute',

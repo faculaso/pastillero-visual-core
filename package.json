@@ -45,6 +45,7 @@
     "react-native-image-picker": "^8.2.1",
     "react-native-safe-area-context": "^5.9.1",
     "react-native-screens": "^4.27.0",
+    "react-native-svg": "^15.15.5",
     "react-native-tts": "^4.1.1"
   },
   "peerDependencies": {

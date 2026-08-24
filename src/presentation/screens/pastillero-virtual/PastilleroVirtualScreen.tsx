@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUseCases } from '../../providers/UseCasesProvider';
 import { usePastilleroVirtualStore } from '../../hooks/usePastilleroVirtualStore';
@@ -60,38 +60,46 @@ export function PastilleroVirtualScreen({ patientId }: PastilleroVirtualScreenPr
 
   return (
     <View style={[styles.safeArea, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <View style={styles.container}>
-        {dailyProgress ? (
+      {dailyProgress ? (
+        <View style={styles.header}>
           <DailyProgressBar totalScheduled={dailyProgress.totalScheduled} totalTaken={dailyProgress.totalTaken} />
-        ) : null}
+        </View>
+      ) : null}
 
-        {status === 'loading' || status === 'idle' ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.primary} />
+      {status === 'loading' || status === 'idle' ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : currentDose ? (
+        // `ScrollView` (no un `View` centrado a secas): la tarjeta de la toma +
+        // el botón de confirmar pueden ser más altos que la pantalla (nombre
+        // largo, foto, instrucciones) — sin scroll, `justifyContent: 'center'`
+        // desborda el contenido simétricamente para los DOS lados, cortando
+        // "Confirmar Toma" (el botón más importante de la pantalla) contra el
+        // borde inferior. Confirmado en un dispositivo real con poca altura útil.
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <CurrentDoseCard dose={currentDose} />
+          <View style={styles.confirmSection}>
+            {error ? (
+              <ErrorBanner message={error} onDismiss={dismissError} />
+            ) : (
+              <AccessibleButton
+                label="Confirmar Toma"
+                variant="success"
+                fullHeight
+                loading={status === 'confirming'}
+                disabled={status === 'confirming'}
+                accessibilityHint="Marca esta toma como completada"
+                onPress={() => confirmCurrentDose(patientId)}
+              />
+            )}
           </View>
-        ) : currentDose ? (
-          <>
-            <CurrentDoseCard dose={currentDose} />
-            <View style={styles.confirmSection}>
-              {error ? (
-                <ErrorBanner message={error} onDismiss={dismissError} />
-              ) : (
-                <AccessibleButton
-                  label="Confirmar Toma"
-                  variant="success"
-                  fullHeight
-                  loading={status === 'confirming'}
-                  disabled={status === 'confirming'}
-                  accessibilityHint="Marca esta toma como completada"
-                  onPress={() => confirmCurrentDose(patientId)}
-                />
-              )}
-            </View>
-          </>
-        ) : (
+        </ScrollView>
+      ) : (
+        <View style={styles.centered}>
           <EmptyState dailyProgress={dailyProgress} />
-        )}
-      </View>
+        </View>
+      )}
 
       <CelebrationOverlay trigger={celebrationTrigger} />
     </View>
@@ -103,8 +111,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  container: {
-    flex: 1,
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: spacing.lg,
     justifyContent: 'center',
     gap: spacing.xl,

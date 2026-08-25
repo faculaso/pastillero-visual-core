@@ -10,6 +10,11 @@ import type {
   LocalImageStorageService,
   VoiceGuidancePort,
   GetDailyProgressUseCase,
+  RedeemInviteCodeUseCase,
+  GetLinkedPatientUseCase,
+  GetProfileUseCase,
+  GetWeeklyScheduleUseCase,
+  AuthPort,
 } from '../../application';
 
 /**
@@ -31,6 +36,11 @@ export interface UseCasesBundle {
   readonly localImageStorage: LocalImageStorageService;
   readonly voiceGuidance: VoiceGuidancePort;
   readonly getDailyProgress: GetDailyProgressUseCase;
+  readonly redeemInviteCode: RedeemInviteCodeUseCase;
+  readonly getLinkedPatient: GetLinkedPatientUseCase;
+  readonly getProfile: GetProfileUseCase;
+  readonly getWeeklySchedule: GetWeeklyScheduleUseCase;
+  readonly auth: AuthPort;
 }
 
 const UseCasesContext = createContext<UseCasesBundle | null>(null);

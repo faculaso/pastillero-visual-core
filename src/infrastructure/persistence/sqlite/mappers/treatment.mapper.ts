@@ -19,6 +19,7 @@ export interface TreatmentRow extends SQLiteRow {
   readonly status: string;
   readonly visual_shape: string;
   readonly visual_color: string;
+  readonly visual_secondary_color: string | null;
   readonly visual_pill_image_url: string | null;
   readonly visual_box_image_url: string | null;
   readonly visual_model3d_url: string | null;
@@ -83,6 +84,7 @@ export function mapRowToTreatment(row: TreatmentRow): Result<Treatment, DomainEr
     visualProfile: {
       shape: row.visual_shape as PillShape,
       color: row.visual_color,
+      secondaryColor: row.visual_secondary_color ?? undefined,
       pillImageUrl: row.visual_pill_image_url ?? undefined,
       boxImageUrl: row.visual_box_image_url ?? undefined,
       model3dUrl: row.visual_model3d_url ?? undefined,
@@ -121,6 +123,7 @@ export function mapTreatmentToParams(t: Treatment): readonly unknown[] {
     t.status,
     t.visualProfile.shape,
     t.visualProfile.color,
+    t.visualProfile.secondaryColor ?? null,
     t.visualProfile.pillImageUrl ?? null,
     t.visualProfile.boxImageUrl ?? null,
     t.visualProfile.model3dUrl ?? null,

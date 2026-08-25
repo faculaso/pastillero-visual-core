@@ -28,10 +28,21 @@ jest.mock('react-native-image-picker', () => ({
  * medición nunca llega, y el árbol queda vacío para siempre. Se mockea acá
  * por un passthrough: a este test le importa que la navegación monte, no
  * los insets reales (eso es responsabilidad visual, no de este test).
+ *
+ * Se parte del módulo REAL (`requireActual`) y solo se pisan
+ * `SafeAreaProvider`/`SafeAreaView`/`useSafeAreaInsets` — hace falta
+ * mantener el `SafeAreaContext` real: `@react-navigation/native-stack`
+ * (usado por `AuthStack`/`CuidadorStack`/`AdultoMayorStack`) internamente
+ * hace `useContext(SafeAreaContext)` vía `SafeAreaProviderCompat`, y si ese
+ * export no existe (mock reemplazando el módulo entero) truena con
+ * "Cannot read properties of undefined ('$$typeof')" apenas monta CUALQUIER
+ * `Stack.Navigator` — no es específico de una pantalla.
  */
 jest.mock('react-native-safe-area-context', () => {
   const RN = require('react-native');
+  const actual = jest.requireActual('react-native-safe-area-context');
   return {
+    ...actual,
     __esModule: true,
     SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
     SafeAreaView: RN.View,
@@ -56,6 +67,21 @@ function buildFakeBootstrapResult() {
     suggestVisualProfile: { execute: notImplemented },
     localImageStorage: { saveImage: notImplemented, deleteImage: notImplemented },
     voiceGuidance: { speak: notImplemented, stop: notImplemented },
+    getDailyProgress: { execute: notImplemented },
+    redeemInviteCode: { execute: notImplemented },
+    getLinkedPatient: { execute: notImplemented },
+    getProfile: { execute: notImplemented },
+    getWeeklySchedule: { execute: notImplemented },
+    auth: {
+      signUp: notImplemented,
+      signIn: notImplemented,
+      signOut: notImplemented,
+      // Sin sesión: `RootNavigator` debe mostrar `AuthStack` (pantalla de login).
+      getSession: jest.fn().mockResolvedValue(null),
+      onAuthStateChange: jest.fn().mockReturnValue(() => {}),
+      getPendingInviteCode: jest.fn().mockResolvedValue(null),
+      clearPendingInviteCode: jest.fn().mockResolvedValue(undefined),
+    },
   };
 }
 
@@ -93,10 +119,10 @@ describe('App', () => {
     await waitFor(() => expect(mockBootstrap).toHaveBeenCalledTimes(2));
   });
 
-  it('si bootstrap() resuelve, monta la navegación (llega a la pantalla de selección de rol)', async () => {
+  it('si bootstrap() resuelve, monta la navegación (llega a la pantalla de login, sin sesión activa)', async () => {
     mockBootstrap.mockResolvedValue(buildFakeBootstrapResult());
     await render(<App />);
 
-    await waitFor(() => expect(screen.getByText('¿Quién va a usar la aplicación?')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Correo electrónico')).toBeTruthy());
   });
 });

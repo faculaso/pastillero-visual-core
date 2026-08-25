@@ -6,6 +6,10 @@ import { colors, radii, spacing } from '../../../design-system/tokens';
 export interface DailyProgressBarProps {
   readonly totalScheduled: number;
   readonly totalTaken: number;
+  /** Color del texto del label — por defecto `colors.textSecondary`, pero
+   * `PastilleroVirtualScreen` pasa `theme.accentText` porque esta barra se
+   * dibuja sobre el fondo teñido por turno, no sobre una tarjeta blanca. */
+  readonly labelColor?: string;
 }
 
 /**
@@ -15,7 +19,11 @@ export interface DailyProgressBarProps {
  * radial. Verde cuando se completó todo, azul primario mientras está en
  * progreso — nunca rojo/alarmante, ni a mitad de día ni con 0 tomas.
  */
-export function DailyProgressBar({ totalScheduled, totalTaken }: DailyProgressBarProps): React.JSX.Element | null {
+export function DailyProgressBar({
+  totalScheduled,
+  totalTaken,
+  labelColor = colors.textSecondary,
+}: DailyProgressBarProps): React.JSX.Element | null {
   if (totalScheduled === 0) return null; // nada que mostrar si no hay tomas programadas hoy
 
   const ratio = Math.min(1, totalTaken / totalScheduled);
@@ -33,7 +41,7 @@ export function DailyProgressBar({ totalScheduled, totalTaken }: DailyProgressBa
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${ratio * 100}%`, backgroundColor: fillColor }]} />
       </View>
-      <AccessibleText variant="small" color={colors.textSecondary} bold>
+      <AccessibleText variant="small" color={labelColor} bold>
         {totalTaken} de {totalScheduled} tomas completadas
       </AccessibleText>
     </View>
@@ -45,7 +53,11 @@ const styles = StyleSheet.create({
   track: {
     height: 14,
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
+    // Translúcido (no un color sólido de token) a propósito: esta barra se
+    // dibuja directamente sobre el fondo teñido por turno de
+    // `PastilleroVirtualScreen` (mañana/tarde/noche) — necesita funcionar
+    // sobre los tres sin quedar invisible ni desentonar.
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
     overflow: 'hidden',
   },
   fill: {

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import type { TimeOfDayTheme } from '../../../utils/time-of-day-theme';
 import { AccessibleText } from '../../../design-system/AccessibleText';
-import { colors, radii, spacing } from '../../../design-system/tokens';
+import { colors, radii, spacing, shadows } from '../../../design-system/tokens';
 
 export interface InstructionBadgeProps {
   readonly theme: TimeOfDayTheme;
@@ -28,10 +28,13 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: radii.pill,
-    backgroundColor: colors.background,
+    // Blanca siempre, sin importar el tinte de turno del fondo de pantalla
+    // (mañana/tarde/noche) — necesita contraste constante contra los tres.
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: colors.border,
+    ...shadows.pillShowcase,
   },
 });

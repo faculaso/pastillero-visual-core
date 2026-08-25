@@ -43,7 +43,7 @@ describe('AdherenceDashboardScreen', () => {
     expect(screen.getByText('Stock normal')).toBeTruthy();
     expect(monitorAdherence.execute).toHaveBeenCalledWith({
       treatmentId: 'treatment-1',
-      requestingCaregiverId: 'demo-caregiver-1',
+      requestingCaregiverId: 'test-caregiver-1',
     });
   });
 
@@ -91,7 +91,7 @@ describe('AdherenceDashboardScreen', () => {
     await waitFor(() =>
       expect(updateStock.execute).toHaveBeenCalledWith({
         treatmentId: 'treatment-1',
-        requestingCaregiverId: 'demo-caregiver-1',
+        requestingCaregiverId: 'test-caregiver-1',
         newQuantity: 30,
       }),
     );

@@ -67,4 +67,54 @@ describe('PillVisual', () => {
     await render(<PillVisual visualProfile={{ shape: PillShape.ROUND, color: '#FFFFFF' }} />);
     expect(screen.getByLabelText('Representación de la forma y color del comprimido')).toBeTruthy();
   });
+
+  it('ROUND dibuja un círculo (rx === ry) y OVAL una elipse alargada (rx > ry) — antes eran indistinguibles', async () => {
+    const round = await render(<PillVisual visualProfile={{ shape: PillShape.ROUND, color: '#FF0000' }} size={100} />);
+    const oval = await render(<PillVisual visualProfile={{ shape: PillShape.OVAL, color: '#FF0000' }} size={100} />);
+
+    const roundEllipse = findMainEllipse(round.toJSON());
+    const ovalEllipse = findMainEllipse(oval.toJSON());
+
+    expect(roundEllipse.rx).toBe(roundEllipse.ry);
+    expect(ovalEllipse.rx).toBeGreaterThan(ovalEllipse.ry);
+    expect(ovalEllipse).not.toEqual(roundEllipse);
+  });
+
+  it('OTHER dibuja un hexágono, no una variación de RECTANGULAR', async () => {
+    const other = await render(<PillVisual visualProfile={{ shape: PillShape.OTHER, color: '#FF0000' }} size={100} />);
+    const rectangular = await render(
+      <PillVisual visualProfile={{ shape: PillShape.RECTANGULAR, color: '#FF0000' }} size={100} />,
+    );
+
+    // `Polygon` de react-native-svg se renderiza internamente como `RNSVGPath` (no hay `RNSVGPolygon`).
+    expect(findNodeType(other.toJSON(), 'RNSVGPath')).toBeTruthy();
+    expect(findNodeType(rectangular.toJSON(), 'RNSVGPath')).toBeNull();
+  });
 });
+
+interface JsonNode {
+  readonly type: string;
+  readonly props?: Record<string, unknown>;
+  readonly children?: readonly (JsonNode | string)[] | null;
+}
+
+/** Primer `RNSVGEllipse` del árbol — es el cuerpo de la pastilla, no el brillo especular (segunda elipse). */
+function findMainEllipse(tree: unknown): { rx: number; ry: number } {
+  const node = findNode(tree, 'RNSVGEllipse');
+  if (!node) throw new Error('No se encontró ningún RNSVGEllipse en el árbol renderizado');
+  return { rx: node.props?.rx as number, ry: node.props?.ry as number };
+}
+
+function findNodeType(tree: unknown, type: string): JsonNode | null {
+  return findNode(tree, type);
+}
+
+function findNode(tree: unknown, type: string): JsonNode | null {
+  const stack: JsonNode[] = Array.isArray(tree) ? [...tree] : tree ? [tree as JsonNode] : [];
+  while (stack.length > 0) {
+    const node = stack.shift() as JsonNode;
+    if (node.type === type) return node;
+    if (node.children) stack.push(...(node.children.filter((c): c is JsonNode => typeof c !== 'string')));
+  }
+  return null;
+}

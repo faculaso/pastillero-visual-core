@@ -1,5 +1,4 @@
 import {
-  Ok,
   Err,
   type Result,
   DomainErrors,
@@ -9,11 +8,9 @@ import {
   decrementStock,
   type DoseRepository,
   type TreatmentRepository,
-  type StockRepository,
 } from '../../domain';
 import type { UseCase } from '../core/use-case';
 import type { Clock } from '../ports/clock.port';
-import type { TransactionRunner } from '../ports/transaction-runner.port';
 import type { ConfirmDoseInput, ConfirmDoseOutput } from '../dto/confirm-dose.dto';
 
 /**
@@ -24,16 +21,17 @@ import type { ConfirmDoseInput, ConfirmDoseOutput } from '../dto/confirm-dose.dt
  *  2. Autoriza: la toma debe pertenecer a un tratamiento del paciente solicitante.
  *  3. Valida invariantes de dominio (`confirmDose`, `decrementStock`) ANTES de
  *     tocar persistencia — fail-fast sin abrir transacción si algo es inválido.
- *  4. Persiste ambos cambios (dose + stock) dentro de `TransactionRunner`,
- *     garantizando atomicidad local (CU-02 postcondición: "toma registrada
- *     ... y stock decrementado" — ambos o ninguno).
+ *  4. Persiste ambos cambios (dose + stock) en una única operación atómica
+ *     vía `DoseRepository.confirmDoseWithStockDecrement` (CU-02
+ *     postcondición: "toma registrada... y stock decrementado" — ambos o
+ *     ninguno; ver el propio método para el porqué de esto en vez de un
+ *     `TransactionRunner` genérico — necesario para que también funcione
+ *     contra un backend sin transacciones cross-request como Supabase).
  */
 export class ConfirmDoseUseCase implements UseCase<ConfirmDoseInput, ConfirmDoseOutput> {
   constructor(
     private readonly doseRepository: DoseRepository,
     private readonly treatmentRepository: TreatmentRepository,
-    private readonly stockRepository: StockRepository,
-    private readonly transactionRunner: TransactionRunner,
     private readonly clock: Clock,
   ) {}
 
@@ -67,24 +65,6 @@ export class ConfirmDoseUseCase implements UseCase<ConfirmDoseInput, ConfirmDose
     if (!decrementedStockResult.ok) return decrementedStockResult;
 
     // --- Persistencia atómica: ambas escrituras o ninguna ---
-    return this.transactionRunner.runInTransaction(async () => {
-      const persistedDoseResult = await this.doseRepository.confirmDose(
-        dose.id,
-        now,
-        quantityTaken,
-      );
-      if (!persistedDoseResult.ok) return persistedDoseResult;
-
-      const persistedStockResult = await this.stockRepository.decrement(
-        treatment.id,
-        quantityTaken.amount,
-      );
-      if (!persistedStockResult.ok) return persistedStockResult;
-
-      return Ok({
-        dose: persistedDoseResult.value,
-        stock: persistedStockResult.value,
-      });
-    });
+    return this.doseRepository.confirmDoseWithStockDecrement(dose.id, now, quantityTaken);
   }
 }

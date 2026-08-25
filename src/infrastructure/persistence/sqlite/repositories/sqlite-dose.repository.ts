@@ -1,7 +1,24 @@
-import { Ok, Err, type Result, DomainErrors, type DomainError } from '../../../../domain';
-import type { Dose, DoseRepository, Dosage } from '../../../../domain';
+import { Ok, Err, type Result, DomainErrors, DomainError } from '../../../../domain';
+import type { Dose, DoseRepository, Dosage, StockInfo, MeasurementUnit } from '../../../../domain';
 import type { SqliteTransactionContext } from '../sqlite-transaction-context';
+import type { SQLiteRow } from '../sqlite-executor.port';
 import { mapRowToDose, mapDoseToParams, type DoseRow } from '../mappers/dose-medication.mapper';
+
+interface StockRow extends SQLiteRow {
+  readonly stock_current_quantity: number;
+  readonly stock_daily_consumption: number;
+  readonly stock_unit: string;
+  readonly stock_critical_threshold_days: number;
+}
+
+function mapRowToStockInfo(row: StockRow): StockInfo {
+  return {
+    currentQuantity: row.stock_current_quantity,
+    dailyConsumption: row.stock_daily_consumption,
+    unit: row.stock_unit as MeasurementUnit,
+    criticalThresholdDays: row.stock_critical_threshold_days,
+  };
+}
 
 export class SqliteDoseRepository implements DoseRepository {
   constructor(private readonly context: SqliteTransactionContext) {}
@@ -81,6 +98,21 @@ export class SqliteDoseRepository implements DoseRepository {
     );
   }
 
+  async findByPatientInRange(
+    patientId: string,
+    from: Date,
+    to: Date,
+  ): Promise<Result<readonly Dose[], DomainError>> {
+    return this.queryMany(
+      `SELECT d.* FROM doses d
+       JOIN treatments t ON t.id = d.treatment_id
+       WHERE t.patient_id = ?
+         AND d.scheduled_at BETWEEN ? AND ?
+       ORDER BY d.scheduled_at ASC`,
+      [patientId, from.toISOString(), to.toISOString()],
+    );
+  }
+
   /**
    * UPDATE condicional (`WHERE status = 'PENDING'`): defensa en profundidad
    * ante doble-confirmación concurrente (p. ej. reintento de sync offline
@@ -111,6 +143,74 @@ export class SqliteDoseRepository implements DoseRepository {
       if (!updated) return Err(DomainErrors.doseNotFound(doseId)); // no debería ocurrir tras el UPDATE exitoso
       return mapRowToDose(updated);
     } catch (cause) {
+      return Err(DomainErrors.repositoryFailure(cause));
+    }
+  }
+
+  /**
+   * Confirma la toma + decrementa el stock en una única transacción SQL
+   * real. IMPORTANTE: cada guard (`status='PENDING'`,
+   * `stock_current_quantity >= cantidad`) que falla acá TIRA el
+   * `DomainError` correspondiente (no lo `return`s dentro del callback) —
+   * `context.runInTransaction` solo hace ROLLBACK ante una excepción; un
+   * `return Err(...)` normal se habría comiteado igual, dejando la toma
+   * confirmada sin el stock descontado. El catch de abajo recupera ese
+   * `DomainError` tal cual (`instanceof DomainError`) en vez de
+   * enmascararlo como `repositoryFailure`.
+   */
+  async confirmDoseWithStockDecrement(
+    doseId: string,
+    confirmedAt: Date,
+    quantityTaken: Dosage,
+  ): Promise<Result<{ dose: Dose; stock: StockInfo }, DomainError>> {
+    try {
+      return await this.context.runInTransaction(async () => {
+        const executor = this.context.getExecutor();
+
+        const confirmResult = await executor.execute(
+          `UPDATE doses SET status = 'TAKEN', confirmed_at = ?, quantity_taken_amount = ?, quantity_taken_unit = ?
+           WHERE id = ? AND status = 'PENDING'`,
+          [confirmedAt.toISOString(), quantityTaken.amount, quantityTaken.unit, doseId],
+        );
+        if (confirmResult.rowsAffected === 0) {
+          const existing = await executor.queryOne<DoseRow>(`SELECT * FROM doses WHERE id = ?`, [doseId]);
+          throw existing ? DomainErrors.doseAlreadyConfirmed(doseId) : DomainErrors.doseNotFound(doseId);
+        }
+
+        const updatedDoseRow = await executor.queryOne<DoseRow>(`SELECT * FROM doses WHERE id = ?`, [
+          doseId,
+        ]);
+        if (!updatedDoseRow) throw DomainErrors.doseNotFound(doseId); // no debería ocurrir tras el UPDATE exitoso
+        const doseResult = mapRowToDose(updatedDoseRow);
+        if (!doseResult.ok) throw doseResult.error;
+        const dose = doseResult.value;
+
+        const stockResult = await executor.execute(
+          `UPDATE treatments
+           SET stock_current_quantity = stock_current_quantity - ?
+           WHERE id = ? AND stock_current_quantity >= ?`,
+          [quantityTaken.amount, dose.treatmentId, quantityTaken.amount],
+        );
+        if (stockResult.rowsAffected === 0) {
+          const exists = await executor.queryOne<SQLiteRow>(`SELECT id FROM treatments WHERE id = ?`, [
+            dose.treatmentId,
+          ]);
+          throw exists
+            ? DomainErrors.insufficientStock(dose.treatmentId)
+            : DomainErrors.treatmentNotFound(dose.treatmentId);
+        }
+
+        const stockRow = await executor.queryOne<StockRow>(
+          `SELECT stock_current_quantity, stock_daily_consumption, stock_unit, stock_critical_threshold_days
+           FROM treatments WHERE id = ?`,
+          [dose.treatmentId],
+        );
+        if (!stockRow) throw DomainErrors.treatmentNotFound(dose.treatmentId);
+
+        return Ok({ dose, stock: mapRowToStockInfo(stockRow) });
+      });
+    } catch (cause) {
+      if (cause instanceof DomainError) return Err(cause);
       return Err(DomainErrors.repositoryFailure(cause));
     }
   }

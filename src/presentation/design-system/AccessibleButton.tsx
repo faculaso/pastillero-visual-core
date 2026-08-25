@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, ActivityIndicator, type StyleProp, type ViewStyle } from 'react-native';
 import { AccessibleText } from './AccessibleText';
-import { colors, radii, spacing, touchTarget } from './tokens';
+import { colors, radii, spacing, touchTarget, shadows } from './tokens';
 
 export type AccessibleButtonVariant = 'primary' | 'success' | 'secondary';
 
@@ -18,8 +18,15 @@ export interface AccessibleButtonProps {
 
 const VARIANT_BACKGROUND: Record<AccessibleButtonVariant, { base: string; pressed: string }> = {
   primary: { base: colors.primary, pressed: colors.primaryPressed },
-  success: { base: colors.success, pressed: '#155E30' },
-  secondary: { base: colors.surface, pressed: colors.border },
+  success: { base: colors.successStrong, pressed: colors.success },
+  secondary: { base: colors.surface, pressed: colors.borderLight },
+};
+
+/** Sombra de color a juego con el fondo del botón — solo primary/success la llevan (mockup: `.btn-primary`/`.btn-confirm`). `secondary` queda plano (outline). */
+const VARIANT_SHADOW: Record<AccessibleButtonVariant, ViewStyle | undefined> = {
+  primary: shadows.buttonPrimary,
+  success: shadows.buttonSuccess,
+  secondary: undefined,
 };
 
 /**
@@ -53,6 +60,10 @@ export function AccessibleButton({
       accessibilityState={{ disabled: !isInteractive, busy: loading }}
       style={({ pressed }) => [
         styles.base,
+        // La sombra de color solo tiene sentido con el botón habilitado y en
+        // su color "base" — en gris (disabled) o mientras carga, se ve como
+        // un artefacto de render, no como profundidad.
+        !disabled && !loading ? VARIANT_SHADOW[variant] : undefined,
         {
           minHeight: fullHeight ? touchTarget.confirmButtonHeight : touchTarget.minHeight,
           backgroundColor: disabled

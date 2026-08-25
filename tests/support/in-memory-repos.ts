@@ -55,6 +55,15 @@ export class InMemoryTreatmentRepository implements TreatmentRepository {
     return Ok(treatment);
   }
 
+  async createWithInitialDoses(
+    treatment: Treatment,
+    doses: readonly Dose[],
+  ): Promise<Result<{ treatment: Treatment; generatedDoses: readonly Dose[] }, DomainError>> {
+    this.store.treatments.set(treatment.id, treatment);
+    for (const dose of doses) this.store.doses.set(dose.id, dose);
+    return Ok({ treatment, generatedDoses: doses });
+  }
+
   async update(treatment: Treatment): Promise<Result<Treatment, DomainError>> {
     if (!this.store.treatments.has(treatment.id)) {
       return Err(DomainErrors.treatmentNotFound(treatment.id));
@@ -149,6 +158,20 @@ export class InMemoryDoseRepository implements DoseRepository {
     return Ok(result);
   }
 
+  async findByPatientInRange(
+    patientId: string,
+    from: Date,
+    to: Date,
+  ): Promise<Result<readonly Dose[], DomainError>> {
+    const result = [...this.store.doses.values()]
+      .filter((d) => {
+        const treatment = this.store.treatments.get(d.treatmentId);
+        return treatment?.patientId === patientId && d.scheduledAt >= from && d.scheduledAt <= to;
+      })
+      .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+    return Ok(result);
+  }
+
   async confirmDose(
     doseId: string,
     confirmedAt: Date,
@@ -171,6 +194,33 @@ export class InMemoryDoseRepository implements DoseRepository {
     const updated: Dose = { ...dose, status: DoseStatus.MISSED };
     this.store.doses.set(doseId, updated);
     return Ok(updated);
+  }
+
+  async confirmDoseWithStockDecrement(
+    doseId: string,
+    confirmedAt: Date,
+    quantityTaken: Dosage,
+  ): Promise<Result<{ dose: Dose; stock: StockInfo }, DomainError>> {
+    const dose = this.store.doses.get(doseId);
+    if (!dose) return Err(DomainErrors.doseNotFound(doseId));
+    if (dose.status !== 'PENDING') return Err(DomainErrors.doseAlreadyConfirmed(doseId));
+
+    const treatment = this.store.treatments.get(dose.treatmentId);
+    if (!treatment) return Err(DomainErrors.treatmentNotFound(dose.treatmentId));
+    if (treatment.stock.currentQuantity - quantityTaken.amount < 0) {
+      return Err(DomainErrors.insufficientStock(dose.treatmentId));
+    }
+
+    const updatedDose: Dose = { ...dose, status: DoseStatus.TAKEN, confirmedAt, quantityTaken };
+    this.store.doses.set(doseId, updatedDose);
+
+    const updatedStock: StockInfo = {
+      ...treatment.stock,
+      currentQuantity: treatment.stock.currentQuantity - quantityTaken.amount,
+    };
+    this.store.treatments.set(dose.treatmentId, { ...treatment, stock: updatedStock });
+
+    return Ok({ dose: updatedDose, stock: updatedStock });
   }
 }
 
@@ -236,5 +286,13 @@ export class InMemoryMedicationCatalogRepository implements MedicationCatalogRep
 
   async findById(id: string): Promise<Result<Medication | null, DomainError>> {
     return Ok(this.store.medications.get(id) ?? null);
+  }
+
+  async listAll(limit = 50): Promise<Result<readonly Medication[], DomainError>> {
+    return Ok(
+      [...this.store.medications.values()]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, limit),
+    );
   }
 }

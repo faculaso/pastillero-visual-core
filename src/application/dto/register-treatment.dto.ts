@@ -14,6 +14,7 @@ export interface RegisterTreatmentInput {
   readonly visualProfile: {
     readonly shape: PillShape;
     readonly color: string;
+    readonly secondaryColor?: string;
     readonly pillImageUrl?: string;
     readonly boxImageUrl?: string;
     readonly model3dUrl?: string;

@@ -4,10 +4,9 @@ import { DosageFrequency, MeasurementUnit, PillShape } from '../../../src/domain
 import {
   InMemoryStore,
   InMemoryTreatmentRepository,
-  InMemoryDoseRepository,
   InMemoryMedicationCatalogRepository,
 } from '../../support/in-memory-repos';
-import { InMemoryTransactionRunner, FakeClock, FakeIdGenerator, FakeNotificationScheduler } from '../../support/fakes';
+import { FakeClock, FakeIdGenerator, FakeNotificationScheduler } from '../../support/fakes';
 import { buildMedication } from '../../support/fixtures';
 
 describe('RegisterTreatmentUseCase', () => {
@@ -38,16 +37,12 @@ describe('RegisterTreatmentUseCase', () => {
     store.medications.set('med-1', buildMedication({ id: 'med-1' }));
 
     const treatmentRepo = new InMemoryTreatmentRepository(store);
-    const doseRepo = new InMemoryDoseRepository(store);
     const medicationRepo = new InMemoryMedicationCatalogRepository(store);
-    const txRunner = new InMemoryTransactionRunner(store);
     notificationScheduler = new FakeNotificationScheduler();
 
     useCase = new RegisterTreatmentUseCase(
       medicationRepo,
       treatmentRepo,
-      doseRepo,
-      txRunner,
       notificationScheduler,
       new FakeIdGenerator(),
       new FakeClock(now),
@@ -100,10 +95,10 @@ describe('RegisterTreatmentUseCase', () => {
     expect(store.doses.size).toBe(0);
   });
 
-  it('falla si el perfil visual no tiene ningún asset (RF-02)', async () => {
+  it('registra un tratamiento aunque el perfil visual no tenga ningún asset (usa el fallback forma+color)', async () => {
     const input = { ...validInput(), visualProfile: { shape: PillShape.ROUND, color: '#FFFFFF' } };
     const result = await useCase.execute(input);
-    expect(result.ok).toBe(false);
-    expect(store.treatments.size).toBe(0);
+    expect(result.ok).toBe(true);
+    expect(store.treatments.size).toBe(1);
   });
 });

@@ -16,28 +16,22 @@ function buildDoseView(scheduledAt: string): PendingDoseView {
   };
 }
 
+/**
+ * El badge de turno (Mañana/Tarde/Noche) y el `InstructionBadge` ya NO
+ * viven acá — se movieron a `PastilleroVirtualScreen`, que es quien tiñe el
+ * fondo de PANTALLA según el turno (ver PastilleroVirtualScreen.test.tsx).
+ * Esta tarjeta es siempre blanca: solo el "showcase" del comprimido, el
+ * nombre y la dosis.
+ */
 describe('CurrentDoseCard', () => {
-  it('muestra el badge de turno "Mañana" para una toma matutina', async () => {
-    await render(withProviders(<CurrentDoseCard dose={buildDoseView('2026-08-01T08:00:00.000')} />));
-    expect(screen.getByText(/Mañana/)).toBeTruthy();
-    expect(screen.getByText('Tomar con agua')).toBeTruthy();
-  });
-
-  it('muestra el badge de turno "Tarde" para una toma de la tarde', async () => {
-    await render(withProviders(<CurrentDoseCard dose={buildDoseView('2026-08-01T14:00:00.000')} />));
-    expect(screen.getByText(/Tarde/)).toBeTruthy();
-    expect(screen.getByText('Tomar después de comer')).toBeTruthy();
-  });
-
-  it('muestra el badge de turno "Noche" para una toma nocturna', async () => {
-    await render(withProviders(<CurrentDoseCard dose={buildDoseView('2026-08-01T21:00:00.000')} />));
-    expect(screen.getByText(/Noche/)).toBeTruthy();
-    expect(screen.getByText('Tomar antes de dormir')).toBeTruthy();
-  });
-
-  it('sigue mostrando el nombre del medicamento y la dosis', async () => {
+  it('muestra el nombre del medicamento y la dosis', async () => {
     await render(withProviders(<CurrentDoseCard dose={buildDoseView('2026-08-01T08:00:00.000')} />));
     expect(screen.getByText('Paracetamol')).toBeTruthy();
     expect(screen.getByText('1 comprimido(s)')).toBeTruthy();
+  });
+
+  it('muestra el rótulo "Aspecto exacto" sobre el showcase del comprimido', async () => {
+    await render(withProviders(<CurrentDoseCard dose={buildDoseView('2026-08-01T08:00:00.000')} />));
+    expect(screen.getByText('Aspecto exacto')).toBeTruthy();
   });
 });

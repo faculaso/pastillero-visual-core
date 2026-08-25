@@ -114,4 +114,30 @@ describe('SqliteDoseRepository (integración)', () => {
       expect(result.value.find((d) => d.id === 'd2')?.status).toBe('PENDING');
     }
   });
+
+  it('findByPatientInRange hace JOIN con treatments por patient_id y filtra por rango (cualquier status)', async () => {
+    const { context } = await createTestDb();
+    await seedTreatment(context, { medication: { id: 'm1' }, treatment: { id: 't1', patientId: 'p1' } });
+    await seedTreatment(context, { medication: { id: 'm2' }, treatment: { id: 't2', patientId: 'p2' } });
+    const repo = new SqliteDoseRepository(context);
+
+    await repo.createSlots([
+      buildDose({ id: 'd1', treatmentId: 't1', scheduledAt: new Date('2026-08-05T08:00:00.000Z') }),
+      buildDose({ id: 'd2', treatmentId: 't1', scheduledAt: new Date('2026-09-01T08:00:00.000Z') }), // fuera de rango
+      buildDose({ id: 'd3', treatmentId: 't2', scheduledAt: new Date('2026-08-05T08:00:00.000Z') }), // otro paciente
+    ]);
+    await repo.confirmDose('d1', new Date('2026-08-05T08:05:00.000Z'));
+
+    const result = await repo.findByPatientInRange(
+      'p1',
+      new Date('2026-08-01T00:00:00.000Z'),
+      new Date('2026-08-31T23:59:59.999Z'),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.map((d) => d.id)).toEqual(['d1']);
+      expect(result.value[0]?.status).toBe('TAKEN');
+    }
+  });
 });

@@ -1,13 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ConfirmDoseUseCase } from '../../../src/application';
 import { TreatmentStatus, DoseStatus, MeasurementUnit } from '../../../src/domain';
-import {
-  InMemoryStore,
-  InMemoryTreatmentRepository,
-  InMemoryDoseRepository,
-  InMemoryStockRepository,
-} from '../../support/in-memory-repos';
-import { InMemoryTransactionRunner, FakeClock } from '../../support/fakes';
+import { InMemoryStore, InMemoryTreatmentRepository, InMemoryDoseRepository } from '../../support/in-memory-repos';
+import { FakeClock } from '../../support/fakes';
 import { buildTreatment, buildDose } from '../../support/fixtures';
 
 describe('ConfirmDoseUseCase', () => {
@@ -19,9 +14,7 @@ describe('ConfirmDoseUseCase', () => {
     store = new InMemoryStore();
     const treatmentRepo = new InMemoryTreatmentRepository(store);
     const doseRepo = new InMemoryDoseRepository(store);
-    const stockRepo = new InMemoryStockRepository(store);
-    const txRunner = new InMemoryTransactionRunner(store);
-    useCase = new ConfirmDoseUseCase(doseRepo, treatmentRepo, stockRepo, txRunner, new FakeClock(now));
+    useCase = new ConfirmDoseUseCase(doseRepo, treatmentRepo, new FakeClock(now));
 
     store.treatments.set('treatment-1', buildTreatment({ stock: { currentQuantity: 10, dailyConsumption: 1, unit: MeasurementUnit.UNIT, criticalThresholdDays: 3 } }));
     store.doses.set('dose-1', buildDose({ status: DoseStatus.PENDING }));
@@ -75,37 +68,10 @@ describe('ConfirmDoseUseCase', () => {
     expect(store.doses.get('dose-1')?.status).toBe(DoseStatus.PENDING);
   });
 
-  it('ATOMICIDAD: si falla la persistencia del stock dentro de la transacción, revierte también la confirmación de la toma', async () => {
-    // Forzamos el fallo justo después de que confirmDose ya escribió en el store,
-    // simulando una falla real de la segunda escritura dentro de la misma transacción.
-    const stockRepo = new InMemoryStockRepository(store);
-    const originalDecrement = stockRepo.decrement.bind(stockRepo);
-    stockRepo.decrement = async () => {
-      await originalDecrement('treatment-1', 1); // efecto lateral ya aplicado...
-      throw new Error('fallo simulado de escritura'); // ...pero la operación se reporta como fallida
-    };
-
-    const treatmentRepo = new InMemoryTreatmentRepository(store);
-    const doseRepo = new InMemoryDoseRepository(store);
-    const txRunner = new InMemoryTransactionRunner(store);
-    const useCaseWithFailingStock = new ConfirmDoseUseCase(
-      doseRepo,
-      treatmentRepo,
-      stockRepo,
-      txRunner,
-      new FakeClock(now),
-    );
-
-    const result = await useCaseWithFailingStock.execute({
-      doseId: 'dose-1',
-      requestingPatientId: 'patient-1',
-    });
-
-    expect(result.ok).toBe(false);
-    // La transacción debe haber revertido AMBOS efectos: la toma sigue PENDING
-    // y el stock sigue en su valor original, pese a que el decrement interno
-    // ya había mutado el store antes de lanzar.
-    expect(store.doses.get('dose-1')?.status).toBe(DoseStatus.PENDING);
-    expect(store.treatments.get('treatment-1')?.stock.currentQuantity).toBe(10);
-  });
+  // La atomicidad "confirmar + decrementar stock" ya no es una orquestación
+  // que este use case coordine (antes: dos repos + `TransactionRunner`) —
+  // ahora es UN SOLO método atómico del repositorio
+  // (`DoseRepository.confirmDoseWithStockDecrement`), así que se prueba
+  // contra SQLite real en
+  // `tests/integration/confirm-dose.atomicity.integration.test.ts`, no acá.
 });

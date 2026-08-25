@@ -1,30 +1,5 @@
 import { Ok, Err, type Result, DomainErrors, type DomainError, type Dose, type Treatment } from '../../src/domain';
-import type { Clock, IdGenerator, TransactionRunner, NotificationScheduler } from '../../src/application';
-import { InMemoryStore } from './in-memory-repos';
-
-/**
- * Simula la semántica real de `TransactionRunner`: si `work` retorna `Err`
- * (o lanza), el store vuelve al snapshot previo — permite testear
- * atomicidad de `ConfirmDoseUseCase`/`RegisterTreatmentUseCase` sin
- * levantar SQLite (eso se cubre aparte en integración).
- */
-export class InMemoryTransactionRunner implements TransactionRunner {
-  constructor(private readonly store: InMemoryStore) {}
-
-  async runInTransaction<T>(
-    work: () => Promise<Result<T, DomainError>>,
-  ): Promise<Result<T, DomainError>> {
-    const snapshot = this.store.snapshot();
-    try {
-      const result = await work();
-      if (!result.ok) this.store.restore(snapshot);
-      return result;
-    } catch (cause) {
-      this.store.restore(snapshot);
-      return Err(DomainErrors.repositoryFailure(cause));
-    }
-  }
-}
+import type { Clock, IdGenerator, NotificationScheduler } from '../../src/application';
 
 export class FakeClock implements Clock {
   constructor(private current: Date) {}

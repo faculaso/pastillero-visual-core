@@ -40,6 +40,19 @@ export function createFakeUseCases(overrides: Partial<UseCasesBundle> = {}): Use
       stop: notImplemented,
     } as unknown as UseCasesBundle['voiceGuidance'],
     getDailyProgress: { execute: notImplemented } as unknown as UseCasesBundle['getDailyProgress'],
+    redeemInviteCode: { execute: notImplemented } as unknown as UseCasesBundle['redeemInviteCode'],
+    getLinkedPatient: { execute: notImplemented } as unknown as UseCasesBundle['getLinkedPatient'],
+    getProfile: { execute: notImplemented } as unknown as UseCasesBundle['getProfile'],
+    getWeeklySchedule: { execute: notImplemented } as unknown as UseCasesBundle['getWeeklySchedule'],
+    auth: {
+      signUp: notImplemented,
+      signIn: notImplemented,
+      signOut: notImplemented,
+      getSession: jest.fn().mockResolvedValue(null),
+      onAuthStateChange: jest.fn().mockReturnValue(() => {}),
+      getPendingInviteCode: jest.fn().mockResolvedValue(null),
+      clearPendingInviteCode: jest.fn().mockResolvedValue(undefined),
+    } as unknown as UseCasesBundle['auth'],
     ...overrides,
   };
 }
@@ -47,6 +60,8 @@ export function createFakeUseCases(overrides: Partial<UseCasesBundle> = {}): Use
 export interface RenderWithProvidersOptions {
   readonly useCases?: Partial<UseCasesBundle>;
   readonly role?: UserRole;
+  /** Pisa el `patientId` sintético del modo test (p. ej. `''` para un Cuidador sin vincular). */
+  readonly patientId?: string;
 }
 
 export function withProviders(
@@ -57,7 +72,9 @@ export function withProviders(
   return (
     <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
       <UseCasesProvider useCases={useCases}>
-        <SessionProvider initialRole={options.role}>{children}</SessionProvider>
+        <SessionProvider initialRole={options.role} initialPatientId={options.patientId}>
+          {children}
+        </SessionProvider>
       </UseCasesProvider>
     </SafeAreaProvider>
   );

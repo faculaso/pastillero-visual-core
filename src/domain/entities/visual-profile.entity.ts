@@ -9,6 +9,7 @@ import { PillShape } from '../enums/dose.enums';
 export interface VisualProfile {
   readonly shape: PillShape;
   readonly color: string; // hex, ej. "#FFFFFF"
+  readonly secondaryColor?: string; // hex — solo tiene sentido con shape = CAPSULE_BICOLOR
   readonly pillImageUrl?: string; // foto/asset 2D del comprimido
   readonly boxImageUrl?: string; // foto de la caja/envase real
   readonly model3dUrl?: string; // asset 3D opcional (glTF/GLB)

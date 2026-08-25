@@ -23,7 +23,9 @@ export function ErrorBanner({ message, onDismiss }: ErrorBannerProps): React.JSX
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.criticalBackground,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: '#FECACA',
     padding: spacing.lg,
     gap: spacing.md,
   },

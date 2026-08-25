@@ -4,7 +4,7 @@ import { launchCamera, launchImageLibrary, type Asset } from 'react-native-image
 import { useUseCases } from '../../../providers/UseCasesProvider';
 import { AccessibleText } from '../../../design-system/AccessibleText';
 import { AccessibleButton } from '../../../design-system/AccessibleButton';
-import { colors, radii, spacing } from '../../../design-system/tokens';
+import { colors, radii, spacing, shadows } from '../../../design-system/tokens';
 
 export interface BoxPhotoCaptureFieldProps {
   /** URI persistente ya guardada (vacío si todavía no hay foto). */
@@ -65,7 +65,10 @@ export function BoxPhotoCaptureField({ imageUri, onImageChange }: BoxPhotoCaptur
   return (
     <View style={styles.container}>
       <AccessibleText variant="small" color={colors.textSecondary}>
-        Foto de la caja
+        Foto de la caja (opcional)
+      </AccessibleText>
+      <AccessibleText variant="small" color={colors.textSecondary}>
+        Sin foto, el Adulto Mayor va a ver la forma y el color que elegiste arriba.
       </AccessibleText>
 
       {imageUri ? (
@@ -108,6 +111,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 2,
     borderColor: colors.border,
+    ...shadows.pillShowcase,
   },
   actionsRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
 });

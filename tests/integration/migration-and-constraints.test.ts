@@ -11,6 +11,7 @@ describe('MigrationRunner + esquema SQLite', () => {
     expect(rows).toEqual([
       { version: 1, name: '001_initial_schema' },
       { version: 2, name: '002_anmat_catalog_fields' },
+      { version: 3, name: '003_capsule_bicolor_shape' },
     ]);
   });
 
@@ -20,7 +21,7 @@ describe('MigrationRunner + esquema SQLite', () => {
     await runner.applyAll(loadMigrations()); // segunda pasada
 
     const rows = await db.queryAll(`SELECT * FROM schema_migrations`);
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
   });
 
   it('crea las tablas esperadas', async () => {

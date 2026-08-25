@@ -53,6 +53,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     fontSize: typography.body,
     color: colors.textPrimary,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
 });

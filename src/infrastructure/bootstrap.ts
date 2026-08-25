@@ -1,13 +1,18 @@
-import { open } from '@op-engineering/op-sqlite';
+import { open, moveAssetsDatabase } from '@op-engineering/op-sqlite';
 import { OpSqliteAdapter } from './persistence/sqlite/adapters/op-sqlite.adapter';
 import { MigrationRunner } from './persistence/sqlite/migration-runner';
 import { MIGRATIONS } from './persistence/sqlite/migrations';
-import { SqliteTransactionContext, SqliteTransactionRunner } from './persistence/sqlite/sqlite-transaction-context';
-import { SqliteTreatmentRepository } from './persistence/sqlite/repositories/sqlite-treatment.repository';
-import { SqliteDoseRepository } from './persistence/sqlite/repositories/sqlite-dose.repository';
-import { SqliteStockRepository } from './persistence/sqlite/repositories/sqlite-stock.repository';
+import { importBundledCatalogIfStale } from './persistence/sqlite/import-bundled-catalog';
+import { SqliteTransactionContext } from './persistence/sqlite/sqlite-transaction-context';
 import { SqliteMedicationCatalogRepository } from './persistence/sqlite/repositories/sqlite-medication-catalog.repository';
 import { SqliteMedicationVisualSuggestionProvider } from './persistence/sqlite/repositories/sqlite-medication-visual-suggestion.provider';
+import { supabase } from './persistence/supabase/supabase-client';
+import { SupabaseTreatmentRepository } from './persistence/supabase/repositories/supabase-treatment.repository';
+import { SupabaseDoseRepository } from './persistence/supabase/repositories/supabase-dose.repository';
+import { SupabaseStockRepository } from './persistence/supabase/repositories/supabase-stock.repository';
+import { SupabaseProfileRepository } from './persistence/supabase/repositories/supabase-profile.repository';
+import { SupabasePairingRepository } from './persistence/supabase/repositories/supabase-pairing.repository';
+import { SupabaseAuthAdapter } from './services/supabase-auth.adapter';
 import { SystemClock } from './services/system-clock';
 import { CryptoIdGenerator } from './services/crypto-id-generator';
 import { NotifeeNotificationScheduler } from './services/notifee';
@@ -22,8 +27,12 @@ import {
   SearchMedicationCatalogUseCase,
   SuggestVisualProfileUseCase,
   GetDailyProgressUseCase,
+  RedeemInviteCodeUseCase,
+  GetLinkedPatientUseCase,
+  GetProfileUseCase,
+  GetWeeklyScheduleUseCase,
 } from '../application';
-import type { NotificationScheduler, LocalImageStorageService, VoiceGuidancePort } from '../application';
+import type { NotificationScheduler, LocalImageStorageService, VoiceGuidancePort, AuthPort } from '../application';
 
 export interface BootstrapResult {
   readonly confirmDose: ConfirmDoseUseCase;
@@ -36,6 +45,11 @@ export interface BootstrapResult {
   readonly localImageStorage: LocalImageStorageService;
   readonly voiceGuidance: VoiceGuidancePort;
   readonly getDailyProgress: GetDailyProgressUseCase;
+  readonly redeemInviteCode: RedeemInviteCodeUseCase;
+  readonly getLinkedPatient: GetLinkedPatientUseCase;
+  readonly getProfile: GetProfileUseCase;
+  readonly getWeeklySchedule: GetWeeklyScheduleUseCase;
+  readonly auth: AuthPort;
 }
 
 export interface BootstrapOptions {
@@ -52,6 +66,23 @@ export interface BootstrapOptions {
 }
 
 /**
+ * Nombre del asset embebido con el catálogo ANMAT completo pre-poblado —
+ * ver `import-bundled-catalog.ts`. Nombre distinto al de la DB de la app
+ * (`pastillero.db`) a propósito: son dos archivos SQLite separados, nunca
+ * se pisan entre sí.
+ *
+ * UBICACIÓN (verificada contra el código fuente de
+ * `moveAssetsDatabase` en op-sqlite — Android): el `path` por defecto de
+ * `moveAssetsDatabase` es `"custom"`, así que el archivo tiene que vivir en
+ * `android/app/src/main/assets/custom/pastillero-catalog.db`, NO
+ * directamente en `android/app/src/main/assets/`. Si no está en esa
+ * subcarpeta exacta, `moveAssetsDatabase` no tira excepción — resuelve
+ * `false` silenciosamente (ver su try/catch en OPSQLiteModule.kt), lo cual
+ * hace este bug fácil de pasar por alto sin loggear el resultado a mano.
+ */
+const CATALOG_ASSET_FILENAME = 'pastillero-catalog.db';
+
+/**
  * Punto de entrada único que conoce TODAS las capas. Se llama UNA vez desde
  * el root de la app (antes de montar cualquier componente), nunca desde
  * dentro de una pantalla — eso violaría la regla de dependencia de Clean
@@ -61,8 +92,16 @@ export interface BootstrapOptions {
  *  1. `open()` de op-sqlite — responsabilidad exclusiva de este archivo,
  *     tal como se acordó (infraestructura nunca llama `open()` por su cuenta).
  *  2. Migraciones, idempotentes en cada arranque.
- *  3. Wiring de repos + use cases sobre el mismo `SqliteTransactionContext`
- *     compartido (garantiza que `ConfirmDoseUseCase` sea atómico de verdad).
+ *  3. Wiring MIXTO de repos: el catálogo ANMAT (solo lectura, compartido)
+ *     sigue en SQLite local sobre `SqliteTransactionContext`; tratamientos,
+ *     dosis y stock ahora viven en Supabase (`supabase-client.ts`, sesión
+ *     ya autenticada vía Supabase Auth) para sincronizar entre el teléfono
+ *     del Cuidador y el del Adulto Mayor. La atomicidad de
+ *     "confirmar toma + descontar stock" y "crear tratamiento + sus dosis"
+ *     ya NO depende de un `TransactionRunner` compartido — cada una es un
+ *     solo método de repositorio (ver `DoseRepository.confirmDoseWithStockDecrement`
+ *     / `TreatmentRepository.createWithInitialDoses`), transaccional del
+ *     lado de SQLite o vía una función RPC del lado de Supabase.
  *  4. `NotifeeNotificationScheduler` (si no hay override): se construye con
  *     `confirmDose` ya armado, y se registra su handler de FOREGROUND acá
  *     mismo. El de BACKGROUND (`notifee.onBackgroundEvent`) NO se toca en
@@ -74,25 +113,27 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
   const sqliteDatabase = new OpSqliteAdapter(opDb);
 
   await new MigrationRunner(sqliteDatabase).applyAll(MIGRATIONS);
+  await importBundledCatalogIfPresent(sqliteDatabase);
 
   const context = new SqliteTransactionContext(sqliteDatabase);
-  const transactionRunner = new SqliteTransactionRunner(context);
 
-  const treatmentRepository = new SqliteTreatmentRepository(context);
-  const doseRepository = new SqliteDoseRepository(context);
-  const stockRepository = new SqliteStockRepository(context);
+  // El catálogo ANMAT (~16.000 medicamentos, dato de referencia compartido
+  // y de solo lectura) se queda en SQLite local — NO migró a Supabase.
+  // Tratamientos/dosis/stock sí, porque son datos por-cuenta que el
+  // Cuidador y el Adulto Mayor necesitan ver sincronizados entre sus dos
+  // teléfonos distintos. Bootstrap mixto a propósito, no un descuido.
   const medicationCatalogRepository = new SqliteMedicationCatalogRepository(context);
+  const treatmentRepository = new SupabaseTreatmentRepository(supabase, medicationCatalogRepository);
+  const doseRepository = new SupabaseDoseRepository(supabase);
+  const stockRepository = new SupabaseStockRepository(supabase, medicationCatalogRepository);
+  const profileRepository = new SupabaseProfileRepository(supabase);
+  const pairingRepository = new SupabasePairingRepository(supabase);
+  const authAdapter = new SupabaseAuthAdapter(supabase);
 
   const clock = new SystemClock();
   const idGenerator = new CryptoIdGenerator();
 
-  const confirmDose = new ConfirmDoseUseCase(
-    doseRepository,
-    treatmentRepository,
-    stockRepository,
-    transactionRunner,
-    clock,
-  );
+  const confirmDose = new ConfirmDoseUseCase(doseRepository, treatmentRepository, clock);
 
   const notificationScheduler = options.notificationScheduler ?? buildDefaultNotificationScheduler(confirmDose);
 
@@ -101,8 +142,6 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
     registerTreatment: new RegisterTreatmentUseCase(
       medicationCatalogRepository,
       treatmentRepository,
-      doseRepository,
-      transactionRunner,
       notificationScheduler,
       idGenerator,
       clock,
@@ -123,7 +162,35 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
     localImageStorage: new RNFSLocalImageStorageService(idGenerator),
     voiceGuidance: new ReactNativeTtsService(),
     getDailyProgress: new GetDailyProgressUseCase(doseRepository, clock),
+    redeemInviteCode: new RedeemInviteCodeUseCase(pairingRepository),
+    getLinkedPatient: new GetLinkedPatientUseCase(pairingRepository),
+    getProfile: new GetProfileUseCase(profileRepository),
+    getWeeklySchedule: new GetWeeklyScheduleUseCase(doseRepository, treatmentRepository, clock),
+    auth: authAdapter,
   };
+}
+
+/**
+ * Best-effort: si el host no bundleó `CATALOG_ASSET_FILENAME` como asset
+ * (por ejemplo, un checkout del Core sin pasar por `host-integration/` +
+ * copiar el `.db`), `moveAssetsDatabase` rechaza — no debe tumbar el
+ * arranque de la app por eso, el catálogo simplemente queda como estaba.
+ * Igual para cualquier falla durante la importación en sí.
+ */
+async function importBundledCatalogIfPresent(sqliteDatabase: OpSqliteAdapter): Promise<void> {
+  try {
+    const moved = await moveAssetsDatabase({ filename: CATALOG_ASSET_FILENAME });
+    if (!moved) return;
+
+    const catalogDb = open({ name: CATALOG_ASSET_FILENAME });
+    try {
+      await importBundledCatalogIfStale(sqliteDatabase, new OpSqliteAdapter(catalogDb));
+    } finally {
+      catalogDb.close();
+    }
+  } catch {
+    // Sin catálogo embebido o falló la importación: la app sigue con lo que ya tenía.
+  }
 }
 
 function buildDefaultNotificationScheduler(confirmDose: ConfirmDoseUseCase): NotificationScheduler {

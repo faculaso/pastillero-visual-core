@@ -2,15 +2,16 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AdultoMayorStackParamList } from './types';
 import { PastilleroVirtualScreen } from '../screens/pastillero-virtual/PastilleroVirtualScreen';
+import { MiSemanaScreen } from '../screens/mi-semana/MiSemanaScreen';
 import { useSession } from '../providers/SessionContext';
 
 const Stack = createNativeStackNavigator<AdultoMayorStackParamList>();
 
 /**
- * Una sola pantalla por ahora (CU-02 es autocontenido: no hay "navegar a
- * otro lado" para el Adulto Mayor en el alcance actual). El Stack existe
- * igual, no una pantalla suelta, para no tener que reestructurar cuando se
- * agregue historial de tomas o configuración accesible.
+ * `PastilleroVirtual` (CU-02, tu toma actual) + `MiSemana` (vista semanal de
+ * solo lectura, accesible desde el botón "Semana"). Las dos necesitan
+ * `patientId` de la sesión (no es un route param), por eso se siguen
+ * montando con render-prop en vez de `component={...}`.
  */
 export function AdultoMayorStack(): React.JSX.Element {
   const { session } = useSession();
@@ -20,7 +21,10 @@ export function AdultoMayorStack(): React.JSX.Element {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="PastilleroVirtual">
-        {() => <PastilleroVirtualScreen patientId={patientId} />}
+        {({ navigation }) => <PastilleroVirtualScreen patientId={patientId} navigation={navigation} />}
+      </Stack.Screen>
+      <Stack.Screen name="MiSemana">
+        {({ navigation }) => <MiSemanaScreen patientId={patientId} navigation={navigation} />}
       </Stack.Screen>
     </Stack.Navigator>
   );

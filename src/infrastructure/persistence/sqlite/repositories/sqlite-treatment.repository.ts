@@ -1,7 +1,8 @@
-import { Ok, Err, type Result, DomainErrors, type DomainError } from '../../../../domain';
-import type { Treatment, TreatmentRepository } from '../../../../domain';
+import { Ok, Err, type Result, DomainErrors, DomainError } from '../../../../domain';
+import type { Treatment, TreatmentRepository, Dose } from '../../../../domain';
 import type { SqliteTransactionContext } from '../sqlite-transaction-context';
 import { mapRowToTreatment, mapTreatmentToParams, type TreatmentRow } from '../mappers/treatment.mapper';
+import { mapDoseToParams } from '../mappers/dose-medication.mapper';
 
 const SELECT_WITH_MEDICATION = `
   SELECT
@@ -23,17 +24,63 @@ export class SqliteTreatmentRepository implements TreatmentRepository {
       await this.context.getExecutor().execute(
         `INSERT INTO treatments (
            id, patient_id, caregiver_id, medication_id, status,
-           visual_shape, visual_color, visual_pill_image_url, visual_box_image_url,
+           visual_shape, visual_color, visual_secondary_color, visual_pill_image_url, visual_box_image_url,
            visual_model3d_url, visual_slot_label,
            dosage_frequency, dosage_times_of_day_json, dosage_amount, dosage_unit,
            dosage_start_date, dosage_end_date, dosage_interval_days, dosage_weekdays_json,
            stock_current_quantity, stock_daily_consumption, stock_unit, stock_critical_threshold_days,
            created_at, updated_at
-         ) VALUES (?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?, ?,?)`,
+         ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?, ?,?)`,
         mapTreatmentToParams(treatment),
       );
       return Ok(treatment);
     } catch (cause) {
+      return Err(DomainErrors.repositoryFailure(cause));
+    }
+  }
+
+  /**
+   * INSERT del tratamiento + INSERT de cada slot de dosis dentro de la
+   * MISMA transacción SQL real (`context.runInTransaction`) — si cualquier
+   * INSERT falla, ninguno de los dos queda persistido. Reemplaza la
+   * orquestación anterior a nivel de `RegisterTreatmentUseCase` vía
+   * `TransactionRunner` + dos repos separados.
+   */
+  async createWithInitialDoses(
+    treatment: Treatment,
+    doses: readonly Dose[],
+  ): Promise<Result<{ treatment: Treatment; generatedDoses: readonly Dose[] }, DomainError>> {
+    try {
+      return await this.context.runInTransaction(async () => {
+        const executor = this.context.getExecutor();
+
+        await executor.execute(
+          `INSERT INTO treatments (
+             id, patient_id, caregiver_id, medication_id, status,
+             visual_shape, visual_color, visual_pill_image_url, visual_box_image_url,
+             visual_model3d_url, visual_slot_label,
+             dosage_frequency, dosage_times_of_day_json, dosage_amount, dosage_unit,
+             dosage_start_date, dosage_end_date, dosage_interval_days, dosage_weekdays_json,
+             stock_current_quantity, stock_daily_consumption, stock_unit, stock_critical_threshold_days,
+             created_at, updated_at
+           ) VALUES (?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?, ?,?)`,
+          mapTreatmentToParams(treatment),
+        );
+
+        // Insert secuencial (no `Promise.all`): misma razón que `SqliteDoseRepository.createSlots`
+        // — deja logs de error más claros ante fallo de un slot puntual.
+        for (const dose of doses) {
+          await executor.execute(
+            `INSERT INTO doses (id, treatment_id, scheduled_at, status, confirmed_at, quantity_taken_amount, quantity_taken_unit)
+             VALUES (?,?,?,?,?,?,?)`,
+            mapDoseToParams(dose),
+          );
+        }
+
+        return Ok({ treatment, generatedDoses: doses });
+      });
+    } catch (cause) {
+      if (cause instanceof DomainError) return Err(cause);
       return Err(DomainErrors.repositoryFailure(cause));
     }
   }
@@ -43,7 +90,7 @@ export class SqliteTreatmentRepository implements TreatmentRepository {
       const result = await this.context.getExecutor().execute(
         `UPDATE treatments SET
            status = ?,
-           visual_shape = ?, visual_color = ?, visual_pill_image_url = ?, visual_box_image_url = ?,
+           visual_shape = ?, visual_color = ?, visual_secondary_color = ?, visual_pill_image_url = ?, visual_box_image_url = ?,
            visual_model3d_url = ?, visual_slot_label = ?,
            dosage_frequency = ?, dosage_times_of_day_json = ?, dosage_amount = ?, dosage_unit = ?,
            dosage_start_date = ?, dosage_end_date = ?, dosage_interval_days = ?, dosage_weekdays_json = ?,
@@ -54,6 +101,7 @@ export class SqliteTreatmentRepository implements TreatmentRepository {
           treatment.status,
           treatment.visualProfile.shape,
           treatment.visualProfile.color,
+          treatment.visualProfile.secondaryColor ?? null,
           treatment.visualProfile.pillImageUrl ?? null,
           treatment.visualProfile.boxImageUrl ?? null,
           treatment.visualProfile.model3dUrl ?? null,

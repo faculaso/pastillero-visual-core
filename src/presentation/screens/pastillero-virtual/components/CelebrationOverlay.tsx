@@ -88,14 +88,14 @@ const styles = StyleSheet.create({
   },
   flash: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: colors.success,
+    backgroundColor: colors.successStrong,
     opacity: 0.12,
   },
   checkCircle: {
     width: 120,
     height: 120,
     borderRadius: radii.pill,
-    backgroundColor: colors.success,
+    backgroundColor: colors.successStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },

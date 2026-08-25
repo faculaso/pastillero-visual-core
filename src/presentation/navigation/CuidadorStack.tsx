@@ -1,27 +1,61 @@
 import React from 'react';
+import { Alert, Pressable, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { CuidadorStackParamList } from './types';
+import { CuidadorHomeScreen } from '../screens/cuidador-home/CuidadorHomeScreen';
 import { RegisterTreatmentScreen } from '../screens/register-treatment/RegisterTreatmentScreen';
 import { AdherenceDashboardScreen } from '../screens/adherence-dashboard/AdherenceDashboardScreen';
-import { colors, typography } from '../design-system/tokens';
+import { AccessibleText } from '../design-system/AccessibleText';
+import { colors, spacing, typography } from '../design-system/tokens';
+import { useSession } from '../providers/SessionContext';
 
 const Stack = createNativeStackNavigator<CuidadorStackParamList>();
 
+function SignOutHeaderButton(): React.JSX.Element {
+  const { signOut } = useSession();
+
+  function handlePress(): void {
+    Alert.alert('Cerrar sesión', '¿Querés salir de tu cuenta?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cerrar sesión', style: 'destructive', onPress: () => void signOut() },
+    ]);
+  }
+
+  return (
+    <Pressable onPress={handlePress} accessibilityRole="button" accessibilityLabel="Cerrar sesión" hitSlop={8} style={styles.signOutButton}>
+      <AccessibleText variant="small" bold color={colors.primary}>
+        Salir
+      </AccessibleText>
+    </Pressable>
+  );
+}
+
 /**
+ * `CuidadorHome` (el pastillero semanal) es la ruta raíz — `RegisterTreatment`
+ * y `AdherenceDashboard` se apilan (push) arriba, así que "atrás" siempre
+ * vuelve a la semana en vez de quedar en un callejón sin salida.
+ *
  * CU-01 -> CU-03: al guardar un tratamiento (`RegisterTreatmentScreen`) se
  * navega con `replace` (no `push`) al dashboard de ese mismo tratamiento —
- * volver "atrás" desde el dashboard no debería reabrir el formulario ya
- * enviado, sino salir de la stack.
+ * "atrás" desde ahí no debería reabrir el formulario ya enviado. Como
+ * `replace` solo pisa el tope de la pila, sigue yendo a `CuidadorHome`.
  */
 export function CuidadorStack(): React.JSX.Element {
   return (
     <Stack.Navigator
+      initialRouteName="CuidadorHome"
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface },
         headerTitleStyle: { fontSize: typography.label, color: colors.textPrimary },
         headerTintColor: colors.primary,
+        headerRight: () => <SignOutHeaderButton />,
       }}
     >
+      <Stack.Screen
+        name="CuidadorHome"
+        component={CuidadorHomeScreen}
+        options={{ title: 'Mi semana' }}
+      />
       <Stack.Screen
         name="RegisterTreatment"
         component={RegisterTreatmentScreen}
@@ -35,3 +69,10 @@ export function CuidadorStack(): React.JSX.Element {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  signOutButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+});

@@ -30,7 +30,10 @@ todo lo de `src/` (SQLite, notifee, fotos, TTS) funcione en un build real.
    declarados en `package.json` (`dependencies`): `@op-engineering/op-sqlite`,
    `@notifee/react-native`, `react-native-fs`, `react-native-image-picker`,
    `react-native-tts`, `@react-navigation/*`, `react-native-screens`,
-   `react-native-safe-area-context`.
+   `react-native-safe-area-context`, `@react-native-async-storage/async-storage`
+   (agregado para persistir la sesión de Supabase entre reinicios de la
+   app). `@supabase/supabase-js` y `react-native-url-polyfill` son JS puro,
+   no necesitan pod install/gradle sync.
 
 5. Correr `npx tsx scripts/verify-host-env.ts` desde la raíz del proyecto
    host antes de compilar — ver la raíz del repo para el script.

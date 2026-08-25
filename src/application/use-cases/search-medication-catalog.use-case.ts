@@ -18,6 +18,12 @@ export class SearchMedicationCatalogUseCase
   async execute(
     input: SearchMedicationCatalogInput,
   ): Promise<Result<SearchMedicationCatalogOutput, DomainError>> {
+    if (input.browseAll) {
+      const result = await this.medicationCatalogRepository.listAll();
+      if (!result.ok) return result;
+      return Ok({ medications: result.value });
+    }
+
     const trimmed = input.query.trim();
     if (trimmed.length === 0) return Ok({ medications: [] });
 

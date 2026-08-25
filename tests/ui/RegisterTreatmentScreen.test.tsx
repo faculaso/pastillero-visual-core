@@ -65,12 +65,82 @@ describe('RegisterTreatmentScreen', () => {
     await waitFor(() => expect(registerTreatment.execute).toHaveBeenCalled());
     const callArg = registerTreatment.execute.mock.calls[0][0];
     expect(callArg.medicationId).toBe('med-1');
+    expect(callArg.dosageScheme.frequency).toBe('DAILY');
     expect(callArg.dosageScheme.timesOfDay).toEqual([{ hour: 8, minute: 0 }]);
     expect(callArg.initialStock).toEqual({ currentQuantity: 30, dailyConsumption: 1, unit: 'UNIT' });
 
     await waitFor(() =>
       expect(navigation.replace).toHaveBeenCalledWith('AdherenceDashboard', { treatmentId: 'treatment-1' }),
     );
+  });
+
+  it('destildar "Todos los días" no bloquea el guardado (todavía no hay UI para elegir días sueltos, así que igual guarda DAILY)', async () => {
+    const medication = buildMedication({ id: 'med-1', name: 'Paracetamol 500mg' });
+    const treatment = buildTreatment({ id: 'treatment-1', medication });
+    const searchMedicationCatalog = { execute: jest.fn().mockResolvedValue(Ok({ medications: [medication] })) };
+    const registerTreatment = {
+      execute: jest.fn().mockResolvedValue(Ok({ treatment, generatedDoses: [], notificationWarnings: [] })),
+    };
+    const navigation = buildNavigationMock();
+    const user = userEvent.setup();
+
+    await render(
+      withProviders(<RegisterTreatmentScreen navigation={navigation} route={baseRoute} />, {
+        role: 'CUIDADOR',
+        useCases: {
+          searchMedicationCatalog: searchMedicationCatalog as never,
+          registerTreatment: registerTreatment as never,
+        },
+      }),
+    );
+
+    await user.type(screen.getByLabelText('Buscar medicamento por nombre o código de barras'), 'paracet');
+    await user.press(screen.getByText('Buscar'));
+    await waitFor(() => expect(screen.getByText('Paracetamol 500mg')).toBeTruthy());
+    await user.press(screen.getByText('Paracetamol 500mg'));
+
+    await waitFor(() => expect(screen.getByLabelText('Todos los días')).toBeTruthy());
+    await user.press(screen.getByLabelText('Todos los días'));
+    await user.press(screen.getByText('Guardar tratamiento'));
+
+    await waitFor(() => expect(registerTreatment.execute).toHaveBeenCalled());
+    const callArg = registerTreatment.execute.mock.calls[0][0];
+    expect(callArg.dosageScheme.frequency).toBe('DAILY');
+  });
+
+  it('prefila la hora sugerida cuando se llega desde un casillero de la grilla semanal', async () => {
+    const medication = buildMedication({ id: 'med-1', name: 'Paracetamol 500mg' });
+    const treatment = buildTreatment({ id: 'treatment-1', medication });
+    const routeWithHour = { key: 'register-2', name: 'RegisterTreatment' as const, params: { suggestedHour: 21 } };
+
+    const searchMedicationCatalog = { execute: jest.fn().mockResolvedValue(Ok({ medications: [medication] })) };
+    const registerTreatment = {
+      execute: jest.fn().mockResolvedValue(Ok({ treatment, generatedDoses: [], notificationWarnings: [] })),
+    };
+    const navigation = buildNavigationMock();
+    const user = userEvent.setup();
+
+    await render(
+      withProviders(<RegisterTreatmentScreen navigation={navigation} route={routeWithHour} />, {
+        role: 'CUIDADOR',
+        useCases: {
+          searchMedicationCatalog: searchMedicationCatalog as never,
+          registerTreatment: registerTreatment as never,
+        },
+      }),
+    );
+
+    await user.type(screen.getByLabelText('Buscar medicamento por nombre o código de barras'), 'paracet');
+    await user.press(screen.getByText('Buscar'));
+    await waitFor(() => expect(screen.getByText('Paracetamol 500mg')).toBeTruthy());
+    await user.press(screen.getByText('Paracetamol 500mg'));
+
+    await waitFor(() => expect(screen.getByText('Guardar tratamiento')).toBeTruthy());
+    await user.press(screen.getByText('Guardar tratamiento'));
+
+    await waitFor(() => expect(registerTreatment.execute).toHaveBeenCalled());
+    const callArg = registerTreatment.execute.mock.calls[0][0];
+    expect(callArg.dosageScheme.timesOfDay).toEqual([{ hour: 21, minute: 0 }]);
   });
 
   it('muestra un error legible si el registro falla', async () => {
@@ -106,9 +176,13 @@ describe('RegisterTreatmentScreen', () => {
 
   it('el botón Guardar tratamiento no aparece hasta seleccionar un medicamento', async () => {
     const navigation = buildNavigationMock();
+    const searchMedicationCatalog = { execute: jest.fn().mockResolvedValue(Ok({ medications: [] })) };
 
     await render(
-      withProviders(<RegisterTreatmentScreen navigation={navigation} route={baseRoute} />, { role: 'CUIDADOR' }),
+      withProviders(<RegisterTreatmentScreen navigation={navigation} route={baseRoute} />, {
+        role: 'CUIDADOR',
+        useCases: { searchMedicationCatalog: searchMedicationCatalog as never },
+      }),
     );
 
     expect(screen.queryByText('Guardar tratamiento')).toBeNull();
@@ -162,5 +236,55 @@ describe('RegisterTreatmentScreen', () => {
     expect(callArg.visualProfile.shape).toBe('CAPSULE');
     expect(callArg.visualProfile.slotLabel).toBe('400 MG');
     expect(callArg.initialStock.currentQuantity).toBe(20);
+  });
+
+  it('si el Cuidador todavía no tiene paciente vinculado, muestra el prompt de vinculación en vez del formulario', async () => {
+    const navigation = buildNavigationMock();
+    const searchMedicationCatalog = { execute: jest.fn() };
+
+    await render(
+      withProviders(<RegisterTreatmentScreen navigation={navigation} route={baseRoute} />, {
+        role: 'CUIDADOR',
+        patientId: '',
+        useCases: { searchMedicationCatalog: searchMedicationCatalog as never },
+      }),
+    );
+
+    expect(screen.getByText('Vinculá a tu Adulto Mayor')).toBeTruthy();
+    expect(screen.queryByLabelText('Buscar medicamento por nombre o código de barras')).toBeNull();
+    expect(searchMedicationCatalog.execute).not.toHaveBeenCalled();
+  });
+
+  it('al vincular exitosamente desde el prompt, pasa a mostrar el formulario de alta', async () => {
+    const navigation = buildNavigationMock();
+    const searchMedicationCatalog = { execute: jest.fn().mockResolvedValue(Ok({ medications: [] })) };
+    const redeemInviteCode = { execute: jest.fn().mockResolvedValue(Ok({ link: {} })) };
+    const getLinkedPatient = { execute: jest.fn().mockResolvedValue(Ok({ patientId: 'patient-recien-vinculado' })) };
+    const user = userEvent.setup();
+
+    await render(
+      withProviders(<RegisterTreatmentScreen navigation={navigation} route={baseRoute} />, {
+        role: 'CUIDADOR',
+        patientId: '',
+        useCases: {
+          searchMedicationCatalog: searchMedicationCatalog as never,
+          redeemInviteCode: redeemInviteCode as never,
+          getLinkedPatient: getLinkedPatient as never,
+        },
+      }),
+    );
+
+    await user.type(screen.getByLabelText('Código de invitación'), '7f2k9m');
+    await user.press(screen.getByText('Vincular'));
+
+    await waitFor(() =>
+      expect(redeemInviteCode.execute).toHaveBeenCalledWith({
+        caregiverId: 'test-caregiver-1',
+        inviteCode: '7F2K9M',
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText('Buscar medicamento por nombre o código de barras')).toBeTruthy(),
+    );
   });
 });

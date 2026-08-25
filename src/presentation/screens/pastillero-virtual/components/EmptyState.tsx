@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { AccessibleText } from '../../../design-system/AccessibleText';
-import { colors, radii, spacing } from '../../../design-system/tokens';
+import { colors, radii, spacing, shadows } from '../../../design-system/tokens';
 
 export interface EmptyStateProps {
   /** Mismos datos que alimentan la barra de progreso — evita una segunda fuente de verdad para "¿completó todo hoy?". */
@@ -69,6 +69,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+    ...shadows.pillShowcase,
   },
   text: {
     textAlign: 'center',

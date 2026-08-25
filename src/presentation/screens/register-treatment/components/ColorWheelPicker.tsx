@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, PanResponder, StyleSheet } from 'react-native';
+import { View, PanResponder, StyleSheet, type GestureResponderEvent } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { AccessibleText } from '../../../design-system/AccessibleText';
 import { colors, radii, spacing } from '../../../design-system/tokens';
@@ -28,24 +28,55 @@ const HUE_STOPS = [0, 60, 120, 180, 240, 300, 360].map((h) => hsvToHex({ h, s: 1
 export function ColorWheelPicker({ value, onChange }: ColorWheelPickerProps): React.JSX.Element {
   const [hsv, setHsv] = useState<HsvColor>(() => hexToHsv(value));
 
-  function updateFromSv(x: number, y: number): void {
+  // `nativeEvent.locationX/Y` no es confiable acá: en Android con Fabric,
+  // cuando el toque cae sobre uno de los `Rect` internos del `Svg` (no
+  // sobre el `View` contenedor), esas coordenadas vienen relativas a ESE
+  // nodo interno en vez del cuadro completo — el resultado observado era
+  // que, sin importar dónde tocaras, `s`/`v` quedaban siempre cerca de su
+  // máximo y el matiz nunca cambiaba, dando siempre rojo puro. Medimos la
+  // posición en pantalla del contenedor una vez (`onLayout` + `measure`) y
+  // calculamos la posición local a mano con `pageX`/`pageY`, que sí son
+  // consistentes sin importar qué nodo nativo haya recibido el toque.
+  const svOrigin = useRef({ x: 0, y: 0 });
+  const svSquareRef = useRef<React.ComponentRef<typeof View>>(null);
+  const hueOrigin = useRef({ x: 0, y: 0 });
+  const hueStripRef = useRef<React.ComponentRef<typeof View>>(null);
+
+  function updateFromSv(pageX: number, pageY: number): void {
+    const x = pageX - svOrigin.current.x;
+    const y = pageY - svOrigin.current.y;
     const next: HsvColor = { ...hsv, s: clamp01(x / SV_SIZE), v: clamp01(1 - y / SV_SIZE) };
     setHsv(next);
     onChange(hsvToHex(next));
   }
 
-  function updateFromHue(x: number): void {
+  function updateFromHue(pageX: number): void {
+    const x = pageX - hueOrigin.current.x;
     const next: HsvColor = { ...hsv, h: clamp01(x / SV_SIZE) * 360 };
     setHsv(next);
     onChange(hsvToHex(next));
+  }
+
+  function measureSvOrigin(): void {
+    svSquareRef.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
+      svOrigin.current = { x: pageX, y: pageY };
+    });
+  }
+
+  function measureHueOrigin(): void {
+    hueStripRef.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
+      hueOrigin.current = { x: pageX, y: pageY };
+    });
   }
 
   const svResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (event) => updateFromSv(event.nativeEvent.locationX, event.nativeEvent.locationY),
-      onPanResponderMove: (event) => updateFromSv(event.nativeEvent.locationX, event.nativeEvent.locationY),
+      onPanResponderGrant: (event: GestureResponderEvent) =>
+        updateFromSv(event.nativeEvent.pageX, event.nativeEvent.pageY),
+      onPanResponderMove: (event: GestureResponderEvent) =>
+        updateFromSv(event.nativeEvent.pageX, event.nativeEvent.pageY),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ).current;
@@ -54,8 +85,8 @@ export function ColorWheelPicker({ value, onChange }: ColorWheelPickerProps): Re
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (event) => updateFromHue(event.nativeEvent.locationX),
-      onPanResponderMove: (event) => updateFromHue(event.nativeEvent.locationX),
+      onPanResponderGrant: (event: GestureResponderEvent) => updateFromHue(event.nativeEvent.pageX),
+      onPanResponderMove: (event: GestureResponderEvent) => updateFromHue(event.nativeEvent.pageX),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ).current;
@@ -66,6 +97,8 @@ export function ColorWheelPicker({ value, onChange }: ColorWheelPickerProps): Re
   return (
     <View style={styles.container}>
       <View
+        ref={svSquareRef}
+        onLayout={measureSvOrigin}
         style={styles.svSquare}
         {...svResponder.panHandlers}
         accessible
@@ -100,6 +133,8 @@ export function ColorWheelPicker({ value, onChange }: ColorWheelPickerProps): Re
       </View>
 
       <View
+        ref={hueStripRef}
+        onLayout={measureHueOrigin}
         style={styles.hueStrip}
         {...hueResponder.panHandlers}
         accessible

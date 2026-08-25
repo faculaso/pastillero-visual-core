@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, StyleSheet } from 'react-native';
+import { View, TextInput, Pressable, StyleSheet } from 'react-native';
 import { MeasurementUnit } from '../../../../domain';
 import { AccessibleText } from '../../../design-system/AccessibleText';
 import { colors, radii, spacing, touchTarget, typography } from '../../../design-system/tokens';
@@ -11,6 +11,9 @@ export interface DosageAndStockFormValue {
   readonly dosageUnit: MeasurementUnit;
   readonly initialStock: string;
   readonly dailyConsumption: string;
+  readonly allDays: boolean;
+  /** 0(dom)-6(sáb). Solo se usa cuando `allDays` es `false`. */
+  readonly weekdays: readonly number[];
 }
 
 export interface DosageAndStockFormProps {
@@ -19,11 +22,12 @@ export interface DosageAndStockFormProps {
 }
 
 /**
- * CU-01 paso 8 (RF-01, RF-05). Simplificación MVP deliberada: un único
- * horario diario (`DosageFrequency.DAILY`) en vez de exponer las 4
- * frecuencias del dominio en la UI — el use case y el dominio ya soportan
- * todas, esto es solo una decisión de superficie de formulario para el
- * primer corte; agregar el selector de frecuencia es la extensión natural.
+ * CU-01 paso 8 (RF-01, RF-05). Simplificación MVP deliberada: por ahora el
+ * checkbox "Todos los días" solo cubre el caso DAILY — destildarlo NO
+ * muestra un selector de días sueltos (a pedido explícito: se probaron un
+ * par de variantes de esa UI y ninguna terminó de andar bien), así que
+ * `weekdays` queda sin una forma de cargarse todavía. Si el negocio necesita
+ * SPECIFIC_WEEKDAYS de nuevo, hay que sumarle una UI a esta sección.
  */
 export function DosageAndStockForm({ value, onChange }: DosageAndStockFormProps): React.JSX.Element {
   function update(patch: Partial<DosageAndStockFormValue>): void {
@@ -49,6 +53,26 @@ export function DosageAndStockForm({ value, onChange }: DosageAndStockFormProps)
           keyboardType="decimal-pad"
         />
       </View>
+
+      <AccessibleText variant="small" color={colors.textSecondary} style={styles.sectionSpacing}>
+        ¿Qué días toma este medicamento?
+      </AccessibleText>
+      <Pressable
+        onPress={() => update({ allDays: !value.allDays })}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: value.allDays }}
+        accessibilityLabel="Todos los días"
+        style={styles.allDaysRow}
+      >
+        <View style={[styles.checkbox, value.allDays && styles.checkboxChecked]}>
+          {value.allDays ? (
+            <AccessibleText variant="small" bold color="#FFFFFF">
+              ✓
+            </AccessibleText>
+          ) : null}
+        </View>
+        <AccessibleText variant="body">Todos los días</AccessibleText>
+      </Pressable>
 
       <AccessibleText variant="label" bold style={styles.sectionSpacing}>
         Stock inicial
@@ -111,7 +135,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     fontSize: typography.body,
     color: colors.textPrimary,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
+  },
+  allDaysRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: touchTarget.minHeight,
+  },
+  checkbox: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
 });
 

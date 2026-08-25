@@ -1,24 +1,22 @@
-import { Ok, Err, type Result, DomainErrors, type DomainError } from '../../../domain';
-import type { TransactionRunner } from '../../../application';
 import type { SQLiteDatabase, SQLiteExecutor } from './sqlite-executor.port';
 
 /**
  * PIEZA CLAVE DE ATOMICIDAD.
  *
- * El puerto `TransactionRunner` de la capa de aplicación expone
- * `runInTransaction(work: () => Promise<Result<T>>)` — `work` NO recibe un
- * handle de transacción, porque la aplicación no debe conocer conceptos de
- * SQL. Pero los repos concretos SÍ necesitan ejecutar contra la misma
- * conexión/transacción para que `ConfirmDoseUseCase` (confirmar dose +
- * decrementar stock) sea atómico de verdad.
+ * Ya NO existe un puerto `TransactionRunner` genérico en la capa de
+ * aplicación — se eliminó porque no es portable a un backend sin
+ * transacciones cross-request (Supabase/PostgREST). En su lugar, cada
+ * operación que necesita atomidad real es UN SOLO método de repositorio
+ * (`TreatmentRepository.createWithInitialDoses`,
+ * `DoseRepository.confirmDoseWithStockDecrement`) que abre y cierra su
+ * propia transacción acá adentro, sin que el use case sepa nada de SQL.
  *
- * Solución: este contexto mantiene "cuál es el executor activo ahora mismo"
- * (la DB raíz fuera de transacción, o el handle `tx` mientras hay una
- * abierta). Se inyecta LA MISMA INSTANCIA tanto en `SqliteTransactionRunner`
- * como en cada repo concreto (`SqliteTreatmentRepository`, etc.). Cada
- * repo pide `getExecutor()` en el momento de cada query — así, si esa query
- * ocurre dentro de un `runInTransaction`, automáticamente usa `tx` sin que
- * el repo ni el use case tengan que saberlo explícitamente.
+ * Este contexto mantiene "cuál es el executor activo ahora mismo" (la DB
+ * raíz fuera de transacción, o el handle `tx` mientras hay una abierta). Se
+ * inyecta LA MISMA INSTANCIA en cada repo concreto (`SqliteTreatmentRepository`,
+ * etc.). Cada repo pide `getExecutor()` en el momento de cada query — así,
+ * si esa query ocurre dentro de un `runInTransaction` que el propio repo
+ * abrió, automáticamente usa `tx`.
  *
  * Es un Unit of Work simplificado, mono-conexión (correcto para SQLite
  * embebido, que no tiene pool de conexiones concurrentes).
@@ -47,25 +45,5 @@ export class SqliteTransactionContext {
         this.currentExecutor = previousExecutor;
       }
     });
-  }
-}
-
-/**
- * Adapter que implementa el puerto `TransactionRunner` de la capa de
- * aplicación por encima del `SqliteTransactionContext`. Traduce excepciones
- * nativas de SQLite (constraint violations, locks, etc.) a `DomainError`
- * en vez de dejarlas escapar como `throw` hacia el use case.
- */
-export class SqliteTransactionRunner implements TransactionRunner {
-  constructor(private readonly context: SqliteTransactionContext) {}
-
-  async runInTransaction<T>(
-    work: () => Promise<Result<T, DomainError>>,
-  ): Promise<Result<T, DomainError>> {
-    try {
-      return await this.context.runInTransaction(work);
-    } catch (cause) {
-      return Err(DomainErrors.repositoryFailure(cause));
-    }
   }
 }

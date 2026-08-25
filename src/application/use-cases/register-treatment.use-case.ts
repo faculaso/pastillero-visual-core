@@ -13,7 +13,6 @@ import {
   createDoseSlot,
   calculateScheduledDoseTimes,
   type TreatmentRepository,
-  type DoseRepository,
   type MedicationCatalogRepository,
   type TimeOfDay,
   type Dose,
@@ -22,7 +21,6 @@ import {
 import type { UseCase } from '../core/use-case';
 import type { Clock } from '../ports/clock.port';
 import type { IdGenerator } from '../ports/id-generator.port';
-import type { TransactionRunner } from '../ports/transaction-runner.port';
 import type { NotificationScheduler } from '../ports/notification-scheduler.port';
 import type { RegisterTreatmentInput, RegisterTreatmentOutput } from '../dto/register-treatment.dto';
 
@@ -46,8 +44,6 @@ export class RegisterTreatmentUseCase
   constructor(
     private readonly medicationCatalogRepository: MedicationCatalogRepository,
     private readonly treatmentRepository: TreatmentRepository,
-    private readonly doseRepository: DoseRepository,
-    private readonly transactionRunner: TransactionRunner,
     private readonly notificationScheduler: NotificationScheduler,
     private readonly idGenerator: IdGenerator,
     private readonly clock: Clock,
@@ -119,15 +115,10 @@ export class RegisterTreatmentUseCase
     if (!dosesResult.ok) return dosesResult;
 
     // --- 5. Persistencia atómica: tratamiento + slots, todo o nada ---
-    const persistResult = await this.transactionRunner.runInTransaction(async () => {
-      const savedTreatmentResult = await this.treatmentRepository.create(treatment);
-      if (!savedTreatmentResult.ok) return savedTreatmentResult;
-
-      const savedDosesResult = await this.doseRepository.createSlots(dosesResult.value);
-      if (!savedDosesResult.ok) return savedDosesResult;
-
-      return Ok({ treatment: savedTreatmentResult.value, generatedDoses: savedDosesResult.value });
-    });
+    const persistResult = await this.treatmentRepository.createWithInitialDoses(
+      treatment,
+      dosesResult.value,
+    );
     if (!persistResult.ok) return persistResult;
 
     // --- 6. Alarmas del OS: best-effort, no bloquea ni revierte el alta ---

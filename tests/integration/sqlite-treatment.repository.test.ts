@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createTestDb } from './test-db';
 import { seedTreatment, seedMedication } from './seed';
 import { SqliteTreatmentRepository } from '../../src/infrastructure/persistence/sqlite/repositories/sqlite-treatment.repository';
-import { DosageFrequency, MeasurementUnit, TreatmentStatus } from '../../src/domain';
+import { DosageFrequency, MeasurementUnit, PillShape, TreatmentStatus } from '../../src/domain';
 import { buildTreatment } from '../support/fixtures';
 
 describe('SqliteTreatmentRepository (integración)', () => {
@@ -36,6 +36,29 @@ describe('SqliteTreatmentRepository (integración)', () => {
     expect(found.value.dosageScheme.startDate.toISOString()).toBe(original.dosageScheme.startDate.toISOString());
     expect(found.value.dosageScheme.endDate?.toISOString()).toBe(original.dosageScheme.endDate?.toISOString());
     expect(found.value.medication.name).toBe(original.medication.name);
+  });
+
+  it('acepta shape CAPSULE_BICOLOR (constraint de la migración 003) y persiste secondaryColor', async () => {
+    const { context } = await createTestDb();
+    const repo = new SqliteTreatmentRepository(context);
+    const medication = await seedMedication(context, { id: 'm1' });
+
+    const original = buildTreatment({
+      id: 't1',
+      medication,
+      visualProfile: { shape: PillShape.CAPSULE_BICOLOR, color: '#EB5757', secondaryColor: '#FFFFFF' },
+    });
+
+    const createResult = await repo.create(original);
+    expect(createResult.ok).toBe(true);
+
+    const found = await repo.findById('t1');
+    expect(found.ok).toBe(true);
+    if (!found.ok || !found.value) return;
+
+    expect(found.value.visualProfile.shape).toBe(PillShape.CAPSULE_BICOLOR);
+    expect(found.value.visualProfile.color).toBe('#EB5757');
+    expect(found.value.visualProfile.secondaryColor).toBe('#FFFFFF');
   });
 
   it('findById retorna null si no existe', async () => {

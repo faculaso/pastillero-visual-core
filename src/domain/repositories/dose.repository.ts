@@ -1,6 +1,7 @@
 import type { Result } from '../core/result';
 import type { DomainError } from '../errors/domain.errors';
 import type { Dose } from '../entities/dose.entity';
+import type { StockInfo } from '../entities/stock-info.entity';
 import type { Dosage } from '../value-objects/dosage.vo';
 
 /**
@@ -25,11 +26,30 @@ export interface DoseRepository {
     from: Date,
     to: Date,
   ): Promise<Result<readonly Dose[], DomainError>>;
+  /** Todas las tomas (cualquier status) de un paciente en un rango arbitrario — usado por el pastillero semanal (Cuidador y Adulto Mayor). */
+  findByPatientInRange(
+    patientId: string,
+    from: Date,
+    to: Date,
+  ): Promise<Result<readonly Dose[], DomainError>>;
   /** Persiste el resultado ya validado por el dominio (`confirmDose` factory). */
   confirmDose(
     doseId: string,
     confirmedAt: Date,
     quantityTaken?: Dosage,
   ): Promise<Result<Dose, DomainError>>;
+  /**
+   * Confirma la toma Y decrementa el stock del tratamiento en una sola
+   * operación atómica (todo o nada) — reemplaza la orquestación previa vía
+   * `TransactionRunner` (`ConfirmDoseUseCase` llamando `confirmDose` +
+   * `StockRepository.decrement` por separado), que no es portable a un
+   * backend sin transacciones cross-request (ver implementación Supabase,
+   * que usa una función RPC para esto).
+   */
+  confirmDoseWithStockDecrement(
+    doseId: string,
+    confirmedAt: Date,
+    quantityTaken: Dosage,
+  ): Promise<Result<{ readonly dose: Dose; readonly stock: StockInfo }, DomainError>>;
   markMissed(doseId: string): Promise<Result<Dose, DomainError>>;
 }

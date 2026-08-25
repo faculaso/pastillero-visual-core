@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import type { AdherenceMetrics } from '../../../../domain';
 import { AccessibleText } from '../../../design-system/AccessibleText';
-import { colors, radii, spacing } from '../../../design-system/tokens';
+import { colors, radii, spacing, shadows } from '../../../design-system/tokens';
 
 export interface AdherenceMetricsCardProps {
   readonly metrics: AdherenceMetrics;
@@ -17,11 +17,11 @@ function formatDaysRemaining(days: number): string {
 export function AdherenceMetricsCard({ metrics }: AdherenceMetricsCardProps): React.JSX.Element {
   return (
     <View style={styles.row}>
-      <View style={[styles.card, { backgroundColor: colors.surface }]}>
+      <View style={styles.card}>
         <AccessibleText variant="small" color={colors.textSecondary}>
           Adherencia
         </AccessibleText>
-        <AccessibleText variant="title" bold>
+        <AccessibleText variant="title" bold color={colors.success}>
           {metrics.adherencePercentage}%
         </AccessibleText>
         <AccessibleText variant="small" color={colors.textSecondary}>
@@ -29,7 +29,7 @@ export function AdherenceMetricsCard({ metrics }: AdherenceMetricsCardProps): Re
         </AccessibleText>
       </View>
 
-      <View style={[styles.card, { backgroundColor: colors.surface }]}>
+      <View style={styles.card}>
         <AccessibleText variant="small" color={colors.textSecondary}>
           Stock restante
         </AccessibleText>
@@ -45,8 +45,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.md },
   card: {
     flex: 1,
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
     padding: spacing.lg,
     gap: spacing.xs,
+    ...shadows.card,
   },
 });

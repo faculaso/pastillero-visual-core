@@ -34,6 +34,17 @@ export class SqliteMedicationCatalogRepository implements MedicationCatalogRepos
     }
   }
 
+  async listAll(limit = 50): Promise<Result<readonly Medication[], DomainError>> {
+    try {
+      const rows = await this.context
+        .getExecutor()
+        .queryAll<MedicationRow>(`SELECT * FROM medications ORDER BY name ASC LIMIT ?`, [limit]);
+      return Ok(rows.map(mapRowToMedication));
+    } catch (cause) {
+      return Err(DomainErrors.repositoryFailure(cause));
+    }
+  }
+
   async searchByBarcode(barcode: string): Promise<Result<Medication | null, DomainError>> {
     try {
       const row = await this.context

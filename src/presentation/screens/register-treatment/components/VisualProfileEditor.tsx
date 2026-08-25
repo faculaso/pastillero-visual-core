@@ -12,6 +12,7 @@ import { PILL_SHAPE_LABELS } from '../../../utils/pill-shape-labels';
 export interface VisualProfileFormValue {
   readonly shape: PillShape;
   readonly color: string;
+  readonly secondaryColor: string;
   readonly slotLabel: string;
   readonly pillImageUrl: string;
   readonly boxImageUrl: string;
@@ -31,9 +32,6 @@ const COLOR_SWATCHES: ReadonlyArray<{ readonly hex: string; readonly label: stri
   { hex: '#9B51E0', label: 'Violeta' },
 ];
 
-/** Mismos turnos que `getTimeOfDayTheme` (mañana/tarde/noche) — la ranura es por turno, no texto libre. */
-const SLOT_OPTIONS: ReadonlyArray<string> = ['Mañana', 'Tarde', 'Noche'];
-
 /**
  * CU-01 pasos 6-7 / RF-02. La preview usa el mismo `PillVisual` que ve el
  * Adulto Mayor en CU-02: "lo que configurás es lo que él va a ver" — captura
@@ -41,7 +39,7 @@ const SLOT_OPTIONS: ReadonlyArray<string> = ['Mañana', 'Tarde', 'Noche'];
  * misma preview de la que depende el reconocimiento visual en CU-02.
  */
 export function VisualProfileEditor({ value, onChange }: VisualProfileEditorProps): React.JSX.Element {
-  const [showFullPicker, setShowFullPicker] = useState(false);
+  const isBicolor = value.shape === PillShape.CAPSULE_BICOLOR;
 
   function update(patch: Partial<VisualProfileFormValue>): void {
     onChange({ ...value, ...patch });
@@ -58,6 +56,7 @@ export function VisualProfileEditor({ value, onChange }: VisualProfileEditorProp
           visualProfile={{
             shape: value.shape,
             color: value.color,
+            secondaryColor: isBicolor ? value.secondaryColor || undefined : undefined,
             pillImageUrl: value.pillImageUrl || undefined,
             boxImageUrl: value.boxImageUrl || undefined,
             slotLabel: value.slotLabel || undefined,
@@ -73,7 +72,17 @@ export function VisualProfileEditor({ value, onChange }: VisualProfileEditorProp
         {Object.values(PillShape).map((shape) => (
           <Pressable
             key={shape}
-            onPress={() => update({ shape })}
+            onPress={() =>
+              update({
+                shape,
+                // Default para no dejar el picker mostrando "una sola cápsula
+                // lisa" hasta que el Cuidador toque explícitamente un color
+                // secundario — mismo criterio que el blanco por defecto del
+                // color principal.
+                secondaryColor:
+                  shape === PillShape.CAPSULE_BICOLOR && !value.secondaryColor ? '#FFFFFF' : value.secondaryColor,
+              })
+            }
             accessibilityRole="radio"
             accessibilityState={{ checked: value.shape === shape }}
             accessibilityLabel={PILL_SHAPE_LABELS[shape]}
@@ -81,7 +90,7 @@ export function VisualProfileEditor({ value, onChange }: VisualProfileEditorProp
           >
             <AccessibleText
               variant="small"
-              color={value.shape === shape ? '#FFFFFF' : colors.textPrimary}
+              color={value.shape === shape ? colors.primaryDark : colors.textSecondary}
               bold={value.shape === shape}
             >
               {PILL_SHAPE_LABELS[shape]}
@@ -90,24 +99,54 @@ export function VisualProfileEditor({ value, onChange }: VisualProfileEditorProp
         ))}
       </View>
 
+      <ColorSwatchPicker
+        label={isBicolor ? 'Color principal — tocá para pintar la mitad izquierda' : 'Color — tocá para pintar la pastilla'}
+        value={value.color}
+        onChange={(color) => update({ color })}
+        moreColorsLabel="Más colores"
+      />
+
+      {isBicolor ? (
+        <ColorSwatchPicker
+          label="Color secundario — tocá para pintar la mitad derecha"
+          value={value.secondaryColor}
+          onChange={(secondaryColor) => update({ secondaryColor })}
+          moreColorsLabel="Más colores (secundario)"
+        />
+      ) : null}
+
+      <BoxPhotoCaptureField imageUri={value.boxImageUrl} onImageChange={(boxImageUrl) => update({ boxImageUrl })} />
+    </View>
+  );
+}
+
+interface ColorSwatchPickerProps {
+  readonly label: string;
+  readonly value: string;
+  readonly onChange: (hex: string) => void;
+  readonly moreColorsLabel: string;
+}
+
+/** Fila de 6 swatches fijos + "Más colores" (rueda completa) — reusada para el color principal y, en CAPSULE_BICOLOR, el secundario. */
+function ColorSwatchPicker({ label, value, onChange, moreColorsLabel }: ColorSwatchPickerProps): React.JSX.Element {
+  const [showFullPicker, setShowFullPicker] = useState(false);
+
+  return (
+    <>
       <AccessibleText variant="small" color={colors.textSecondary}>
-        Color — tocá para pintar la pastilla
+        {label}
       </AccessibleText>
       <View style={styles.colorRow}>
-        {COLOR_SWATCHES.map(({ hex, label }) => (
+        {COLOR_SWATCHES.map(({ hex, label: swatchLabel }) => (
           <Pressable
             key={hex}
-            onPress={() => update({ color: hex })}
+            onPress={() => onChange(hex)}
             accessibilityRole="radio"
-            accessibilityState={{ checked: value.color === hex }}
-            accessibilityLabel={label}
-            style={[
-              styles.swatch,
-              { backgroundColor: hex },
-              value.color === hex && styles.swatchSelected,
-            ]}
+            accessibilityState={{ checked: value === hex }}
+            accessibilityLabel={swatchLabel}
+            style={[styles.swatch, { backgroundColor: hex }, value === hex && styles.swatchSelected]}
           >
-            {value.color === hex ? (
+            {value === hex ? (
               <AccessibleText variant="label" bold color={hex === '#FFFFFF' || hex === '#F2C94C' ? colors.textPrimary : '#FFFFFF'}>
                 ✓
               </AccessibleText>
@@ -119,7 +158,7 @@ export function VisualProfileEditor({ value, onChange }: VisualProfileEditorProp
           onPress={() => setShowFullPicker((current) => !current)}
           accessibilityRole="button"
           accessibilityState={{ expanded: showFullPicker }}
-          accessibilityLabel="Más colores"
+          accessibilityLabel={moreColorsLabel}
           style={[styles.swatch, showFullPicker && styles.swatchSelected]}
         >
           <Svg width={touchTarget.minWidth - 4} height={touchTarget.minHeight - 4}>
@@ -143,36 +182,8 @@ export function VisualProfileEditor({ value, onChange }: VisualProfileEditorProp
         </Pressable>
       </View>
 
-      {showFullPicker ? (
-        <ColorWheelPicker value={value.color} onChange={(color) => update({ color })} />
-      ) : null}
-
-      <AccessibleText variant="small" color={colors.textSecondary}>
-        Ranura del pastillero (opcional)
-      </AccessibleText>
-      <View style={styles.shapeRow}>
-        {SLOT_OPTIONS.map((slot) => (
-          <Pressable
-            key={slot}
-            onPress={() => update({ slotLabel: value.slotLabel === slot ? '' : slot })}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: value.slotLabel === slot }}
-            accessibilityLabel={slot}
-            style={[styles.shapeChip, value.slotLabel === slot && styles.shapeChipSelected]}
-          >
-            <AccessibleText
-              variant="small"
-              color={value.slotLabel === slot ? '#FFFFFF' : colors.textPrimary}
-              bold={value.slotLabel === slot}
-            >
-              {slot}
-            </AccessibleText>
-          </Pressable>
-        ))}
-      </View>
-
-      <BoxPhotoCaptureField imageUri={value.boxImageUrl} onImageChange={(boxImageUrl) => update({ boxImageUrl })} />
-    </View>
+      {showFullPicker ? <ColorWheelPicker value={value} onChange={onChange} /> : null}
+    </>
   );
 }
 
@@ -183,14 +194,15 @@ const styles = StyleSheet.create({
   shapeChip: {
     minHeight: touchTarget.minHeight,
     paddingHorizontal: spacing.md,
+    alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.pill,
+    borderRadius: radii.md,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: colors.borderLight,
     backgroundColor: colors.surface,
   },
   shapeChipSelected: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primarySoft,
     borderColor: colors.primary,
   },
   colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

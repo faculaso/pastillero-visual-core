@@ -17,7 +17,10 @@ export type DomainErrorCode =
   | 'DOSAGE_SCHEME_INVALID'
   | 'VALIDATION_ERROR'
   | 'REPOSITORY_FAILURE'
-  | 'UNAUTHORIZED_ACTOR';
+  | 'UNAUTHORIZED_ACTOR'
+  | 'INVITE_CODE_INVALID'
+  | 'AUTH_INVALID_CREDENTIALS'
+  | 'AUTH_EMAIL_ALREADY_IN_USE';
 
 export class DomainError extends Error {
   public readonly code: DomainErrorCode;
@@ -76,4 +79,13 @@ export const DomainErrors = {
 
   unauthorizedActor: (actorId: string, action: string) =>
     new DomainError('UNAUTHORIZED_ACTOR', `Actor ${actorId} no autorizado para: ${action}`),
+
+  inviteCodeInvalid: (code: string) =>
+    new DomainError('INVITE_CODE_INVALID', `Código de invitación inválido: ${code}`),
+
+  authInvalidCredentials: () =>
+    new DomainError('AUTH_INVALID_CREDENTIALS', 'Correo o contraseña incorrectos'),
+
+  authEmailAlreadyInUse: (email: string) =>
+    new DomainError('AUTH_EMAIL_ALREADY_IN_USE', `Ya existe una cuenta con el correo ${email}`),
 } as const;

@@ -11,4 +11,6 @@ export interface MedicationCatalogRepository {
   searchByText(query: string): Promise<Result<readonly Medication[], DomainError>>;
   searchByBarcode(barcode: string): Promise<Result<Medication | null, DomainError>>;
   findById(id: string): Promise<Result<Medication | null, DomainError>>;
+  /** Lista medicamentos del catálogo sin necesidad de un texto de búsqueda (orden alfabético). */
+  listAll(limit?: number): Promise<Result<readonly Medication[], DomainError>>;
 }

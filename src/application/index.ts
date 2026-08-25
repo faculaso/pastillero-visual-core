@@ -2,11 +2,11 @@ export * from './core/use-case';
 
 export * from './ports/clock.port';
 export * from './ports/id-generator.port';
-export * from './ports/transaction-runner.port';
 export * from './ports/notification-scheduler.port';
 export * from './ports/medication-visual-suggestion.port';
 export * from './ports/local-image-storage.port';
 export * from './ports/voice-guidance.port';
+export * from './ports/auth.port';
 
 export * from './dto/confirm-dose.dto';
 export * from './dto/register-treatment.dto';
@@ -16,6 +16,10 @@ export * from './dto/get-pending-doses.dto';
 export * from './dto/get-daily-progress.dto';
 export * from './dto/search-medication-catalog.dto';
 export * from './dto/suggest-visual-profile.dto';
+export * from './dto/redeem-invite-code.dto';
+export * from './dto/get-linked-patient.dto';
+export * from './dto/get-profile.dto';
+export * from './dto/get-weekly-schedule.dto';
 
 export * from './use-cases/confirm-dose.use-case';
 export * from './use-cases/register-treatment.use-case';
@@ -25,3 +29,7 @@ export * from './use-cases/get-pending-doses.use-case';
 export * from './use-cases/get-daily-progress.use-case';
 export * from './use-cases/search-medication-catalog.use-case';
 export * from './use-cases/suggest-visual-profile.use-case';
+export * from './use-cases/redeem-invite-code.use-case';
+export * from './use-cases/get-linked-patient.use-case';
+export * from './use-cases/get-profile.use-case';
+export * from './use-cases/get-weekly-schedule.use-case';

@@ -1,9 +1,11 @@
 import React from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SessionProvider, useSession } from '../providers/SessionContext';
-import { RoleSelectScreen } from '../screens/RoleSelectScreen';
+import { AuthStack } from './AuthStack';
 import { AdultoMayorStack } from './AdultoMayorStack';
 import { CuidadorStack } from './CuidadorStack';
+import { colors } from '../design-system/tokens';
 
 /**
  * El switch de roles vive ACÁ, no dentro de cada Stack — así
@@ -12,9 +14,20 @@ import { CuidadorStack } from './CuidadorStack';
  * lectura") no toca ninguno de los dos.
  */
 function RoleSwitch(): React.JSX.Element {
-  const { session } = useSession();
+  const { session, status } = useSession();
 
-  if (!session) return <RoleSelectScreen />;
+  // Mientras se restaura la sesión de Supabase (o se resuelve el rol/paciente
+  // vinculado tras un login recién hecho), no hay que mostrar el login por
+  // un instante y después "saltar" al stack correcto — mejor un loader corto.
+  if (status === 'loading') {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!session) return <AuthStack />;
   if (session.role === 'ADULTO_MAYOR') return <AdultoMayorStack />;
   return <CuidadorStack />;
 }
@@ -28,3 +41,12 @@ export function RootNavigator(): React.JSX.Element {
     </SessionProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+});

@@ -19,12 +19,16 @@ export * from './entities/stock-info.entity';
 export * from './entities/treatment.entity';
 export * from './entities/dose.entity';
 export * from './entities/adherence-metrics.entity';
+export * from './entities/profile.entity';
+export * from './entities/patient-invite-link.entity';
 
 // Repository Contracts
 export * from './repositories/medication-catalog.repository';
 export * from './repositories/treatment.repository';
 export * from './repositories/dose.repository';
 export * from './repositories/stock-adherence.repository';
+export * from './repositories/profile.repository';
+export * from './repositories/pairing.repository';
 
 // Factories / Invariantes de dominio
 export * from './factories/dosage.factory';

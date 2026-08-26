@@ -25,7 +25,7 @@ interface CellSelection {
 }
 
 /** Hora representativa de cada turno, para sugerir un horario al agregar un tratamiento desde un casillero. */
-const SUGGESTED_HOUR: Record<Turno, number> = { morning: 8, afternoon: 14, night: 21 };
+const SUGGESTED_HOUR: Record<Turno, number> = { morning: 8, midday: 12, afternoon: 14, night: 21 };
 
 /**
  * Nueva ruta raíz de `CuidadorStack` — reemplaza el bug reportado

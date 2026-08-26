@@ -34,7 +34,9 @@ export function CurrentDoseCard({ dose }: CurrentDoseCardProps): React.JSX.Eleme
             Aspecto exacto
           </AccessibleText>
         </View>
-        <PillVisual visualProfile={dose.visualProfile} size={170} medicationName={dose.medicationName} />
+        <View style={styles.showcasePillSlot}>
+          <PillVisual visualProfile={dose.visualProfile} size={170} medicationName={dose.medicationName} />
+        </View>
       </View>
 
       <AccessibleText variant="display" bold color={colors.textPrimary} style={styles.medicationName}>
@@ -67,18 +69,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.lg,
-    paddingVertical: spacing.lg,
+    padding: spacing.lg,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.md,
   },
   showcaseTag: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
+    // Fluye ANTES del comprimido (no superpuesto como esquina absoluta) —
+    // con formas altas (p. ej. `PillShape.OTHER`, un hexágono) el pill
+    // centrado verticalmente quedaba a solo unos px del rótulo "flotante"
+    // en la esquina, y en algunos anchos de pantalla llegaban a pisarse.
+    alignSelf: 'flex-start',
     backgroundColor: 'rgba(15, 23, 42, 0.8)',
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: radii.sm,
+  },
+  showcasePillSlot: {
+    width: '100%',
+    alignItems: 'center',
   },
   showcaseTagText: {
     letterSpacing: 0.5,

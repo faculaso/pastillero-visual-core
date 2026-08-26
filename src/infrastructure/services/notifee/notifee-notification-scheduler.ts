@@ -97,6 +97,7 @@ export class NotifeeNotificationScheduler implements NotificationScheduler {
         android: {
           channelId: NOTIFEE_CHANNELS.stockAlerts,
           importance: AndroidImportance.HIGH,
+          smallIcon: 'ic_notification',
           pressAction: { id: 'default' },
         },
       });
@@ -261,6 +262,7 @@ function buildDoseNotification(dose: Dose, treatment: Treatment): NotifeeNotific
     android: {
       channelId: NOTIFEE_CHANNELS.doseReminders,
       importance: AndroidImportance.HIGH,
+      smallIcon: 'ic_notification',
       category: AndroidCategory.ALARM,
       visibility: AndroidVisibility.PUBLIC, // contenido completo visible en pantalla de bloqueo
       ongoing: true, // no se descarta con un swipe accidental — solo con una acción explícita
@@ -284,7 +286,13 @@ async function createNotificationChannels(): Promise<void> {
     visibility: AndroidVisibility.PUBLIC,
     sound: 'medical_alarm', // src/main/res/raw/medical_alarm.mp3 en la app RN — ver README
     vibration: true,
-    vibrationPattern: [0, 500, 250, 500, 250, 500], // patrón largo, distinguible de una notificación genérica
+    // Sin el `0` inicial (el atajo típico de Android para "empezar ya"):
+    // notifee valida `vibrationPattern` como array de valores POSITIVOS —
+    // un 0 al principio lo rechaza en tiempo de ejecución
+    // ("expected an array containing an even number of positive values"),
+    // tumbando la creación del canal (y con eso, CUALQUIER notificación de
+    // toma). Sin el 0 el patrón arranca inmediato igual.
+    vibrationPattern: [500, 250, 500, 250, 500, 250], // patrón largo, distinguible de una notificación genérica
     bypassDnd: true, // una alarma de medicación debe sonar incluso en No Molestar
   });
 

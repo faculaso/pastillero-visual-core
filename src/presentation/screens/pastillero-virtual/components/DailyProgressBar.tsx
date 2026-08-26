@@ -41,7 +41,7 @@ export function DailyProgressBar({
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${ratio * 100}%`, backgroundColor: fillColor }]} />
       </View>
-      <AccessibleText variant="small" color={labelColor} bold>
+      <AccessibleText variant="small" color={labelColor} bold style={styles.label}>
         {totalTaken} de {totalScheduled} tomas completadas
       </AccessibleText>
     </View>
@@ -49,15 +49,16 @@ export function DailyProgressBar({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: spacing.xs },
+  container: { gap: spacing.sm },
+  label: { textAlign: 'center' },
   track: {
     height: 14,
     borderRadius: radii.pill,
-    // Translúcido (no un color sólido de token) a propósito: esta barra se
-    // dibuja directamente sobre el fondo teñido por turno de
-    // `PastilleroVirtualScreen` (mañana/tarde/noche) — necesita funcionar
-    // sobre los tres sin quedar invisible ni desentonar.
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    // Tinte oscuro traslúcido (no un gris sólido de token): `PastilleroVirtualScreen`
+    // dibuja esta barra dentro de una tarjeta "glass" casi opaca — necesita
+    // leerse como una ranura hundida sobre blanco, con contraste consistente
+    // contra ese fondo, no invisible como cuando ambos eran translúcidos.
+    backgroundColor: 'rgba(15, 23, 42, 0.1)',
     overflow: 'hidden',
   },
   fill: {

@@ -5,6 +5,10 @@ import { PillShape, MeasurementUnit, Ok, Err, DomainErrors } from '../../src/dom
 import { withProviders } from './test-utils';
 import type { PendingDoseView } from '../../src/application';
 
+function buildNavigationMock() {
+  return { navigate: jest.fn(), goBack: jest.fn() } as unknown as Parameters<typeof PastilleroVirtualScreen>[0]['navigation'];
+}
+
 function buildDoseView(overrides: Partial<PendingDoseView> = {}): PendingDoseView {
   return {
     doseId: 'dose-1',
@@ -22,7 +26,7 @@ describe('PastilleroVirtualScreen', () => {
     const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [buildDoseView()] })) };
 
     await render(
-      withProviders(<PastilleroVirtualScreen patientId="patient-1" />, {
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
         useCases: { getPendingDoses: getPendingDoses as never },
       }),
     );
@@ -37,7 +41,7 @@ describe('PastilleroVirtualScreen', () => {
     };
 
     await render(
-      withProviders(<PastilleroVirtualScreen patientId="patient-1" />, {
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
         useCases: { getPendingDoses: getPendingDoses as never },
       }),
     );
@@ -52,7 +56,7 @@ describe('PastilleroVirtualScreen', () => {
     };
 
     await render(
-      withProviders(<PastilleroVirtualScreen patientId="patient-1" />, {
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
         useCases: { getPendingDoses: getPendingDoses as never },
       }),
     );
@@ -67,7 +71,7 @@ describe('PastilleroVirtualScreen', () => {
     };
 
     await render(
-      withProviders(<PastilleroVirtualScreen patientId="patient-1" />, {
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
         useCases: { getPendingDoses: getPendingDoses as never },
       }),
     );
@@ -80,7 +84,7 @@ describe('PastilleroVirtualScreen', () => {
     const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [buildDoseView()] })) };
 
     await render(
-      withProviders(<PastilleroVirtualScreen patientId="patient-1" />, {
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
         useCases: { getPendingDoses: getPendingDoses as never },
       }),
     );
@@ -92,7 +96,7 @@ describe('PastilleroVirtualScreen', () => {
     const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [] })) };
 
     await render(
-      withProviders(<PastilleroVirtualScreen patientId="patient-1" />, {
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
         useCases: { getPendingDoses: getPendingDoses as never },
       }),
     );
@@ -106,7 +110,7 @@ describe('PastilleroVirtualScreen', () => {
     const user = userEvent.setup();
 
     await render(
-      withProviders(<PastilleroVirtualScreen patientId="patient-1" />, {
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
         useCases: { getPendingDoses: getPendingDoses as never, confirmDose: confirmDose as never },
       }),
     );
@@ -120,6 +124,35 @@ describe('PastilleroVirtualScreen', () => {
     await waitFor(() => expect(screen.getByText('Por ahora no tenés tomas pendientes')).toBeTruthy());
   });
 
+  it('dos tomas a la misma hora se pueden navegar deslizando — confirmar una no afecta a la otra', async () => {
+    const doseA = buildDoseView({ doseId: 'dose-a', medicationName: 'Paracetamol' });
+    const doseB = buildDoseView({ doseId: 'dose-b', medicationName: 'Ibuprofeno' });
+    const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [doseA, doseB] })) };
+    const confirmDose = { execute: jest.fn().mockResolvedValue(Ok({ dose: {}, stock: {} })) };
+    const user = userEvent.setup();
+
+    await render(
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
+        useCases: { getPendingDoses: getPendingDoses as never, confirmDose: confirmDose as never },
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByText('Paracetamol')).toBeTruthy());
+    expect(screen.getByText('Ibuprofeno')).toBeTruthy();
+    expect(screen.getByText(/Deslizá para ver la otra pastilla/)).toBeTruthy();
+
+    // Confirma la PRIMERA (índice actual del carrusel) — no la segunda.
+    await user.press(screen.getByText('Confirmar Toma'));
+    await waitFor(() =>
+      expect(confirmDose.execute).toHaveBeenCalledWith({ doseId: 'dose-a', requestingPatientId: 'patient-1' }),
+    );
+
+    // La segunda toma sigue pendiente, y al quedar sola ya no hace falta la pista de deslizar.
+    await waitFor(() => expect(screen.getByText('Ibuprofeno')).toBeTruthy());
+    expect(screen.queryByText('Paracetamol')).toBeNull();
+    expect(screen.queryByText(/Deslizá para ver la otra pastilla/)).toBeNull();
+  });
+
   it('si la confirmación falla, muestra el ErrorBanner y NO quita la toma de la lista', async () => {
     const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [buildDoseView()] })) };
     const confirmDose = {
@@ -128,7 +161,7 @@ describe('PastilleroVirtualScreen', () => {
     const user = userEvent.setup();
 
     await render(
-      withProviders(<PastilleroVirtualScreen patientId="patient-1" />, {
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
         useCases: { getPendingDoses: getPendingDoses as never, confirmDose: confirmDose as never },
       }),
     );
@@ -150,7 +183,7 @@ describe('PastilleroVirtualScreen', () => {
     const user = userEvent.setup();
 
     await render(
-      withProviders(<PastilleroVirtualScreen patientId="patient-1" />, {
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
         useCases: { getPendingDoses: getPendingDoses as never, confirmDose: confirmDose as never },
       }),
     );
@@ -173,7 +206,7 @@ describe('PastilleroVirtualScreen', () => {
     const user = userEvent.setup();
 
     await render(
-      withProviders(<PastilleroVirtualScreen patientId="patient-1" />, {
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
         useCases: { getPendingDoses: getPendingDoses as never, getProfile: getProfile as never },
       }),
     );

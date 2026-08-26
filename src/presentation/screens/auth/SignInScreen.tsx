@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, ScrollView } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { useSession } from '../../providers/SessionContext';
 import { AccessibleText } from '../../design-system/AccessibleText';
 import { AccessibleButton } from '../../design-system/AccessibleButton';
-import { colors, radii, spacing, touchTarget, typography } from '../../design-system/tokens';
+import { colors, spacing } from '../../design-system/tokens';
+import { AuthGradientBackground } from './components/AuthGradientBackground';
+import { AuthBrandHeader } from './components/AuthBrandHeader';
+import { AuthCard } from './components/AuthCard';
+import { AuthTextField } from './components/AuthTextField';
+import { PrimaryAuthButton } from './components/PrimaryAuthButton';
+import { useStaggeredEntrance } from '../../hooks/useStaggeredEntrance';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
 
@@ -35,83 +42,62 @@ export function SignInScreen({ navigation }: Props): React.JSX.Element {
   }
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && status !== 'submitting';
+  const footerEntrance = useStaggeredEntrance(6);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <AccessibleText variant="title" bold style={styles.title}>
-        Iniciar sesión
-      </AccessibleText>
+    <View style={styles.screen}>
+      <AuthGradientBackground />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <AuthBrandHeader title="Pastillero Visual" subtitle="Iniciá sesión para continuar tu cuidado" />
 
-      <View style={styles.field}>
-        <AccessibleText variant="small" bold color={colors.textSecondary}>
-          Correo electrónico
-        </AccessibleText>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="tu@email.com"
-          placeholderTextColor={colors.textSecondary}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          accessibilityLabel="Correo electrónico"
-        />
-      </View>
+          <AuthCard staggerIndex={2}>
+            <AuthTextField
+              label="Correo electrónico"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="tu@email.com"
+              keyboardType="email-address"
+              hasError={status === 'error'}
+            />
+            <AuthTextField
+              label="Contraseña"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              hasError={status === 'error'}
+            />
 
-      <View style={styles.field}>
-        <AccessibleText variant="small" bold color={colors.textSecondary}>
-          Contraseña
-        </AccessibleText>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="••••••••"
-          placeholderTextColor={colors.textSecondary}
-          secureTextEntry
-          accessibilityLabel="Contraseña"
-        />
-      </View>
+            {error ? (
+              <AccessibleText color={colors.critical} bold style={styles.centerText}>
+                {error}
+              </AccessibleText>
+            ) : null}
 
-      {error ? (
-        <AccessibleText color={colors.critical} bold style={styles.error}>
-          {error}
-        </AccessibleText>
-      ) : null}
+            <PrimaryAuthButton
+              label="Iniciar sesión"
+              onPress={handleSubmit}
+              disabled={!canSubmit}
+              loading={status === 'submitting'}
+            />
+          </AuthCard>
 
-      <AccessibleButton
-        label="Iniciar sesión"
-        onPress={handleSubmit}
-        disabled={!canSubmit}
-        loading={status === 'submitting'}
-        fullHeight
-      />
-
-      <View style={styles.footerRow}>
-        <AccessibleText variant="small" color={colors.textSecondary}>
-          ¿No tenés cuenta?
-        </AccessibleText>
-        <AccessibleButton label="Creá una" variant="secondary" onPress={() => navigation.navigate('SignUp')} />
-      </View>
-    </ScrollView>
+          <Animated.View style={[styles.footerRow, footerEntrance]}>
+            <AccessibleText variant="small" color={colors.textSecondary}>
+              ¿No tenés cuenta?
+            </AccessibleText>
+            <AccessibleButton label="Creá una" variant="secondary" onPress={() => navigation.navigate('SignUp')} />
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
-  title: { textAlign: 'center' },
-  field: { gap: spacing.sm },
-  input: {
-    minHeight: touchTarget.minHeight,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    fontSize: typography.body,
-    color: colors.textPrimary,
-    backgroundColor: colors.surface,
-  },
-  error: { textAlign: 'center' },
-  footerRow: { alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
+  screen: { flex: 1, backgroundColor: '#F0F9FF' },
+  flex: { flex: 1 },
+  content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl, flexGrow: 1, justifyContent: 'center' },
+  centerText: { textAlign: 'center' },
+  footerRow: { alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
 });

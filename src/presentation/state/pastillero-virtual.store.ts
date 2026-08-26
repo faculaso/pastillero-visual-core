@@ -23,7 +23,9 @@ export interface PastilleroVirtualState {
   /** Se incrementa en cada confirmación exitosa — la UI lo usa para disparar la animación de celebración sin necesitar resetear un booleano. */
   readonly celebrationTrigger: number;
   loadPendingDoses(patientId: string): Promise<void>;
-  confirmCurrentDose(patientId: string): Promise<void>;
+  /** `doseId` explícito (no siempre `doses[0]`): dos tomas programadas a la misma hora se navegan
+   *  deslizando en la pantalla, y cualquiera de las dos puede confirmarse primero. */
+  confirmCurrentDose(patientId: string, doseId: string): Promise<void>;
   dismissError(): void;
 }
 
@@ -40,8 +42,12 @@ export interface PastilleroVirtualDeps {
  * imports globales, y para que el wiring de infraestructura quede
  * confinado al `UseCasesProvider` (composition root de presentación).
  *
- * Solo expone "la toma actual" (`doses[0]`, ya viene ordenada por el use
- * case) — CU-02 renderiza una toma a la vez, no una lista completa.
+ * Expone `doses` ya ordenado por horario (por el use case) — la pantalla
+ * decide qué mostrar: normalmente la primera toma pendiente (`doses[0]`),
+ * pero si hay más de una programada exactamente a la misma hora, las
+ * agrupa y navega entre ellas deslizando (ver `PastilleroVirtualScreen`).
+ * `confirmCurrentDose` recibe el `doseId` puntual a confirmar en vez de
+ * asumir siempre `doses[0]`, justamente para soportar ese caso.
  */
 export function createPastilleroVirtualStore(
   deps: PastilleroVirtualDeps,
@@ -77,8 +83,8 @@ export function createPastilleroVirtualStore(
       void refreshDailyProgress(patientId, set);
     },
 
-    async confirmCurrentDose(patientId: string) {
-      const current = get().doses[0];
+    async confirmCurrentDose(patientId: string, doseId: string) {
+      const current = get().doses.find((d) => d.doseId === doseId);
       if (!current) return; // no hay nada que confirmar — el botón no debería estar habilitado en este caso
 
       set({ status: 'confirming', error: null });

@@ -1,9 +1,12 @@
 import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import type { WeekDoseView } from '../../../../application';
 import { DoseStatus } from '../../../../domain';
 import { AccessibleText } from '../../../design-system/AccessibleText';
 import { colors, radii, spacing, touchTarget } from '../../../design-system/tokens';
+import { PRESS_SPRING } from '../../../design-system/motion';
+import { vibrateTap } from '../../../utils/haptics';
 
 export interface TurnoRowProps {
   readonly emoji: string;
@@ -18,15 +21,19 @@ export interface TurnoRowProps {
 function summarize(
   doses: readonly WeekDoseView[],
   isFutureDay: boolean,
-): { readonly label: string; readonly color: string } {
+): { readonly label: string; readonly color: string; readonly background: string } {
   const total = doses.length;
   const taken = doses.filter((d) => d.status === DoseStatus.TAKEN).length;
   const missed = doses.filter((d) => d.status === DoseStatus.MISSED).length;
 
-  if (taken === total) return { label: total > 1 ? 'Tomadas' : 'Tomada', color: colors.success };
-  if (isFutureDay) return { label: 'Programada', color: colors.textSecondary };
-  if (missed === total) return { label: total > 1 ? 'No tomadas' : 'No tomada', color: colors.critical };
-  return { label: 'Pendiente', color: colors.warning };
+  if (taken === total) {
+    return { label: total > 1 ? 'Tomadas' : 'Tomada', color: colors.success, background: colors.successBackground };
+  }
+  if (isFutureDay) return { label: 'Programada', color: colors.textSecondary, background: colors.surfaceSubtle };
+  if (missed === total) {
+    return { label: total > 1 ? 'No tomadas' : 'No tomada', color: colors.critical, background: colors.criticalBackground };
+  }
+  return { label: 'Pendiente', color: colors.warning, background: colors.warningBackground };
 }
 
 /**
@@ -61,30 +68,56 @@ export function TurnoRow({ emoji, label, doses, interactive, isFutureDay, onPres
         </AccessibleText>
       )}
       {status ? (
-        <AccessibleText variant="small" bold color={status.color} style={styles.statusText}>
-          {status.label}
-        </AccessibleText>
+        <View style={[styles.statusChip, { backgroundColor: status.background }]}>
+          <AccessibleText variant="small" bold color={status.color}>
+            {status.label}
+          </AccessibleText>
+        </View>
       ) : null}
     </>
   );
 
   if (interactive && onPress) {
-    return (
-      <Pressable
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={`${label}, pendiente — tocá para ir a confirmarla`}
-        style={({ pressed }) => [styles.row, styles.rowActive, pressed && styles.rowPressed]}
-      >
-        {content}
-      </Pressable>
-    );
+    return <InteractiveRow label={label} onPress={onPress}>{content}</InteractiveRow>;
   }
 
   return (
     <View style={[styles.row, hasDoses ? styles.rowActive : styles.rowEmpty]} accessible accessibilityRole="text">
       {content}
     </View>
+  );
+}
+
+interface InteractiveRowProps {
+  readonly label: string;
+  readonly onPress: () => void;
+  readonly children: React.ReactNode;
+}
+
+/** Escala + vibración corta al tocar — misma micro-interacción que `ConfirmDoseButton`, la acción a la que lleva esta fila. */
+function InteractiveRow({ label, onPress, children }: InteractiveRowProps): React.JSX.Element {
+  const scale = useSharedValue(1);
+  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  function handlePress(): void {
+    vibrateTap();
+    onPress();
+  }
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      onPressIn={() => {
+        scale.value = withSpring(0.98, PRESS_SPRING);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, PRESS_SPRING);
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, pendiente — tocá para ir a confirmarla`}
+    >
+      <Animated.View style={[styles.row, styles.rowActive, pressStyle]}>{children}</Animated.View>
+    </Pressable>
   );
 }
 
@@ -106,10 +139,6 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
     opacity: 0.6,
   },
-  rowPressed: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primaryLight,
-  },
   meds: { gap: 2 },
   medRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: {
@@ -119,5 +148,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(15, 23, 42, 0.2)',
   },
-  statusText: { marginTop: 2 },
+  statusChip: {
+    alignSelf: 'flex-start',
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    marginTop: 2,
+  },
 });

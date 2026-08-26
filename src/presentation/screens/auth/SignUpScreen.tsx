@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import type { UserRole } from '../../../domain';
@@ -7,7 +8,16 @@ import { useSession } from '../../providers/SessionContext';
 import { useUseCases } from '../../providers/UseCasesProvider';
 import { AccessibleText } from '../../design-system/AccessibleText';
 import { AccessibleButton } from '../../design-system/AccessibleButton';
-import { colors, radii, spacing, touchTarget, typography } from '../../design-system/tokens';
+import { colors, radii, spacing } from '../../design-system/tokens';
+import { authPalette } from './theme/auth-theme';
+import { AuthGradientBackground } from './components/AuthGradientBackground';
+import { AuthBrandHeader } from './components/AuthBrandHeader';
+import { AuthCard } from './components/AuthCard';
+import { AuthTextField } from './components/AuthTextField';
+import { PairingCodeInput } from './components/PairingCodeInput';
+import { PrimaryAuthButton } from './components/PrimaryAuthButton';
+import { RoleOptionCard } from './components/RoleOptionCard';
+import { useStaggeredEntrance } from '../../hooks/useStaggeredEntrance';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 
@@ -34,6 +44,11 @@ export function SignUpScreen({ navigation }: Props): React.JSX.Element {
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error' | 'pending-confirmation' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [ownInviteCode, setOwnInviteCode] = useState<string | null>(null);
+  // Hook llamado antes de cualquier `return` condicional de más abajo — las
+  // reglas de hooks exigen el mismo orden en cada render, y esta pantalla
+  // tiene varios estados terminales (`pending-confirmation`, `done`) que
+  // retornan temprano.
+  const footerEntrance = useStaggeredEntrance(8);
 
   // Al crear la cuenta con sesión inmediata (confirmación de email
   // desactivada), `useSession()` resuelve la sesión de forma asíncrona vía
@@ -87,31 +102,41 @@ export function SignUpScreen({ navigation }: Props): React.JSX.Element {
 
   if (status === 'pending-confirmation') {
     return (
-      <View style={styles.centered}>
-        <AccessibleText variant="title" bold style={styles.centerText}>
-          Revisá tu correo
-        </AccessibleText>
-        <AccessibleText variant="body" color={colors.textSecondary} style={styles.centerText}>
-          Te mandamos un email para confirmar tu cuenta. Una vez confirmada, iniciá sesión normalmente.
-        </AccessibleText>
-        <AccessibleButton label="Ir a iniciar sesión" onPress={() => navigation.replace('SignIn')} fullHeight />
+      <View style={styles.screen}>
+        <AuthGradientBackground />
+        <View style={styles.centered}>
+          <AuthCard staggerIndex={0}>
+            <AccessibleText variant="title" bold style={styles.centerText}>
+              Revisá tu correo
+            </AccessibleText>
+            <AccessibleText variant="body" color={colors.textSecondary} style={styles.centerText}>
+              Te mandamos un email para confirmar tu cuenta. Una vez confirmada, iniciá sesión normalmente.
+            </AccessibleText>
+            <PrimaryAuthButton label="Ir a iniciar sesión" onPress={() => navigation.replace('SignIn')} staggerIndex={2} />
+          </AuthCard>
+        </View>
       </View>
     );
   }
 
   if (status === 'done' && ownInviteCode) {
     return (
-      <View style={styles.centered}>
-        <AccessibleText variant="title" bold style={styles.centerText}>
-          ¡Cuenta creada!
-        </AccessibleText>
-        <AccessibleText variant="body" color={colors.textSecondary} style={styles.centerText}>
-          Compartí este código con tu Cuidador para que pueda ver y registrar tus tratamientos:
-        </AccessibleText>
-        <View style={styles.codeBox}>
-          <AccessibleText variant="display" bold color={colors.primaryDark}>
-            {ownInviteCode}
-          </AccessibleText>
+      <View style={styles.screen}>
+        <AuthGradientBackground />
+        <View style={styles.centered}>
+          <AuthCard staggerIndex={0}>
+            <AccessibleText variant="title" bold style={styles.centerText}>
+              ¡Cuenta creada!
+            </AccessibleText>
+            <AccessibleText variant="body" color={colors.textSecondary} style={styles.centerText}>
+              Compartí este código con tu Cuidador para que pueda ver y registrar tus tratamientos:
+            </AccessibleText>
+            <View style={styles.codeBox}>
+              <AccessibleText variant="display" bold color={authPalette.clinicalBlue}>
+                {ownInviteCode}
+              </AccessibleText>
+            </View>
+          </AuthCard>
         </View>
       </View>
     );
@@ -126,165 +151,82 @@ export function SignUpScreen({ navigation }: Props): React.JSX.Element {
     status !== 'submitting';
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <AccessibleText variant="title" bold style={styles.title}>
-        Crear cuenta
-      </AccessibleText>
+    <View style={styles.screen}>
+      <AuthGradientBackground />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <AuthBrandHeader title="Crear cuenta" subtitle="Configurá tu pastillero en un par de pasos" />
 
-      <View style={styles.field}>
-        <AccessibleText variant="small" bold color={colors.textSecondary}>
-          ¿Quién va a usar esta cuenta?
-        </AccessibleText>
-        {ROLE_OPTIONS.map((option) => {
-          const selected = role === option.role;
-          return (
-            <Pressable
-              key={option.role}
-              onPress={() => setRole(option.role)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: selected }}
-              accessibilityLabel={option.label}
-              style={[styles.roleCard, selected && styles.roleCardSelected]}
-            >
-              <AccessibleText variant="label" bold color={selected ? colors.primaryDark : colors.textPrimary}>
-                {option.label}
+          <AuthCard staggerIndex={2}>
+            <View style={styles.field}>
+              <AccessibleText variant="small" bold color={colors.textSecondary}>
+                ¿Quién va a usar esta cuenta?
               </AccessibleText>
-              <AccessibleText variant="small" color={colors.textSecondary}>
-                {option.hint}
+              {ROLE_OPTIONS.map((option) => (
+                <RoleOptionCard
+                  key={option.role}
+                  label={option.label}
+                  hint={option.hint}
+                  selected={role === option.role}
+                  onPress={() => setRole(option.role)}
+                />
+              ))}
+            </View>
+
+            <AuthTextField label="Nombre" value={displayName} onChangeText={setDisplayName} placeholder="Nombre y apellido" autoCapitalize="words" />
+            <AuthTextField
+              label="Correo electrónico"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="tu@email.com"
+              keyboardType="email-address"
+            />
+            <AuthTextField label="Contraseña" value={password} onChangeText={setPassword} placeholder="Mínimo 6 caracteres" secureTextEntry />
+
+            {role === 'CUIDADOR' ? (
+              <PairingCodeInput
+                label="Código de invitación del Adulto Mayor"
+                accessibilityLabel="Código de invitación"
+                value={inviteCode}
+                onChangeText={setInviteCode}
+                hasError={status === 'error' && error === 'El código de invitación no es válido.'}
+              />
+            ) : null}
+
+            {error ? (
+              <AccessibleText color={colors.critical} bold style={styles.centerText}>
+                {error}
               </AccessibleText>
-            </Pressable>
-          );
-        })}
-      </View>
+            ) : null}
 
-      <View style={styles.field}>
-        <AccessibleText variant="small" bold color={colors.textSecondary}>
-          Nombre
-        </AccessibleText>
-        <TextInput
-          style={styles.input}
-          value={displayName}
-          onChangeText={setDisplayName}
-          placeholder="Nombre y apellido"
-          placeholderTextColor={colors.textSecondary}
-          accessibilityLabel="Nombre"
-        />
-      </View>
+            <PrimaryAuthButton label="Crear cuenta" onPress={handleSubmit} disabled={!canSubmit} loading={status === 'submitting'} staggerIndex={7} />
+          </AuthCard>
 
-      <View style={styles.field}>
-        <AccessibleText variant="small" bold color={colors.textSecondary}>
-          Correo electrónico
-        </AccessibleText>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="tu@email.com"
-          placeholderTextColor={colors.textSecondary}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          accessibilityLabel="Correo electrónico"
-        />
-      </View>
-
-      <View style={styles.field}>
-        <AccessibleText variant="small" bold color={colors.textSecondary}>
-          Contraseña
-        </AccessibleText>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Mínimo 6 caracteres"
-          placeholderTextColor={colors.textSecondary}
-          secureTextEntry
-          accessibilityLabel="Contraseña"
-        />
-      </View>
-
-      {role === 'CUIDADOR' ? (
-        <View style={styles.field}>
-          <AccessibleText variant="small" bold color={colors.textSecondary}>
-            Código de invitación del Adulto Mayor
-          </AccessibleText>
-          <TextInput
-            style={styles.input}
-            value={inviteCode}
-            onChangeText={(text) => setInviteCode(text.toUpperCase())}
-            placeholder="Ej: 7F2K9M"
-            placeholderTextColor={colors.textSecondary}
-            autoCapitalize="characters"
-            accessibilityLabel="Código de invitación"
-          />
-        </View>
-      ) : null}
-
-      {error ? (
-        <AccessibleText color={colors.critical} bold style={styles.error}>
-          {error}
-        </AccessibleText>
-      ) : null}
-
-      <AccessibleButton
-        label="Crear cuenta"
-        onPress={handleSubmit}
-        disabled={!canSubmit}
-        loading={status === 'submitting'}
-        fullHeight
-      />
-
-      <View style={styles.footerRow}>
-        <AccessibleText variant="small" color={colors.textSecondary}>
-          ¿Ya tenés cuenta?
-        </AccessibleText>
-        <AccessibleButton label="Iniciá sesión" variant="secondary" onPress={() => navigation.navigate('SignIn')} />
-      </View>
-    </ScrollView>
+          <Animated.View style={[styles.footerRow, footerEntrance]}>
+            <AccessibleText variant="small" color={colors.textSecondary}>
+              ¿Ya tenés cuenta?
+            </AccessibleText>
+            <AccessibleButton label="Iniciá sesión" variant="secondary" onPress={() => navigation.navigate('SignIn')} />
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
+  screen: { flex: 1, backgroundColor: '#F0F9FF' },
+  flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
-  title: { textAlign: 'center' },
   field: { gap: spacing.sm },
-  input: {
-    minHeight: touchTarget.minHeight,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    fontSize: typography.body,
-    color: colors.textPrimary,
-    backgroundColor: colors.surface,
-  },
-  roleCard: {
-    borderWidth: 2,
-    borderColor: colors.borderLight,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  roleCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  error: { textAlign: 'center' },
-  footerRow: { alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xl,
-    gap: spacing.md,
-    backgroundColor: colors.background,
-  },
   centerText: { textAlign: 'center' },
+  footerRow: { alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   codeBox: {
+    alignSelf: 'center',
     borderWidth: 2,
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
+    borderColor: authPalette.clinicalBlue,
+    backgroundColor: authPalette.glowSoft,
     borderRadius: radii.xl,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,

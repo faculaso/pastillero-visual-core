@@ -15,6 +15,7 @@ import { withProviders } from './test-utils';
 const INITIAL: VisualProfileFormValue = {
   shape: PillShape.ROUND,
   color: '#FFFFFF',
+  secondaryColor: '',
   slotLabel: '',
   pillImageUrl: '',
   boxImageUrl: '',

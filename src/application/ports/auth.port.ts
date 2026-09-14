@@ -37,6 +37,14 @@ export interface AuthPort {
   signUp(input: SignUpInput): Promise<Result<{ readonly session: AuthSession | null }, DomainError>>;
   signIn(email: string, password: string): Promise<Result<{ readonly session: AuthSession }, DomainError>>;
   signOut(): Promise<Result<void, DomainError>>;
+  /**
+   * Dispara el email de recuperación de contraseña de Supabase Auth. No
+   * distingue "el correo no existe" de "se envió OK" — Supabase responde
+   * éxito en ambos casos a propósito (no revelar qué emails están
+   * registrados), así que del lado del cliente solo hay un camino feliz y
+   * un error de infraestructura (red, rate limit).
+   */
+  resetPasswordForEmail(email: string): Promise<Result<void, DomainError>>;
   getSession(): Promise<AuthSession | null>;
   /** Devuelve la función de limpieza (unsubscribe). */
   onAuthStateChange(callback: (session: AuthSession | null) => void): () => void;

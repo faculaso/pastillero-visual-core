@@ -57,6 +57,12 @@ export class SupabaseAuthAdapter implements AuthPort {
     return Ok(undefined);
   }
 
+  async resetPasswordForEmail(email: string): Promise<Result<void, DomainError>> {
+    const { error } = await this.client.auth.resetPasswordForEmail(email);
+    if (error) return Err(DomainErrors.repositoryFailure(error));
+    return Ok(undefined);
+  }
+
   async getSession(): Promise<AuthSession | null> {
     const { data } = await this.client.auth.getSession();
     return data.session ? { user: mapUser(data.session.user) } : null;

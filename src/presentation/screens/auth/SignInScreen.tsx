@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
@@ -68,6 +68,18 @@ export function SignInScreen({ navigation }: Props): React.JSX.Element {
               hasError={status === 'error'}
             />
 
+            <Pressable
+              onPress={() => navigation.navigate('ForgotPassword')}
+              accessibilityRole="link"
+              accessibilityLabel="¿Olvidaste tu contraseña?"
+              style={styles.forgotPasswordLink}
+              hitSlop={8}
+            >
+              <AccessibleText variant="small" bold color={colors.primary}>
+                ¿Olvidaste tu contraseña?
+              </AccessibleText>
+            </Pressable>
+
             {error ? (
               <AccessibleText color={colors.critical} bold style={styles.centerText}>
                 {error}
@@ -100,4 +112,5 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl, flexGrow: 1, justifyContent: 'center' },
   centerText: { textAlign: 'center' },
   footerRow: { alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  forgotPasswordLink: { alignSelf: 'flex-end', paddingVertical: spacing.xs },
 });

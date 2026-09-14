@@ -39,6 +39,8 @@ interface SessionContextValue {
   signUp(params: SignUpParams): Promise<AuthActionResult>;
   signIn(email: string, password: string): Promise<AuthActionResult>;
   signOut(): Promise<void>;
+  /** No requiere sesión activa — se llama desde el login, antes de autenticar. */
+  requestPasswordReset(email: string): Promise<AuthActionResult>;
   /** CUIDADOR ya logueado, sin paciente vinculado todavía (p. ej. tipeó mal el código al registrarse) — redime uno nuevo y refresca `session.patientId`. */
   linkPatient(inviteCode: string): Promise<AuthActionResult>;
 }
@@ -179,6 +181,12 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
     setSession(null);
   }
 
+  async function requestPasswordReset(email: string): Promise<AuthActionResult> {
+    const result = await auth.resetPasswordForEmail(email);
+    if (!result.ok) return { ok: false, errorCode: mapErrorCode(result.error.code) };
+    return { ok: true };
+  }
+
   async function linkPatient(inviteCode: string): Promise<AuthActionResult> {
     if (!session || session.role !== 'CUIDADOR') return { ok: false, errorCode: 'UNKNOWN' };
 
@@ -194,7 +202,7 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
     return { ok: true };
   }
 
-  const value: SessionContextValue = { session, status, signUp, signIn, signOut, linkPatient };
+  const value: SessionContextValue = { session, status, signUp, signIn, signOut, linkPatient, requestPasswordReset };
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

@@ -1,0 +1,511 @@
+/* =========================================================================
+   Pastillero Visual — sitio público
+   =========================================================================
+   La paleta NO se inventó para el sitio: son los mismos tokens que usa la
+   app (`src/presentation/design-system/tokens.ts` y `utils/time-of-day-theme.ts`).
+   Los tres fondos por turno — mañana, tarde, noche — son la firma visual
+   del producto, así que son también la del sitio.
+
+   Tipografía: Atkinson Hyperlegible, diseñada por el Braille Institute
+   para personas con baja visión (letras 1/l/I y 0/O inconfundibles). En
+   una app cuya tesis es "que no confunda dos pastillas", usar la tipografía
+   hecha exactamente para ese lector es la decisión con más sentido
+   disponible — no un gusto estético.
+   ========================================================================= */
+
+:root {
+  /* Turnos del día (time-of-day-theme.ts) */
+  --noche: #1a237e;
+  --noche-profundo: #131a5c;
+  --manana: #e3f2fd;
+  --manana-tinta: #084a7f;
+  --tarde: #fff3e0;
+  --tarde-tinta: #7c3806;
+
+  /* Tokens de la app (tokens.ts) */
+  --azul: #2563eb;
+  --azul-oscuro: #1e40af;
+  --azul-suave: #eff6ff;
+  --verde: #16a34a;
+  --tinta: #0f172a;
+  --tinta-suave: #475569;
+  --papel: #f8fafc;
+  --blanco: #ffffff;
+  --borde: #cbd5e1;
+  --borde-claro: #e2e8f0;
+
+  /* La app arranca su escala en 16px como "chico", no como base. El sitio
+     hereda ese piso: lo lee la misma gente. */
+  --t-chico: 1rem;
+  --t-cuerpo: 1.1875rem;
+  --t-titulo: 1.75rem;
+  --t-display: 2.5rem;
+
+  --medida: 34rem; /* ~68 caracteres */
+  --radio: 20px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
+  font-size: var(--t-cuerpo);
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.15;
+  margin: 0;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  max-width: var(--medida);
+}
+
+a {
+  color: var(--azul-oscuro);
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--azul);
+}
+
+:focus-visible {
+  outline: 3px solid var(--azul);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Sobre el índigo el foco azul desaparece — se invierte a blanco. */
+.noche :focus-visible {
+  outline-color: var(--blanco);
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+.saltar {
+  position: absolute;
+  left: -9999px;
+}
+
+.saltar:focus {
+  left: 1rem;
+  top: 1rem;
+  z-index: 10;
+  background: var(--blanco);
+  color: var(--tinta);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.envoltorio {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding-inline: 1.5rem;
+}
+
+/* ---------------------------------------------------------------- bloques */
+/* Las secciones se separan por SUELO (índigo / papel / blanco), no por
+   tarjetas iguales con la misma sombra. */
+
+.bloque {
+  padding-block: clamp(3.5rem, 9vw, 6rem);
+}
+
+.bloque--blanco {
+  background: var(--blanco);
+  border-block: 1px solid var(--borde-claro);
+}
+
+.noche {
+  background: linear-gradient(170deg, var(--noche) 0%, var(--noche-profundo) 100%);
+  color: var(--blanco);
+}
+
+.noche a {
+  color: var(--blanco);
+}
+
+/* ------------------------------------------------------------------ hero */
+
+.hero {
+  padding-block: clamp(3rem, 8vw, 5.5rem);
+}
+
+.hero__grilla {
+  display: grid;
+  gap: clamp(2.5rem, 6vw, 4rem);
+  align-items: center;
+}
+
+@media (min-width: 58rem) {
+  .hero__grilla {
+    /* La columna de texto se lleva bastante más que la pastilla: con el
+       reparto parejo el titular caía en cuatro líneas cortas y el rag
+       quedaba picado. */
+    grid-template-columns: 1.45fr 1fr;
+  }
+}
+
+.marca {
+  font-size: var(--t-chico);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin-bottom: 2.5rem;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 6.5vw, 3.25rem);
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.hero__bajada {
+  font-size: clamp(1.1875rem, 2.4vw, 1.375rem);
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.estado {
+  display: inline-block;
+  margin-top: 2.5rem;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 999px;
+  font-size: var(--t-chico);
+  font-weight: 700;
+}
+
+/* La pastilla del hero se dibuja con la MISMA técnica que `PillVisual` en la
+   app: gradiente claro -> base -> oscuro más una elipse de brillo especular. */
+.hero__pastilla {
+  display: block;
+  margin-inline: auto;
+  width: min(100%, 22rem);
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.35));
+}
+
+/* ------------------------------------------------------------------ texto */
+
+.bloque h2 {
+  font-size: clamp(1.625rem, 3.6vw, var(--t-display));
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+}
+
+.bloque h2 + p {
+  font-size: clamp(1.1875rem, 2.2vw, 1.3125rem);
+  color: var(--tinta-suave);
+}
+
+.sangria {
+  margin-top: 3rem;
+}
+
+/* ----------------------------------------------------------- muestrario */
+
+.muestras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+  margin-top: 3rem;
+  list-style: none;
+  padding: 0;
+}
+
+.muestra {
+  text-align: center;
+}
+
+.muestra svg {
+  height: 5.5rem;
+}
+
+.muestra__pie {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: var(--t-chico);
+  color: var(--tinta-suave);
+}
+
+/* --------------------------------------------------------------- el día */
+/* Numerado porque ES una secuencia real (el flujo de una toma), no para
+   decorar una lista cualquiera. */
+
+.pasos {
+  counter-reset: paso;
+  list-style: none;
+  margin: 3rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.paso {
+  counter-increment: paso;
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 1.25rem;
+  padding-block: 1.5rem;
+  border-top: 1px solid var(--borde-claro);
+}
+
+.paso:last-child {
+  border-bottom: 1px solid var(--borde-claro);
+}
+
+.paso::before {
+  content: counter(paso);
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--azul);
+  line-height: 1.3;
+}
+
+.paso h3 {
+  font-size: 1.3125rem;
+  margin-bottom: 0.35rem;
+}
+
+.paso p {
+  color: var(--tinta-suave);
+}
+
+/* ------------------------------------------------------------- dos roles */
+
+.roles {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 3rem;
+}
+
+@media (min-width: 46rem) {
+  .roles {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Cada rol lleva el suelo de un turno distinto: son los mismos colores que
+   esa persona ve en su teléfono. */
+.rol {
+  padding: 2rem;
+  border-radius: var(--radio);
+}
+
+.rol--mayor {
+  background: var(--manana);
+  color: var(--manana-tinta);
+}
+
+.rol--cuidador {
+  background: var(--tarde);
+  color: var(--tarde-tinta);
+}
+
+.rol h3 {
+  font-size: 1.375rem;
+  margin-bottom: 0.75rem;
+}
+
+.rol p {
+  color: inherit;
+}
+
+.rol ul {
+  margin: 1rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.rol li + li {
+  margin-top: 0.5rem;
+}
+
+/* -------------------------------------------------------------- detalles */
+
+.detalles {
+  margin: 3rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 1.75rem;
+}
+
+@media (min-width: 46rem) {
+  .detalles {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 3rem;
+  }
+}
+
+.detalles h3 {
+  font-size: 1.1875rem;
+  margin-bottom: 0.35rem;
+}
+
+.detalles p {
+  color: var(--tinta-suave);
+  font-size: 1.0625rem;
+}
+
+/* ---------------------------------------------------------------- nota */
+
+.nota {
+  margin-top: 2.5rem;
+  padding: 1.5rem 1.75rem;
+  background: var(--azul-suave);
+  border-left: 5px solid var(--azul);
+  border-radius: 0 12px 12px 0;
+}
+
+.nota p {
+  color: var(--tinta);
+}
+
+/* ------------------------------------------------------- documento legal */
+
+.doc {
+  padding-block: clamp(2.5rem, 6vw, 4rem);
+}
+
+.doc__cabecera {
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid var(--borde);
+}
+
+.doc h1 {
+  font-size: clamp(1.875rem, 5vw, 2.75rem);
+  margin-bottom: 1rem;
+}
+
+.doc__fecha {
+  color: var(--tinta-suave);
+  font-size: var(--t-chico);
+}
+
+.doc h2 {
+  font-size: 1.5rem;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+}
+
+.doc h3 {
+  font-size: 1.1875rem;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.doc p,
+.doc li {
+  max-width: var(--medida);
+}
+
+.doc p + p {
+  margin-top: 1rem;
+}
+
+.doc ul {
+  padding-left: 1.3rem;
+  margin: 1rem 0 0;
+}
+
+.doc li + li {
+  margin-top: 0.6rem;
+}
+
+.doc table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 1.5rem;
+  font-size: 1.0625rem;
+}
+
+.doc th,
+.doc td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--borde-claro);
+}
+
+.doc th {
+  background: var(--papel);
+  font-weight: 700;
+}
+
+.tabla-scroll {
+  overflow-x: auto;
+}
+
+/* Marca los huecos que el responsable del sitio TIENE que completar antes
+   de publicar. Deliberadamente imposible de no ver: es preferible que se
+   note incompleto a que parezca terminado y sea falso. */
+.completar {
+  background: #fef08a;
+  color: #713f12;
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------------- pie */
+
+.pie {
+  background: var(--tinta);
+  color: rgba(255, 255, 255, 0.72);
+  padding-block: 3rem;
+  font-size: var(--t-chico);
+}
+
+.pie a {
+  color: var(--blanco);
+}
+
+.pie__enlaces {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.pie__enlaces a {
+  font-weight: 700;
+}
+
+.volver {
+  display: inline-block;
+  margin-bottom: 2rem;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

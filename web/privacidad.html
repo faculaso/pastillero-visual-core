@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Política de privacidad — Pastillero Visual</title>
+    <meta
+      name="description"
+      content="Qué datos guarda Pastillero Visual, dónde se guardan, quién puede verlos y cómo pedir que se borren."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="estilos.css" />
+  </head>
+  <body>
+    <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+    <main id="contenido" class="doc">
+      <div class="envoltorio">
+        <a class="volver" href="index.html">← Pastillero Visual</a>
+
+        <header class="doc__cabecera">
+          <h1>Política de privacidad</h1>
+          <p class="doc__fecha">
+            Vigente desde el <span class="completar">[COMPLETAR: fecha de publicación]</span> ·
+            Última actualización: 17 de septiembre de 2026
+          </p>
+        </header>
+
+        <p>
+          Pastillero Visual maneja información sobre la medicación de una
+          persona. Bajo la Ley 25.326 de Protección de los Datos Personales,
+          los datos relativos a la salud son <strong>datos sensibles</strong>,
+          y por eso este documento es específico en lugar de genérico: dice
+          exactamente qué se guarda, dónde, quién lo ve y cómo borrarlo.
+        </p>
+
+        <h2>1. Quién es responsable</h2>
+        <p>
+          El responsable de la base de datos es
+          <span class="completar">[COMPLETAR: nombre y apellido o razón social]</span>,
+          con domicilio en
+          <span class="completar">[COMPLETAR: domicilio]</span>, Argentina.
+          Para cualquier consulta sobre esta política:
+          <span class="completar">[COMPLETAR: correo de contacto]</span>.
+        </p>
+
+        <h2>2. Qué datos se recogen</h2>
+        <p>
+          Todos los datos los cargan las personas usuarias. La app no toma
+          ningún dato del dispositivo por su cuenta.
+        </p>
+
+        <div class="tabla-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Dato</th>
+                <th scope="col">Para qué</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Correo electrónico y contraseña</td>
+                <td>
+                  Crear la cuenta e iniciar sesión. La contraseña nunca se
+                  guarda en texto plano: la procesa el sistema de
+                  autenticación de Supabase.
+                </td>
+              </tr>
+              <tr>
+                <td>Nombre para mostrar y rol (adulto mayor o cuidador)</td>
+                <td>Identificar a cada persona dentro de la app.</td>
+              </tr>
+              <tr>
+                <td>Código de invitación</td>
+                <td>
+                  Vincular el teléfono de quien cuida con el de la persona a la
+                  que cuida. Se genera solo, no lo elige nadie.
+                </td>
+              </tr>
+              <tr>
+                <td>Vínculo entre cuidador y persona cuidada</td>
+                <td>Determinar quién puede ver y cargar los tratamientos de quién.</td>
+              </tr>
+              <tr>
+                <td>
+                  Tratamientos: nombre del medicamento, forma y color de la
+                  pastilla, dosis, unidad, horarios, frecuencia, fechas de
+                  inicio y fin, stock disponible
+                </td>
+                <td>
+                  Programar las alarmas, dibujar la pastilla en pantalla y
+                  avisar cuando el stock se está por acabar.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  Tomas: horario programado, si se tomó o no, cuándo se
+                  confirmó y en qué cantidad
+                </td>
+                <td>
+                  Mostrar el avance del día y el cumplimiento del tratamiento a
+                  quien cuida.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2>3. Qué NO se recoge</h2>
+        <p>
+          Esto no es una declaración de intenciones: la app no incluye ninguna
+          biblioteca de terceros que haga estas cosas.
+        </p>
+        <ul>
+          <li>Ubicación o GPS.</li>
+          <li>Agenda de contactos, llamadas o mensajes.</li>
+          <li>Publicidad o identificadores publicitarios.</li>
+          <li>Analítica de uso o seguimiento de comportamiento.</li>
+          <li>Reportes automáticos de errores o de fallos.</li>
+          <li>Micrófono o cámara, salvo cuando se saca a propósito la foto de una caja.</li>
+        </ul>
+
+        <h2>4. Qué se queda en el teléfono y no sale nunca</h2>
+        <ul>
+          <li>
+            <strong>Las fotos de las pastillas y de las cajas.</strong> Se
+            guardan en el almacenamiento privado de la app, en el propio
+            dispositivo. No se suben a ningún servidor. Como consecuencia
+            técnica, una foto sacada en un teléfono no se ve en el otro.
+          </li>
+          <li>
+            <strong>El catálogo de medicamentos de ANMAT.</strong> Son 16.139
+            registros del Vademécum Nacional, información pública, que viajan
+            dentro de la app. Las búsquedas de medicamentos se resuelven en el
+            teléfono y no generan ninguna consulta a internet.
+          </li>
+          <li>
+            <strong>Las alarmas.</strong> Las programa el sistema operativo
+            del teléfono. No pasan por ningún servidor de notificaciones.
+          </li>
+        </ul>
+
+        <h2>5. Dónde se guardan los datos</h2>
+        <p>
+          La cuenta, los tratamientos y el registro de tomas se guardan en
+          <strong>Supabase</strong>, el proveedor de base de datos y
+          autenticación, que actúa como encargado del tratamiento. Los
+          servidores están en
+          <span class="completar">[COMPLETAR: región del proyecto de Supabase, por ejemplo "Estados Unidos (us-east-1)"]</span>,
+          lo que implica una transferencia internacional de datos.
+        </p>
+        <p>
+          El acceso está restringido por reglas a nivel de fila en la base: una
+          cuenta solo puede leer sus propios datos y los de la persona con la
+          que está vinculada.
+        </p>
+
+        <h3>Lectura en voz alta</h3>
+        <p>
+          Cuando se usa "Escuchar indicaciones", el texto —que incluye el
+          nombre del medicamento y la dosis— se envía al motor de
+          texto-a-voz del sistema operativo. Según qué motor tenga
+          configurado el teléfono, ese procesamiento puede ocurrir en el
+          dispositivo o en los servidores del proveedor del motor, y en ese
+          caso se rige por la política de privacidad de ese proveedor.
+        </p>
+
+        <h2>6. Quién puede ver tus datos</h2>
+        <ul>
+          <li>
+            <strong>Vos.</strong> Siempre, sobre tus propios datos.
+          </li>
+          <li>
+            <strong>La persona con la que te vinculaste.</strong> Quien cuida ve
+            los tratamientos y las tomas de la persona cuidada. El vínculo solo
+            se crea cuando la persona cuidada comparte su código de invitación.
+          </li>
+          <li>
+            <strong>Nadie más.</strong> Los datos no se venden, no se ceden ni
+            se comparten con terceros con fines comerciales.
+          </li>
+        </ul>
+
+        <h2>7. Cuánto tiempo se guardan</h2>
+        <p>
+          Los datos se conservan mientras la cuenta esté activa. Si se elimina
+          la cuenta, se borran también los tratamientos y las tomas asociadas,
+          en un plazo de
+          <span class="completar">[COMPLETAR: plazo, por ejemplo "30 días"]</span>.
+          Para pedir la eliminación, escribí a
+          <span class="completar">[COMPLETAR: correo de contacto]</span>.
+        </p>
+
+        <h2>8. Tus derechos</h2>
+        <p>
+          La Ley 25.326 te da derecho a pedir acceso a tus datos personales, y
+          a que se rectifiquen, actualicen o supriman cuando sean inexactos o
+          ya no hagan falta. El pedido de acceso es gratuito y se responde
+          dentro de los diez días corridos.
+        </p>
+        <p>
+          La Agencia de Acceso a la Información Pública es el organismo de
+          control y atiende las denuncias de quienes consideren vulnerados sus
+          derechos.
+        </p>
+
+        <h2>9. Menores de edad</h2>
+        <p>
+          La app está pensada para personas adultas. No está dirigida a menores
+          de 18 años y no se recogen datos de menores a sabiendas. Si un adulto
+          responsable administra la medicación de un menor, los datos de salud
+          cargados quedan bajo su responsabilidad.
+        </p>
+
+        <h2>10. Este sitio web</h2>
+        <p>
+          Este sitio no usa cookies ni analítica. Sí carga la tipografía
+          Atkinson Hyperlegible desde Google Fonts, lo que implica que Google
+          recibe la dirección IP de quien visita la página.
+        </p>
+
+        <h2>11. Cambios en esta política</h2>
+        <p>
+          Si cambia, se actualiza la fecha del encabezado. Cuando el cambio
+          afecte de forma significativa cómo se tratan los datos, se avisará
+          dentro de la app antes de que entre en vigencia.
+        </p>
+
+        <h2>12. Contacto</h2>
+        <p>
+          Por cualquier consulta, reclamo o pedido sobre tus datos:
+          <span class="completar">[COMPLETAR: correo de contacto]</span>.
+        </p>
+      </div>
+    </main>
+
+    <footer class="pie">
+      <div class="envoltorio">
+        <ul class="pie__enlaces">
+          <li><a href="index.html">Inicio</a></li>
+          <li><a href="soporte.html">Soporte</a></li>
+        </ul>
+        <p>
+          Pastillero Visual — proyecto en desarrollo, Argentina. La app no
+          reemplaza la indicación de un profesional de la salud.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

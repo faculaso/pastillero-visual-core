@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pastillero Visual — que no se confunda de pastilla</title>
+    <meta
+      name="description"
+      content="App de medicación para adultos mayores: muestra en pantalla completa la forma, el color y la foto de la pastilla que toca ahora, y le avisa a quien cuida cuando fue tomada."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="estilos.css" />
+  </head>
+  <body>
+    <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+    <header class="noche hero">
+      <div class="envoltorio">
+        <p class="marca">Pastillero Visual</p>
+        <div class="hero__grilla">
+          <div>
+            <h1>Ocho pastillas por día. Cuatro son blancas y redondas.</h1>
+            <p class="hero__bajada">
+              El problema no es acordarse. Es saber cuál de todas es la de
+              ahora. Pastillero Visual le muestra a la persona su pastilla
+              del tamaño de media pantalla, y te avisa a vos cuando la tomó.
+            </p>
+            <p class="estado">En pruebas — todavía no está en Google Play</p>
+          </div>
+
+          <!-- Dibujada igual que en la app: gradiente claro → base → oscuro
+               más la elipse de brillo. Decorativa: el texto ya lo cuenta. -->
+          <svg
+            class="hero__pastilla"
+            viewBox="0 0 320 176"
+            role="img"
+            aria-label="Una cápsula roja grande, como se ve en la pantalla de la app"
+          >
+            <defs>
+              <linearGradient id="capsula" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#ff504a" />
+                <stop offset="0.4" stop-color="#e53935" />
+                <stop offset="1" stop-color="#952522" />
+              </linearGradient>
+            </defs>
+            <rect
+              x="4"
+              y="4"
+              width="312"
+              height="168"
+              rx="84"
+              fill="url(#capsula)"
+              stroke="#671a18"
+              stroke-width="2"
+            />
+            <line
+              x1="160"
+              y1="32"
+              x2="160"
+              y2="144"
+              stroke="#671a18"
+              stroke-width="2.5"
+              opacity="0.5"
+            />
+            <ellipse cx="160" cy="49" rx="109" ry="25" fill="#ffffff" opacity="0.3" />
+          </svg>
+        </div>
+      </div>
+    </header>
+
+    <main id="contenido">
+      <section class="bloque">
+        <div class="envoltorio">
+          <h2>Así se ve tu pastilla</h2>
+          <p>
+            Cuando llega la hora, la pantalla no muestra un nombre comercial
+            de doce letras. Muestra el objeto: la forma real, el color real
+            y, si se cargó, la foto de la caja que la persona tiene en su
+            mesa de luz.
+          </p>
+
+          <ul class="muestras">
+            <li class="muestra">
+              <svg viewBox="0 0 120 120" aria-hidden="true">
+                <defs>
+                  <linearGradient id="g-redonda" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#ffffff" />
+                    <stop offset="0.4" stop-color="#f1f5f9" />
+                    <stop offset="1" stop-color="#cbd5e1" />
+                  </linearGradient>
+                </defs>
+                <ellipse cx="60" cy="60" rx="56" ry="56" fill="url(#g-redonda)" stroke="#94a3b8" />
+                <ellipse cx="60" cy="36" rx="33" ry="14" fill="#ffffff" opacity="0.6" />
+              </svg>
+              <span class="muestra__pie">Redonda, blanca</span>
+            </li>
+            <li class="muestra">
+              <svg viewBox="0 0 120 82" aria-hidden="true">
+                <defs>
+                  <linearGradient id="g-ovalo" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#fde68a" />
+                    <stop offset="0.4" stop-color="#f5b70a" />
+                    <stop offset="1" stop-color="#9f7407" />
+                  </linearGradient>
+                </defs>
+                <ellipse cx="60" cy="41" rx="56" ry="39" fill="url(#g-ovalo)" stroke="#6d5005" />
+                <ellipse cx="60" cy="23" rx="36" ry="13" fill="#ffffff" opacity="0.3" />
+              </svg>
+              <span class="muestra__pie">Óvalo, amarilla</span>
+            </li>
+            <li class="muestra">
+              <svg viewBox="0 0 120 66" aria-hidden="true">
+                <defs>
+                  <linearGradient id="g-capsula" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#7dd3fc" />
+                    <stop offset="0.4" stop-color="#2563eb" />
+                    <stop offset="1" stop-color="#17408f" />
+                  </linearGradient>
+                </defs>
+                <rect
+                  x="2"
+                  y="2"
+                  width="116"
+                  height="62"
+                  rx="31"
+                  fill="url(#g-capsula)"
+                  stroke="#102c63"
+                />
+                <line x1="60" y1="12" x2="60" y2="54" stroke="#102c63" opacity="0.5" />
+                <ellipse cx="60" cy="19" rx="40" ry="9" fill="#ffffff" opacity="0.3" />
+              </svg>
+              <span class="muestra__pie">Cápsula, azul</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="bloque bloque--blanco">
+        <div class="envoltorio">
+          <h2>El día, paso a paso</h2>
+          <p>Una toma, de principio a fin, son cuatro momentos.</p>
+
+          <ol class="pasos">
+            <li class="paso">
+              <div>
+                <h3>Suena la alarma, a la hora exacta</h3>
+                <p>
+                  Con sonido de alarma, no con el tono de notificación que se
+                  pierde entre los mensajes. Aunque el teléfono esté en reposo.
+                </p>
+              </div>
+            </li>
+            <li class="paso">
+              <div>
+                <h3>La pantalla muestra cuál toca</h3>
+                <p>
+                  Una sola pastilla por vez, grande, sobre un fondo que cambia
+                  según sea de mañana, de tarde o de noche. Si son dos
+                  medicamentos a la misma hora, se pasan deslizando, como
+                  correr la tapita de un pastillero.
+                </p>
+              </div>
+            </li>
+            <li class="paso">
+              <div>
+                <h3>Un botón, siempre en el mismo lugar</h3>
+                <p>
+                  "Confirmar toma" está anclado al pie de la pantalla: nunca
+                  hay que buscarlo ni bajar hasta él. También puede escuchar
+                  las indicaciones en voz alta en lugar de leerlas.
+                </p>
+              </div>
+            </li>
+            <li class="paso">
+              <div>
+                <h3>En el otro teléfono, vos lo ves</h3>
+                <p>
+                  La confirmación viaja al teléfono de quien cuida. Sin llamar
+                  para preguntar, sin que la persona sienta que la controlan.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="bloque">
+        <div class="envoltorio">
+          <h2>Dos teléfonos, dos roles</h2>
+          <p>
+            Cada uno instala la misma app y elige quién es. Se vinculan una
+            sola vez con un código de seis caracteres.
+          </p>
+
+          <div class="roles">
+            <article class="rol rol--mayor">
+              <h3>Quien toma la medicación</h3>
+              <p>Ve una sola cosa por vez y nada más que eso.</p>
+              <ul>
+                <li>La pastilla de ahora, grande</li>
+                <li>Cuántas van del día</li>
+                <li>Un botón para confirmar</li>
+                <li>Su semana, si quiere mirarla</li>
+              </ul>
+            </article>
+
+            <article class="rol rol--cuidador">
+              <h3>Quien cuida</h3>
+              <p>Carga los tratamientos y sigue el cumplimiento a distancia.</p>
+              <ul>
+                <li>Alta de medicamentos desde el vademécum de ANMAT</li>
+                <li>Horarios, dosis y frecuencia</li>
+                <li>Qué se tomó y qué no</li>
+                <li>Aviso cuando el stock se está por acabar</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="bloque bloque--blanco">
+        <div class="envoltorio">
+          <h2>Pensada para que se vea</h2>
+          <p>
+            Las decisiones de accesibilidad no se agregaron al final. Son la
+            razón de ser de la app.
+          </p>
+
+          <ul class="detalles">
+            <li>
+              <h3>Contraste AAA, no AA</h3>
+              <p>
+                El estándar habitual para texto es 4,5:1. Acá el piso es 7:1, y
+                hay tests automáticos que calculan los valores reales y frenan
+                cualquier cambio que los baje.
+              </p>
+            </li>
+            <li>
+              <h3>Nada depende del color solo</h3>
+              <p>
+                Cada estado combina color con forma, ícono o texto. Alguien con
+                daltonismo o baja visión no se pierde información.
+              </p>
+            </li>
+            <li>
+              <h3>Áreas de toque de 72 píxeles</h3>
+              <p>
+                Casi el doble de lo que recomiendan las guías para adultos
+                jóvenes. Compensa el pulso menos firme.
+              </p>
+            </li>
+            <li>
+              <h3>Reloj de 24 horas</h3>
+              <p>
+                "12:00 a. m." y "12:00 p. m." se dicen casi igual y significan
+                mediodía y medianoche. En una app de medicación, ese es el error
+                más caro posible.
+              </p>
+            </li>
+            <li>
+              <h3>Lectura en voz alta</h3>
+              <p>
+                El nombre, la dosis, la forma y la indicación pueden escucharse,
+                en frases cortas y con ritmo pausado.
+              </p>
+            </li>
+            <li>
+              <h3>Catálogo oficial de ANMAT</h3>
+              <p>
+                16.139 medicamentos del Vademécum Nacional, guardados en el
+                teléfono. La búsqueda funciona sin internet.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="bloque">
+        <div class="envoltorio">
+          <h2>Qué datos guarda</h2>
+          <p>
+            Lo mínimo para que funcione: la cuenta, los tratamientos cargados y
+            el registro de qué se tomó. Nada de publicidad, nada de
+            analítica, nada de ubicación ni de agenda de contactos. Las fotos
+            de las cajas no salen nunca del teléfono.
+          </p>
+
+          <div class="nota">
+            <p>
+              El detalle completo, con qué se guarda dónde y cómo pedir que se
+              borre, está en la
+              <a href="privacidad.html">política de privacidad</a>.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="pie">
+      <div class="envoltorio">
+        <ul class="pie__enlaces">
+          <li><a href="privacidad.html">Política de privacidad</a></li>
+          <li><a href="soporte.html">Soporte</a></li>
+        </ul>
+        <p>
+          Pastillero Visual — proyecto en desarrollo, Argentina. La app no
+          reemplaza la indicación de un profesional de la salud.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

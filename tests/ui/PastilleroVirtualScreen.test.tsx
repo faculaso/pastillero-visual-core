@@ -216,4 +216,49 @@ describe('PastilleroVirtualScreen', () => {
     await waitFor(() => expect(getProfile.execute).toHaveBeenCalledWith({ userId: 'patient-1' }));
     await waitFor(() => expect(screen.getByText('7F2K9M')).toBeTruthy());
   });
+
+  it('completa el horizonte de dosis sin bloquear la primera lectura, y recarga solo si creó tomas', async () => {
+    // Un tratamiento crónico se quedaba sin tomas a los 30 días del alta.
+    // El completado hace una consulta por tratamiento activo, así que
+    // encadenarlo ANTES de leer dejaba el pastillero vacío en pantalla
+    // varios segundos — justo lo que no puede pasar en esta pantalla.
+    const extendDoseHorizon = {
+      execute: jest.fn().mockResolvedValue({ ok: true, value: { createdCount: 3, alarmWarnings: [] } }),
+    };
+    const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [] })) };
+
+    await render(
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
+        useCases: {
+          extendDoseHorizon: extendDoseHorizon as never,
+          getPendingDoses: getPendingDoses as never,
+          getDailyProgress: { execute: jest.fn().mockResolvedValue(Ok({ totalScheduled: 0, totalTaken: 0 })) } as never,
+        },
+      }),
+    );
+
+    expect(extendDoseHorizon.execute).toHaveBeenCalledWith({ patientId: 'patient-1' });
+    // Dos lecturas: la inmediata y la de refresco, porque creó tomas.
+    await waitFor(() => expect(getPendingDoses.execute).toHaveBeenCalledTimes(2));
+  });
+
+  it('no vuelve a leer si no había nada que completar — el caso normal', async () => {
+    const extendDoseHorizon = {
+      execute: jest.fn().mockResolvedValue({ ok: true, value: { createdCount: 0, alarmWarnings: [] } }),
+    };
+    const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [] })) };
+
+    await render(
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
+        useCases: {
+          extendDoseHorizon: extendDoseHorizon as never,
+          getPendingDoses: getPendingDoses as never,
+          getDailyProgress: { execute: jest.fn().mockResolvedValue(Ok({ totalScheduled: 0, totalTaken: 0 })) } as never,
+        },
+      }),
+    );
+
+    await waitFor(() => expect(extendDoseHorizon.execute).toHaveBeenCalled());
+    expect(getPendingDoses.execute).toHaveBeenCalledTimes(1);
+  });
 });

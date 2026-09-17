@@ -44,6 +44,12 @@ export function createFakeUseCases(overrides: Partial<UseCasesBundle> = {}): Use
     getLinkedPatient: { execute: notImplemented } as unknown as UseCasesBundle['getLinkedPatient'],
     getProfile: { execute: notImplemented } as unknown as UseCasesBundle['getProfile'],
     getWeeklySchedule: { execute: notImplemented } as unknown as UseCasesBundle['getWeeklySchedule'],
+    // Este NO va a `notImplemented`: es mantenimiento idempotente que las
+    // pantallas disparan al cargar, y a casi ningún test le importa. El
+    // default honesto es "no había nada que completar".
+    extendDoseHorizon: {
+      execute: jest.fn().mockResolvedValue({ ok: true, value: { createdCount: 0, alarmWarnings: [] } }),
+    } as unknown as UseCasesBundle['extendDoseHorizon'],
     auth: {
       signUp: notImplemented,
       signIn: notImplemented,

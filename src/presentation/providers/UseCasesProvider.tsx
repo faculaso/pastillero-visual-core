@@ -14,6 +14,7 @@ import type {
   GetLinkedPatientUseCase,
   GetProfileUseCase,
   GetWeeklyScheduleUseCase,
+  ExtendDoseHorizonUseCase,
   AuthPort,
 } from '../../application';
 
@@ -40,6 +41,7 @@ export interface UseCasesBundle {
   readonly getLinkedPatient: GetLinkedPatientUseCase;
   readonly getProfile: GetProfileUseCase;
   readonly getWeeklySchedule: GetWeeklyScheduleUseCase;
+  readonly extendDoseHorizon: ExtendDoseHorizonUseCase;
   readonly auth: AuthPort;
 }
 

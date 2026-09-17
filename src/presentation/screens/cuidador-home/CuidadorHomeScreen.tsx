@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, ScrollView, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -45,7 +45,7 @@ const SUGGESTED_HOUR: Record<Turno, number> = { morning: 8, midday: 12, afternoo
  * así el pastillero queda como el indicador central que maneja todo.
  */
 export function CuidadorHomeScreen({ navigation }: Props): React.JSX.Element {
-  const { getWeeklySchedule } = useUseCases();
+  const { getWeeklySchedule, extendDoseHorizon } = useUseCases();
   const { session } = useSession();
 
   const [status, setStatus] = useState<ScreenStatus>('loading');
@@ -74,6 +74,21 @@ export function CuidadorHomeScreen({ navigation }: Props): React.JSX.Element {
       void load();
     }, [load]),
   );
+
+  // El completado del horizonte va APARTE de `load` y una sola vez por
+  // paciente, no en cada foco. Encadenado antes de la lectura hacía dos
+  // cosas malas: demoraba la primera pantalla varios segundos (una consulta
+  // por tratamiento activo), y al correr también en cada foco dos cargas
+  // podían pisarse — la más lenta terminaba escribiendo un pastillero a
+  // medio llenar. Solo se vuelve a leer si de verdad creó tomas.
+  useEffect(() => {
+    if (!session || !hasLinkedPatient) return;
+    void (async () => {
+      const result = await extendDoseHorizon.execute({ patientId: session.patientId });
+      if (result.ok && result.value.createdCount > 0) await load();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.patientId, hasLinkedPatient]);
 
   if (session && session.role === 'CUIDADOR' && !hasLinkedPatient) {
     return <LinkPatientPrompt />;

@@ -10,6 +10,7 @@ export * from './ports/auth.port';
 
 export * from './dto/confirm-dose.dto';
 export * from './dto/register-treatment.dto';
+export * from './dto/extend-dose-horizon.dto';
 export * from './dto/monitor-adherence.dto';
 export * from './dto/update-stock.dto';
 export * from './dto/get-pending-doses.dto';
@@ -23,6 +24,7 @@ export * from './dto/get-weekly-schedule.dto';
 
 export * from './use-cases/confirm-dose.use-case';
 export * from './use-cases/register-treatment.use-case';
+export * from './use-cases/extend-dose-horizon.use-case';
 export * from './use-cases/monitor-adherence.use-case';
 export * from './use-cases/update-stock.use-case';
 export * from './use-cases/get-pending-doses.use-case';

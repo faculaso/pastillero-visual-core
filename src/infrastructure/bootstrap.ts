@@ -27,6 +27,7 @@ import {
   SearchMedicationCatalogUseCase,
   SuggestVisualProfileUseCase,
   GetDailyProgressUseCase,
+  ExtendDoseHorizonUseCase,
   RedeemInviteCodeUseCase,
   GetLinkedPatientUseCase,
   GetProfileUseCase,
@@ -45,6 +46,7 @@ export interface BootstrapResult {
   readonly localImageStorage: LocalImageStorageService;
   readonly voiceGuidance: VoiceGuidancePort;
   readonly getDailyProgress: GetDailyProgressUseCase;
+  readonly extendDoseHorizon: ExtendDoseHorizonUseCase;
   readonly redeemInviteCode: RedeemInviteCodeUseCase;
   readonly getLinkedPatient: GetLinkedPatientUseCase;
   readonly getProfile: GetProfileUseCase;
@@ -162,6 +164,13 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
     localImageStorage: new RNFSLocalImageStorageService(idGenerator),
     voiceGuidance: new ReactNativeTtsService(),
     getDailyProgress: new GetDailyProgressUseCase(doseRepository, treatmentRepository, clock),
+    extendDoseHorizon: new ExtendDoseHorizonUseCase(
+      treatmentRepository,
+      doseRepository,
+      notificationScheduler,
+      idGenerator,
+      clock,
+    ),
     redeemInviteCode: new RedeemInviteCodeUseCase(pairingRepository),
     getLinkedPatient: new GetLinkedPatientUseCase(pairingRepository),
     getProfile: new GetProfileUseCase(profileRepository),

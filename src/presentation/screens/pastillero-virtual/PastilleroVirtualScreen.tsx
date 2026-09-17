@@ -51,7 +51,7 @@ export interface PastilleroVirtualScreenProps {
  * nada nuevo para ellos, solo los renderiza.
  */
 export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVirtualScreenProps): React.JSX.Element {
-  const { getPendingDoses, confirmDose, getDailyProgress } = useUseCases();
+  const { getPendingDoses, confirmDose, getDailyProgress, extendDoseHorizon } = useUseCases();
   const { signOut } = useSession();
   // Se instancia una sola vez por montaje de pantalla (ver justificación en el hook).
   const confirmationFeedback = useMemo(() => new NativeConfirmationFeedback(), []);
@@ -69,6 +69,18 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
   useEffect(() => {
     loadPendingDoses(patientId);
     // Se recarga solo si cambia el paciente (p. ej. perfil compartido en un mismo dispositivo).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId]);
+
+  // Completar el horizonte NO bloquea la primera lectura: hace una consulta
+  // por tratamiento activo y encadenarlo antes dejaba el pastillero vacío
+  // en pantalla varios segundos, que es justo lo que no puede pasar acá.
+  // Solo se recarga si creó tomas — lo normal es que no cree ninguna.
+  useEffect(() => {
+    void (async () => {
+      const result = await extendDoseHorizon.execute({ patientId });
+      if (result.ok && result.value.createdCount > 0) await loadPendingDoses(patientId);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 

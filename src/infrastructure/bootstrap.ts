@@ -161,7 +161,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
     ),
     localImageStorage: new RNFSLocalImageStorageService(idGenerator),
     voiceGuidance: new ReactNativeTtsService(),
-    getDailyProgress: new GetDailyProgressUseCase(doseRepository, clock),
+    getDailyProgress: new GetDailyProgressUseCase(doseRepository, treatmentRepository, clock),
     redeemInviteCode: new RedeemInviteCodeUseCase(pairingRepository),
     getLinkedPatient: new GetLinkedPatientUseCase(pairingRepository),
     getProfile: new GetProfileUseCase(profileRepository),

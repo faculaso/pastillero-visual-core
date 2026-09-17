@@ -7,6 +7,7 @@ import type { WeekDoseView, GetWeeklyScheduleOutput, PausedTreatmentView } from 
 import { useUseCases } from '../../providers/UseCasesProvider';
 import { useSession } from '../../providers/SessionContext';
 import { AccessibleText } from '../../design-system/AccessibleText';
+import { AccessibleButton } from '../../design-system/AccessibleButton';
 import { colors, radii, spacing, shadows } from '../../design-system/tokens';
 import { groupDosesByWeek } from '../../utils/group-doses-by-week';
 import { getAdherenceDisplay, formatAdherencePercentage } from '../../utils/adherence-display';
@@ -116,8 +117,12 @@ export function CuidadorHomeScreen({ navigation }: Props): React.JSX.Element {
       ) : status === 'error' ? (
         <View style={styles.centered}>
           <AccessibleText color={colors.critical} bold style={styles.centerText}>
-            No pudimos cargar tu semana. Volvé a intentar.
+            No pudimos cargar tu semana.
           </AccessibleText>
+          {/* El texto pedía reintentar sin ofrecer cómo: había que salir de
+              la pantalla y volver a entrar. Mismo patrón que ya usa
+              `AdherenceDashboardScreen`. */}
+          <AccessibleButton label="Reintentar" variant="secondary" onPress={() => void load()} />
         </View>
       ) : data ? (
         <ScrollView contentContainerStyle={styles.content}>

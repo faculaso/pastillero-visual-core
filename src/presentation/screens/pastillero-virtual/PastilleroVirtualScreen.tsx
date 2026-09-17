@@ -16,6 +16,7 @@ import { DoseCarousel } from './components/DoseCarousel';
 import { InviteCodeButton } from './components/InviteCodeButton';
 import { EmptyState } from './components/EmptyState';
 import { ErrorBanner } from './components/ErrorBanner';
+import { StockNoticeBanner } from './components/StockNoticeBanner';
 import { DailyProgressBar } from './components/DailyProgressBar';
 import { InstructionBadge } from './components/InstructionBadge';
 import { CelebrationOverlay } from './components/CelebrationOverlay';
@@ -60,6 +61,8 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
   const status = useStore((s) => s.status);
   const doses = useStore((s) => s.doses);
   const error = useStore((s) => s.error);
+  const stockNotice = useStore((s) => s.stockNotice);
+  const dismissStockNotice = useStore((s) => s.dismissStockNotice);
   const dailyProgress = useStore((s) => s.dailyProgress);
   const celebrationTrigger = useStore((s) => s.celebrationTrigger);
   const loadPendingDoses = useStore((s) => s.loadPendingDoses);
@@ -230,6 +233,12 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
           </ScrollView>
 
           <View style={[styles.confirmFooter, { borderTopColor: theme.chipBorder }]}>
+            {/* Convive con el botón en vez de taparlo: la toma que lo
+                disparó ya quedó registrada, no hay nada que reintentar. */}
+            {stockNotice ? (
+              <StockNoticeBanner message={stockNotice} onDismiss={dismissStockNotice} />
+            ) : null}
+
             {error ? (
               <ErrorBanner message={error} onDismiss={dismissError} />
             ) : (

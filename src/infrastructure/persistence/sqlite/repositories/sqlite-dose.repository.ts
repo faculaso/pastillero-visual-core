@@ -149,8 +149,8 @@ export class SqliteDoseRepository implements DoseRepository {
 
   /**
    * Confirma la toma + decrementa el stock en una única transacción SQL
-   * real. IMPORTANTE: cada guard (`status='PENDING'`,
-   * `stock_current_quantity >= cantidad`) que falla acá TIRA el
+   * real. IMPORTANTE: cada guard (`status='PENDING'`, tratamiento
+   * existente) que falla acá TIRA el
    * `DomainError` correspondiente (no lo `return`s dentro del callback) —
    * `context.runInTransaction` solo hace ROLLBACK ante una excepción; un
    * `return Err(...)` normal se habría comiteado igual, dejando la toma
@@ -162,7 +162,7 @@ export class SqliteDoseRepository implements DoseRepository {
     doseId: string,
     confirmedAt: Date,
     quantityTaken: Dosage,
-  ): Promise<Result<{ dose: Dose; stock: StockInfo }, DomainError>> {
+  ): Promise<Result<{ dose: Dose; stock: StockInfo; stockWasShort: boolean }, DomainError>> {
     try {
       return await this.context.runInTransaction(async () => {
         const executor = this.context.getExecutor();
@@ -185,20 +185,27 @@ export class SqliteDoseRepository implements DoseRepository {
         if (!doseResult.ok) throw doseResult.error;
         const dose = doseResult.value;
 
-        const stockResult = await executor.execute(
-          `UPDATE treatments
-           SET stock_current_quantity = stock_current_quantity - ?
-           WHERE id = ? AND stock_current_quantity >= ?`,
-          [quantityTaken.amount, dose.treatmentId, quantityTaken.amount],
+        // El stock ya NO es un guard. Lo carga el Cuidador a mano y es una
+        // estimación; que la pastilla se haya tomado es un hecho. Cuando
+        // esto revertía la transacción, un olvido de inventario convertía
+        // una toma real en un incumplimiento. Ahora baja hasta cero y lo
+        // que faltó se informa (misma regla que la migración 0007 del lado
+        // de Supabase).
+        const previo = await executor.queryOne<StockRow>(
+          `SELECT stock_current_quantity, stock_daily_consumption, stock_unit, stock_critical_threshold_days
+           FROM treatments WHERE id = ?`,
+          [dose.treatmentId],
         );
-        if (stockResult.rowsAffected === 0) {
-          const exists = await executor.queryOne<SQLiteRow>(`SELECT id FROM treatments WHERE id = ?`, [
-            dose.treatmentId,
-          ]);
-          throw exists
-            ? DomainErrors.insufficientStock(dose.treatmentId)
-            : DomainErrors.treatmentNotFound(dose.treatmentId);
-        }
+        if (!previo) throw DomainErrors.treatmentNotFound(dose.treatmentId);
+
+        const stockWasShort = previo.stock_current_quantity < quantityTaken.amount;
+
+        await executor.execute(
+          `UPDATE treatments
+           SET stock_current_quantity = MAX(stock_current_quantity - ?, 0)
+           WHERE id = ?`,
+          [quantityTaken.amount, dose.treatmentId],
+        );
 
         const stockRow = await executor.queryOne<StockRow>(
           `SELECT stock_current_quantity, stock_daily_consumption, stock_unit, stock_critical_threshold_days
@@ -207,7 +214,7 @@ export class SqliteDoseRepository implements DoseRepository {
         );
         if (!stockRow) throw DomainErrors.treatmentNotFound(dose.treatmentId);
 
-        return Ok({ dose, stock: mapRowToStockInfo(stockRow) });
+        return Ok({ dose, stock: mapRowToStockInfo(stockRow), stockWasShort });
       });
     } catch (cause) {
       if (cause instanceof DomainError) return Err(cause);

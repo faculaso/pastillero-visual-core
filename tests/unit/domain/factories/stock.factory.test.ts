@@ -42,24 +42,47 @@ describe('decrementStock', () => {
   it('decrementa correctamente cuando hay stock suficiente', () => {
     const result = decrementStock(stock({ currentQuantity: 10 }), 3);
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value.currentQuantity).toBe(7);
+    if (result.ok) {
+      expect(result.value.stock.currentQuantity).toBe(7);
+      expect(result.value.shortfall).toBe(0);
+    }
   });
 
-  it('NUNCA permite que el stock quede negativo (CU-02 paso 6)', () => {
+  /**
+   * El stock lo carga el Cuidador a mano y es una ESTIMACIÓN; que la
+   * pastilla se haya tomado es un HECHO. Cuando esto devolvía
+   * `STOCK_INSUFFICIENT`, un olvido de inventario convertía una toma real
+   * en un registro de incumplimiento y falseaba la adherencia, que es lo
+   * único que esta app existe para medir.
+   */
+  it('quedarse sin stock NO invalida la toma: baja hasta cero e informa lo que faltó', () => {
     const result = decrementStock(stock({ currentQuantity: 2 }), 5);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe('STOCK_INSUFFICIENT');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.stock.currentQuantity).toBe(0);
+      expect(result.value.shortfall).toBe(3);
+    }
   });
 
-  it('rechaza cantidad a decrementar <= 0', () => {
+  it('NUNCA deja el stock negativo, ni con el inventario en cero', () => {
+    const result = decrementStock(stock({ currentQuantity: 0 }), 5);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.stock.currentQuantity).toBe(0);
+  });
+
+  it('rechaza cantidad a decrementar <= 0: eso es un llamado mal construido, no un estado del inventario', () => {
     const result = decrementStock(stock(), 0);
     expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('STOCK_INVALID_QUANTITY');
   });
 
-  it('permite decrementar exactamente hasta 0', () => {
+  it('decrementar exactamente hasta 0 no cuenta como faltante', () => {
     const result = decrementStock(stock({ currentQuantity: 5 }), 5);
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value.currentQuantity).toBe(0);
+    if (result.ok) {
+      expect(result.value.stock.currentQuantity).toBe(0);
+      expect(result.value.shortfall).toBe(0);
+    }
   });
 });
 

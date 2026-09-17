@@ -11,4 +11,10 @@ export interface ConfirmDoseInput {
 export interface ConfirmDoseOutput {
   readonly dose: Dose;
   readonly stock: StockInfo;
+  /**
+   * La toma se registró pero el stock registrado no la cubría: quedó en
+   * cero. No es un error — es la señal de que el inventario que carga el
+   * Cuidador está desactualizado, y la única forma de enterarse.
+   */
+  readonly stockWasShort: boolean;
 }

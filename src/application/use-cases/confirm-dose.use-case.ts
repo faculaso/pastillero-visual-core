@@ -21,6 +21,7 @@ import type { ConfirmDoseInput, ConfirmDoseOutput } from '../dto/confirm-dose.dt
  *  2. Autoriza: la toma debe pertenecer a un tratamiento del paciente solicitante.
  *  3. Valida invariantes de dominio (`confirmDose`, `decrementStock`) ANTES de
  *     tocar persistencia — fail-fast sin abrir transacción si algo es inválido.
+ *     Quedarse SIN STOCK ya no es una de esas invariantes: ver `decrementStock`.
  *  4. Persiste ambos cambios (dose + stock) en una única operación atómica
  *     vía `DoseRepository.confirmDoseWithStockDecrement` (CU-02
  *     postcondición: "toma registrada... y stock decrementado" — ambos o
@@ -61,6 +62,10 @@ export class ConfirmDoseUseCase implements UseCase<ConfirmDoseInput, ConfirmDose
     const confirmedDoseResult = domainConfirmDose(dose, now, quantityTaken);
     if (!confirmedDoseResult.ok) return confirmedDoseResult;
 
+    // Quedarse sin stock NO frena esto: `decrementStock` baja hasta cero e
+    // informa lo que faltó. Lo único que sigue siendo un error acá es una
+    // cantidad inválida. El dato que vale es el que devuelve el repositorio
+    // (la base es la fuente de verdad), no este cálculo local.
     const decrementedStockResult = decrementStock(treatment.stock, quantityTaken.amount);
     if (!decrementedStockResult.ok) return decrementedStockResult;
 

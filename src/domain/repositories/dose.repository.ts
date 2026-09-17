@@ -50,6 +50,20 @@ export interface DoseRepository {
     doseId: string,
     confirmedAt: Date,
     quantityTaken: Dosage,
-  ): Promise<Result<{ readonly dose: Dose; readonly stock: StockInfo }, DomainError>>;
+  ): Promise<
+    Result<
+      {
+        readonly dose: Dose;
+        readonly stock: StockInfo;
+        /**
+         * El stock registrado no cubría la toma: quedó en cero. La toma se
+         * registra igual — el stock es una estimación que carga el Cuidador
+         * a mano, la toma es un hecho.
+         */
+        readonly stockWasShort: boolean;
+      },
+      DomainError
+    >
+  >;
   markMissed(doseId: string): Promise<Result<Dose, DomainError>>;
 }

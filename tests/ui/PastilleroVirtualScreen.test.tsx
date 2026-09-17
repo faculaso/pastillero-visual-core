@@ -124,6 +124,60 @@ describe('PastilleroVirtualScreen', () => {
     await waitFor(() => expect(screen.getByText('Por ahora no tenés tomas pendientes')).toBeTruthy());
   });
 
+  /**
+   * El stock lo carga el Cuidador a mano y es una estimación; que la
+   * pastilla se haya tomado es un hecho. Antes, quedarse sin stock
+   * registrado devolvía STOCK_INSUFFICIENT y la toma NO se registraba: un
+   * olvido de inventario convertía una toma real en un incumplimiento y le
+   * mostraba un error al Adulto Mayor frente a una pastilla ya tomada.
+   */
+  it('si el stock no alcanzaba, la toma se registra igual y el aviso NO tapa el botón', async () => {
+    const doseA = buildDoseView({ doseId: 'dose-a', medicationName: 'Paracetamol' });
+    const doseB = buildDoseView({ doseId: 'dose-b', medicationName: 'Ibuprofeno', scheduledAt: new Date('2026-08-01T20:00:00.000Z') });
+    const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [doseA, doseB] })) };
+    const confirmDose = {
+      execute: jest.fn().mockResolvedValue(Ok({ dose: {}, stock: {}, stockWasShort: true })),
+    };
+    const user = userEvent.setup();
+
+    await render(
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
+        useCases: { getPendingDoses: getPendingDoses as never, confirmDose: confirmDose as never },
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByText('Paracetamol')).toBeTruthy());
+    await user.press(screen.getByText('Confirmar Toma'));
+
+    await waitFor(() =>
+      expect(screen.getByText('Quedó registrada. Avisale a tu cuidador que se terminó este remedio.')).toBeTruthy(),
+    );
+    // La toma salió de la lista: se registró de verdad, no es un error.
+    await waitFor(() => expect(screen.getByText('Ibuprofeno')).toBeTruthy());
+    // Y a diferencia del ErrorBanner, el aviso convive con el botón.
+    expect(screen.getByText('Confirmar Toma')).toBeTruthy();
+  });
+
+  it('con stock suficiente no aparece ningún aviso', async () => {
+    const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [buildDoseView()] })) };
+    const confirmDose = {
+      execute: jest.fn().mockResolvedValue(Ok({ dose: {}, stock: {}, stockWasShort: false })),
+    };
+    const user = userEvent.setup();
+
+    await render(
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
+        useCases: { getPendingDoses: getPendingDoses as never, confirmDose: confirmDose as never },
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByText('Paracetamol')).toBeTruthy());
+    await user.press(screen.getByText('Confirmar Toma'));
+
+    await waitFor(() => expect(screen.getByText('Por ahora no tenés tomas pendientes')).toBeTruthy());
+    expect(screen.queryByText('Quedó registrada. Avisale a tu cuidador que se terminó este remedio.')).toBeNull();
+  });
+
   it('dos tomas a la misma hora se pueden navegar deslizando — confirmar una no afecta a la otra', async () => {
     const doseA = buildDoseView({ doseId: 'dose-a', medicationName: 'Paracetamol' });
     const doseB = buildDoseView({ doseId: 'dose-b', medicationName: 'Ibuprofeno' });

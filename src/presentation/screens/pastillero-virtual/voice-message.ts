@@ -21,8 +21,15 @@ export function buildDoseVoiceMessage(dose: PendingDoseView): string {
     `Forma del comprimido: ${shapeLabel}.`,
   ];
 
+  // `slotLabel` NO siempre es una ranura: cuando el tratamiento se cargó
+  // desde el vademécum ANMAT, `SqliteMedicationVisualSuggestionProvider` le
+  // mete la CONCENTRACIÓN ("250 MG"), y la app terminaba diciendo en voz
+  // alta "Ranura del pastillero: 250 MG". Hasta que el dominio separe
+  // ranura de concentración, acá se lee con un rótulo neutro que funciona
+  // para los dos casos — mismo criterio que ya usa la notificación
+  // (`buildDoseNotification` lo une con un guion, sin nombrarlo).
   if (dose.visualProfile.slotLabel) {
-    sentences.push(`Ranura del pastillero: ${dose.visualProfile.slotLabel}.`);
+    sentences.push(`Referencia: ${dose.visualProfile.slotLabel}.`);
   }
 
   sentences.push('Presioná el botón Confirmar Toma después de tomarla.');

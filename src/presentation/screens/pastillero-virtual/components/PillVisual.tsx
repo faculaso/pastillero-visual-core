@@ -3,7 +3,7 @@ import { View, Image, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect, Ellipse, Polygon, Line, ClipPath, G } from 'react-native-svg';
 import type { VisualProfile } from '../../../../domain';
 import { PillShape } from '../../../../domain';
-import { colors, radii, spacing } from '../../../design-system/tokens';
+import { colors, radii } from '../../../design-system/tokens';
 import { shadeColor } from '../../../utils/shade-color';
 
 export interface PillVisualProps {
@@ -56,11 +56,6 @@ export function PillVisual({ visualProfile, size = 160, medicationName }: PillVi
           />
         </View>
       )}
-      {visualProfile.slotLabel ? (
-        <View style={styles.slotBadge}>
-          <View style={styles.slotBadgeDot} />
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -322,24 +317,5 @@ const styles = StyleSheet.create({
   image: {
     borderWidth: 2,
     borderColor: colors.border,
-  },
-  slotBadge: {
-    position: 'absolute',
-    bottom: -spacing.xs,
-    right: -spacing.xs,
-    width: 28,
-    height: 28,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  slotBadgeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primary,
   },
 });

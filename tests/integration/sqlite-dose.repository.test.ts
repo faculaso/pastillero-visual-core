@@ -83,10 +83,16 @@ describe('SqliteDoseRepository (integración)', () => {
     await seedTreatment(context, { medication: { id: 'm2' }, treatment: { id: 't2', patientId: 'p2' } });
     const repo = new SqliteDoseRepository(context);
 
-    const targetDate = new Date('2026-08-05T00:00:00.000Z');
+    // Fechas LOCALES, no UTC: `dayBounds` (el repo) recorta el día con
+    // `setHours`, o sea el día del USUARIO — que es lo correcto para el
+    // producto: "mis tomas de hoy" es hoy donde vive el paciente. Con
+    // instantes UTC el test solo pasaba si la máquina corría en UTC, y
+    // fallaba justo en la zona horaria del país al que apunta la app
+    // (America/Argentina, UTC-3).
+    const targetDate = new Date(2026, 7, 5);
     await repo.createSlots([
-      buildDose({ id: 'd1', treatmentId: 't1', scheduledAt: new Date('2026-08-05T08:00:00.000Z') }),
-      buildDose({ id: 'd2', treatmentId: 't2', scheduledAt: new Date('2026-08-05T08:00:00.000Z') }),
+      buildDose({ id: 'd1', treatmentId: 't1', scheduledAt: new Date(2026, 7, 5, 8, 0, 0) }),
+      buildDose({ id: 'd2', treatmentId: 't2', scheduledAt: new Date(2026, 7, 5, 8, 0, 0) }),
     ]);
 
     const result = await repo.findPendingByPatientAndDate('p1', targetDate);
@@ -99,12 +105,13 @@ describe('SqliteDoseRepository (integración)', () => {
     await seedTreatment(context, { medication: { id: 'm1' }, treatment: { id: 't1', patientId: 'p1' } });
     const repo = new SqliteDoseRepository(context);
 
-    const targetDate = new Date('2026-08-05T00:00:00.000Z');
+    // Ver nota de zona horaria en el test anterior.
+    const targetDate = new Date(2026, 7, 5);
     await repo.createSlots([
-      buildDose({ id: 'd1', treatmentId: 't1', scheduledAt: new Date('2026-08-05T08:00:00.000Z') }),
-      buildDose({ id: 'd2', treatmentId: 't1', scheduledAt: new Date('2026-08-05T14:00:00.000Z') }),
+      buildDose({ id: 'd1', treatmentId: 't1', scheduledAt: new Date(2026, 7, 5, 8, 0, 0) }),
+      buildDose({ id: 'd2', treatmentId: 't1', scheduledAt: new Date(2026, 7, 5, 14, 0, 0) }),
     ]);
-    await repo.confirmDose('d1', new Date('2026-08-05T08:05:00.000Z'));
+    await repo.confirmDose('d1', new Date(2026, 7, 5, 8, 5, 0));
 
     const result = await repo.findAllByPatientAndDate('p1', targetDate);
     expect(result.ok).toBe(true);

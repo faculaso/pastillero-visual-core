@@ -22,8 +22,14 @@ import { CelebrationOverlay } from './components/CelebrationOverlay';
 import { ConfirmDoseButton } from './components/ConfirmDoseButton';
 import { TimeOfDayBackdrop } from './components/TimeOfDayBackdrop';
 
+/**
+ * 24 horas a propósito: es el formato de uso corriente en Argentina (turnos,
+ * transporte, TV) y sobre todo elimina la ambigüedad de "12:00 a. m." —
+ * mediodía y medianoche se dicen igual en el reloj de 12 y son el error más
+ * caro posible en una app de medicación.
+ */
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 export interface PastilleroVirtualScreenProps {
@@ -75,6 +81,10 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
     ? doses.filter((d) => d.scheduledAt.getTime() === currentDose.scheduledAt.getTime())
     : [];
   const [groupIndex, setGroupIndex] = useState(0);
+  // Se captura al confirmar porque para cuando corre la animación la toma ya
+  // salió de `doses` — sin esto, la confirmación mostraría un comprimido de
+  // color genérico justo después de prometer "así se ve TU pastilla".
+  const [confirmedDose, setConfirmedDose] = useState<{ color: string; name: string } | null>(null);
   useEffect(() => {
     if (groupIndex >= currentGroup.length) setGroupIndex(0);
     // Solo debe recortar el índice cuando el GRUPO se achica (p. ej. tras
@@ -119,13 +129,17 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
     >
       {theme ? <TimeOfDayBackdrop theme={theme} /> : null}
       <Animated.View style={[styles.topBar, topBarEntrance]}>
-        <InviteCodeButton patientId={patientId} accentColor={theme?.accentText} />
+        <InviteCodeButton patientId={patientId} theme={theme} />
         <Pressable
           onPress={() => navigation.navigate('MiSemana')}
           accessibilityRole="button"
           accessibilityLabel="Ver mi semana"
           hitSlop={8}
-          style={({ pressed }) => [styles.signOutButton, pressed && styles.signOutButtonPressed]}
+          style={({ pressed }) => [
+            styles.navButton,
+            theme ? { backgroundColor: theme.chipBackground, borderColor: theme.chipBorder } : null,
+            pressed && styles.navButtonPressed,
+          ]}
         >
           <AccessibleText variant="small" bold color={theme?.accentText ?? colors.textSecondary}>
             Semana
@@ -136,7 +150,11 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
           accessibilityRole="button"
           accessibilityLabel="Cerrar sesión"
           hitSlop={8}
-          style={({ pressed }) => [styles.signOutButton, pressed && styles.signOutButtonPressed]}
+          style={({ pressed }) => [
+            styles.navButton,
+            theme ? { backgroundColor: theme.chipBackground, borderColor: theme.chipBorder } : null,
+            pressed && styles.navButtonPressed,
+          ]}
         >
           <AccessibleText variant="small" bold color={theme?.accentText ?? colors.textSecondary}>
             Salir
@@ -149,66 +167,87 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : currentDose && theme ? (
-        // `ScrollView` (no un `View` centrado a secas): la tarjeta de la toma +
-        // el botón de confirmar pueden ser más altos que la pantalla (nombre
-        // largo, foto, instrucciones) — sin scroll, `justifyContent: 'center'`
-        // desborda el contenido simétricamente para los DOS lados, cortando
-        // "Confirmar Toma" (el botón más importante de la pantalla) contra el
-        // borde inferior. Confirmado en un dispositivo real con poca altura útil.
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Animated.View style={[styles.topHeader, headerEntrance]}>
-            <View style={styles.turnoChip}>
-              <AccessibleText variant="small" color={theme.accentText} bold>
-                {theme.emoji} Turno {theme.label} • {formatTime(currentDose.scheduledAt)}
+        // La acción de confirmar vive FUERA del `ScrollView`, anclada al pie:
+        // es el paso 4 de CU-02 y el botón más importante de la app, así que
+        // nunca puede depender de que el usuario scrollee para encontrarlo
+        // (con nombre largo + foto + instrucciones la tarjeta sola ya supera
+        // el alto útil de la pantalla). El scroll queda solo para el
+        // CONTENIDO — el qué —, y el pie sostiene el cómo-confirmar siempre
+        // visible, igual que la tapa de un pastillero físico siempre al alcance.
+        <>
+          {/* Con el indicador de scroll VISIBLE a propósito: la tarjeta puede
+              exceder el alto útil y, con el pie anclado, el corte cae contra
+              un borde duro — sin la barra no queda ninguna señal de que hay
+              más abajo (p. ej. "Escuchar indicaciones"). */}
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <Animated.View style={[styles.topHeader, headerEntrance]}>
+              <View style={[styles.turnoChip, { backgroundColor: theme.chipBackground, borderColor: theme.chipBorder }]}>
+                <AccessibleText variant="small" color={theme.accentText} bold>
+                  {theme.label} · {formatTime(currentDose.scheduledAt)}
+                </AccessibleText>
+              </View>
+              <AccessibleText variant="title" bold color={theme.accentText}>
+                Toma tu medicación
               </AccessibleText>
-            </View>
-            <AccessibleText variant="title" bold color={theme.accentText}>
-              Toma tu medicación
-            </AccessibleText>
-          </Animated.View>
+            </Animated.View>
 
-          {dailyProgress ? (
-            <Animated.View style={[styles.progressCard, progressEntrance]}>
-              <DailyProgressBar
-                totalScheduled={dailyProgress.totalScheduled}
-                totalTaken={dailyProgress.totalTaken}
-                labelColor={theme.accentText}
+            {dailyProgress ? (
+              <Animated.View style={progressEntrance}>
+                <DailyProgressBar
+                  totalScheduled={dailyProgress.totalScheduled}
+                  totalTaken={dailyProgress.totalTaken}
+                  labelColor={theme.accentText}
+                  trackColor={theme.recessedSurface}
+                />
+              </Animated.View>
+            ) : null}
+
+            <Animated.View style={instructionEntrance}>
+              <InstructionBadge theme={theme} />
+            </Animated.View>
+
+            <Animated.View style={pillboxEntrance}>
+              <DoseCarousel
+                doses={currentGroup}
+                celebrationTrigger={celebrationTrigger}
+                index={groupIndex}
+                onIndexChange={setGroupIndex}
+                theme={theme}
               />
             </Animated.View>
-          ) : null}
+          </ScrollView>
 
-          <Animated.View style={instructionEntrance}>
-            <InstructionBadge theme={theme} />
-          </Animated.View>
-
-          <Animated.View style={pillboxEntrance}>
-            <DoseCarousel
-              doses={currentGroup}
-              celebrationTrigger={celebrationTrigger}
-              index={groupIndex}
-              onIndexChange={setGroupIndex}
-            />
-          </Animated.View>
-          <View style={styles.confirmSection}>
+          <View style={[styles.confirmFooter, { borderTopColor: theme.chipBorder }]}>
             {error ? (
               <ErrorBanner message={error} onDismiss={dismissError} />
             ) : (
               <ConfirmDoseButton
                 loading={status === 'confirming'}
                 disabled={status === 'confirming' || !selectedDose}
-                onPress={() => selectedDose && confirmCurrentDose(patientId, selectedDose.doseId)}
+                onPress={() => {
+                  if (!selectedDose) return;
+                  setConfirmedDose({
+                    color: selectedDose.visualProfile.color,
+                    name: selectedDose.medicationName,
+                  });
+                  void confirmCurrentDose(patientId, selectedDose.doseId);
+                }}
                 staggerIndex={5}
               />
             )}
           </View>
-        </ScrollView>
+        </>
       ) : (
         <View style={styles.centered}>
           <EmptyState dailyProgress={dailyProgress} />
         </View>
       )}
 
-      <CelebrationOverlay trigger={celebrationTrigger} />
+      <CelebrationOverlay
+        trigger={celebrationTrigger}
+        pillColor={confirmedDose?.color}
+        medicationName={confirmedDose?.name}
+      />
     </View>
   );
 }
@@ -218,46 +257,42 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   topBar: {
+    // Los tres accesos reparten el ancho en vez de amontonarse a la derecha:
+    // apretados contra el borde dejaban media pantalla vacía a la izquierda
+    // y competían entre sí por un mismo rincón.
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
+    alignItems: 'stretch',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.sm,
     gap: spacing.sm,
   },
-  progressCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.88)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: radii.xl,
-    padding: spacing.md,
-  },
-  signOutButton: {
+  navButton: {
+    flex: 1,
     minHeight: touchTarget.minHeight,
-    minWidth: 72,
     borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
   },
-  signOutButtonPressed: {
+  navButtonPressed: {
     backgroundColor: 'rgba(15, 23, 42, 0.06)',
   },
   scrollContent: {
     flexGrow: 1,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
     justifyContent: 'center',
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   topHeader: {
     gap: spacing.sm,
   },
   turnoChip: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
     borderRadius: radii.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
@@ -267,7 +302,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flex: 1,
   },
-  confirmSection: {
-    gap: spacing.md,
+  confirmFooter: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    borderTopWidth: 1,
   },
 });

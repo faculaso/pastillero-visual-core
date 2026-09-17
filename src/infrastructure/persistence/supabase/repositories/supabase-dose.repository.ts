@@ -32,6 +32,9 @@ function mapConfirmRpcError(message: string, doseId: string): DomainError {
   // tira esto. Se sigue traduciendo para que la app se comporte con sensatez
   // contra una base donde esa migración no se aplicó todavía.
   if (message.includes('STOCK_INSUFFICIENT')) return DomainErrors.insufficientStock(doseId);
+  // Lo tira la migración 0008 cuando `doses_update_patient` frena el UPDATE:
+  // el Cuidador PUEDE ver una toma pero solo el paciente puede confirmarla.
+  if (message.includes('UNAUTHORIZED_ACTOR')) return DomainErrors.unauthorizedActor(doseId, 'confirmDose');
   return DomainErrors.repositoryFailure(new Error(message));
 }
 
@@ -165,6 +168,11 @@ export class SupabaseDoseRepository implements DoseRepository {
       // esa versión de la función no deja pasar una toma sin stock.
       stockShortfall?: number;
     };
+    // Contra una base con 0007 aplicada y 0008 todavía no, un UPDATE que no
+    // tocó ninguna fila vuelve como éxito con la toma en null. Mapear eso
+    // produciría una toma inventada; se trata como lo que realmente es.
+    if (!payload?.dose) return Err(DomainErrors.doseAlreadyConfirmed(doseId));
+
     return Ok({
       dose: mapRowToDose(payload.dose),
       stock: {

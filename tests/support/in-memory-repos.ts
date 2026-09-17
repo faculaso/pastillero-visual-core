@@ -200,27 +200,28 @@ export class InMemoryDoseRepository implements DoseRepository {
     doseId: string,
     confirmedAt: Date,
     quantityTaken: Dosage,
-  ): Promise<Result<{ dose: Dose; stock: StockInfo }, DomainError>> {
+  ): Promise<Result<{ dose: Dose; stock: StockInfo; stockWasShort: boolean }, DomainError>> {
     const dose = this.store.doses.get(doseId);
     if (!dose) return Err(DomainErrors.doseNotFound(doseId));
     if (dose.status !== 'PENDING') return Err(DomainErrors.doseAlreadyConfirmed(doseId));
 
     const treatment = this.store.treatments.get(dose.treatmentId);
     if (!treatment) return Err(DomainErrors.treatmentNotFound(dose.treatmentId));
-    if (treatment.stock.currentQuantity - quantityTaken.amount < 0) {
-      return Err(DomainErrors.insufficientStock(dose.treatmentId));
-    }
+
+    // Quedarse sin stock no frena el registro de la toma: baja hasta cero y
+    // se informa lo que faltó (ver `decrementStock` y la migración 0007).
+    const stockWasShort = treatment.stock.currentQuantity < quantityTaken.amount;
 
     const updatedDose: Dose = { ...dose, status: DoseStatus.TAKEN, confirmedAt, quantityTaken };
     this.store.doses.set(doseId, updatedDose);
 
     const updatedStock: StockInfo = {
       ...treatment.stock,
-      currentQuantity: treatment.stock.currentQuantity - quantityTaken.amount,
+      currentQuantity: Math.max(treatment.stock.currentQuantity - quantityTaken.amount, 0),
     };
     this.store.treatments.set(dose.treatmentId, { ...treatment, stock: updatedStock });
 
-    return Ok({ dose: updatedDose, stock: updatedStock });
+    return Ok({ dose: updatedDose, stock: updatedStock, stockWasShort });
   }
 }
 

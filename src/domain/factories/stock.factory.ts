@@ -31,23 +31,46 @@ export function createStockInfo(input: CreateStockInfoInput): Result<StockInfo, 
   return Ok({ currentQuantity, dailyConsumption, unit, criticalThresholdDays });
 }
 
+export interface StockDecrement {
+  readonly stock: StockInfo;
+  /**
+   * Cuánto faltó para cubrir la toma. Cero si alcanzaba.
+   *
+   * Mayor que cero NO es un error: es la señal de que el inventario que
+   * carga el Cuidador quedó desactualizado.
+   */
+  readonly shortfall: number;
+}
+
 /**
  * Decremento de stock (CU-02 paso 6, tras confirmar una toma).
- * Invariante: no permite stock negativo. `quantity` debe ser > 0.
+ *
+ * Quedarse sin stock NO invalida la toma. El stock lo carga el Cuidador a
+ * mano y es una estimación; que el Adulto Mayor haya tomado la pastilla es
+ * un hecho. Cuando esto devolvía `insufficientStock`, un olvido de
+ * inventario del Cuidador convertía una toma real en un registro de
+ * incumplimiento y le mostraba un error al Adulto Mayor frente a una
+ * pastilla que ya se había tomado — la adherencia, que es lo que esta app
+ * existe para medir, terminaba mintiendo por un número administrativo.
+ *
+ * El stock baja hasta cero y nunca por debajo; lo que faltó se informa en
+ * `shortfall` para que el Cuidador pueda enterarse.
+ *
+ * Sigue siendo un error una `quantity` inválida (<= 0 o no finita): eso no
+ * es un estado del inventario, es un llamado mal construido.
  */
 export function decrementStock(
   stock: StockInfo,
   quantity: number,
-): Result<StockInfo, DomainError> {
+): Result<StockDecrement, DomainError> {
   if (!Number.isFinite(quantity) || quantity <= 0) {
     return Err(DomainErrors.invalidQuantity(quantity));
   }
-  if (stock.currentQuantity - quantity < 0) {
-    // StockInfo es un VO embebido sin id propio; el treatmentId se agrega
-    // como contexto en la capa de aplicación (que sí conoce el agregado).
-    return Err(DomainErrors.insufficientStock('unknown'));
-  }
-  return Ok({ ...stock, currentQuantity: stock.currentQuantity - quantity });
+  const shortfall = Math.max(quantity - stock.currentQuantity, 0);
+  return Ok({
+    stock: { ...stock, currentQuantity: Math.max(stock.currentQuantity - quantity, 0) },
+    shortfall,
+  });
 }
 
 /**

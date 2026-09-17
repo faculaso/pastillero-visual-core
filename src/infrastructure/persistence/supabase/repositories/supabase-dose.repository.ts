@@ -28,6 +28,9 @@ function mapConfirmRpcError(message: string, doseId: string): DomainError {
   if (message.includes('DOSE_NOT_FOUND')) return DomainErrors.doseNotFound(doseId);
   if (message.includes('DOSE_ALREADY_CONFIRMED')) return DomainErrors.doseAlreadyConfirmed(doseId);
   if (message.includes('TREATMENT_NOT_FOUND')) return DomainErrors.treatmentNotFound(doseId);
+  // La versión de `confirm_dose_atomic` anterior a la migración 0007 todavía
+  // tira esto. Se sigue traduciendo para que la app se comporte con sensatez
+  // contra una base donde esa migración no se aplicó todavía.
   if (message.includes('STOCK_INSUFFICIENT')) return DomainErrors.insufficientStock(doseId);
   return DomainErrors.repositoryFailure(new Error(message));
 }
@@ -145,7 +148,7 @@ export class SupabaseDoseRepository implements DoseRepository {
     doseId: string,
     confirmedAt: Date,
     quantityTaken: Dosage,
-  ): Promise<Result<{ dose: Dose; stock: StockInfo }, DomainError>> {
+  ): Promise<Result<{ dose: Dose; stock: StockInfo; stockWasShort: boolean }, DomainError>> {
     const { data, error } = await this.client.rpc('confirm_dose_atomic', {
       p_dose_id: doseId,
       p_confirmed_at: confirmedAt.toISOString(),
@@ -154,7 +157,14 @@ export class SupabaseDoseRepository implements DoseRepository {
     });
     if (error) return Err(mapConfirmRpcError(error.message, doseId));
 
-    const payload = data as { dose: SupabaseDoseRow; stock: RpcStockRow };
+    const payload = data as {
+      dose: SupabaseDoseRow;
+      stock: RpcStockRow;
+      // Lo agrega la migración 0007. Contra una base anterior viene
+      // `undefined`, que acá se lee como "no faltó nada" — y es cierto:
+      // esa versión de la función no deja pasar una toma sin stock.
+      stockShortfall?: number;
+    };
     return Ok({
       dose: mapRowToDose(payload.dose),
       stock: {
@@ -163,6 +173,7 @@ export class SupabaseDoseRepository implements DoseRepository {
         unit: payload.stock.stock_unit as MeasurementUnit,
         criticalThresholdDays: payload.stock.stock_critical_threshold_days,
       },
+      stockWasShort: (payload.stockShortfall ?? 0) > 0,
     });
   }
 

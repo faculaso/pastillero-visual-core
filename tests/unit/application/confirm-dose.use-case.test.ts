@@ -55,17 +55,35 @@ describe('ConfirmDoseUseCase', () => {
     if (!result.ok) expect(result.error.code).toBe('TREATMENT_NOT_ACTIVE');
   });
 
-  it('rechaza confirmar si el stock es insuficiente y NO toca la toma', async () => {
+  /**
+   * El stock lo carga el Cuidador a mano y es una ESTIMACIÓN; que el Adulto
+   * Mayor haya tomado la pastilla es un HECHO. Cuando esto devolvía
+   * `STOCK_INSUFFICIENT`, un olvido de inventario del Cuidador convertía una
+   * toma real en un registro de incumplimiento — y le mostraba un error al
+   * Adulto Mayor frente a una pastilla que ya se había tomado.
+   */
+  it('con el stock en cero la toma SE REGISTRA igual: el inventario no puede desmentir un hecho', async () => {
     store.treatments.set('treatment-1', {
       ...store.treatments.get('treatment-1')!,
       stock: { currentQuantity: 0, dailyConsumption: 1, unit: MeasurementUnit.UNIT, criticalThresholdDays: 3 },
     });
     const result = await useCase.execute({ doseId: 'dose-1', requestingPatientId: 'patient-1' });
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe('STOCK_INSUFFICIENT');
-    // fail-fast: la validación de dominio corta ANTES de abrir transacción
-    expect(store.doses.get('dose-1')?.status).toBe(DoseStatus.PENDING);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.dose.status).toBe(DoseStatus.TAKEN);
+      expect(result.value.stock.currentQuantity).toBe(0);
+      // Lo que permite avisarle al Cuidador que su inventario quedó viejo.
+      expect(result.value.stockWasShort).toBe(true);
+    }
+    expect(store.doses.get('dose-1')?.status).toBe(DoseStatus.TAKEN);
+  });
+
+  it('con stock suficiente no marca faltante', async () => {
+    const result = await useCase.execute({ doseId: 'dose-1', requestingPatientId: 'patient-1' });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.stockWasShort).toBe(false);
   });
 
   // La atomicidad "confirmar + decrementar stock" ya no es una orquestación

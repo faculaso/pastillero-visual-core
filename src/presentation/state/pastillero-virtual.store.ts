@@ -19,6 +19,12 @@ export interface PastilleroVirtualState {
   readonly status: PastilleroVirtualStatus;
   readonly doses: readonly PendingDoseView[];
   readonly error: string | null;
+  /**
+   * Aviso NO bloqueante: la toma se registró, pero el stock que lleva el
+   * Cuidador no la cubría. Va aparte de `error` a propósito — un error tapa
+   * el botón de confirmar, y acá no hay nada que reintentar: ya está hecho.
+   */
+  readonly stockNotice: string | null;
   readonly dailyProgress: DailyProgress | null;
   /** Se incrementa en cada confirmación exitosa — la UI lo usa para disparar la animación de celebración sin necesitar resetear un booleano. */
   readonly celebrationTrigger: number;
@@ -27,6 +33,7 @@ export interface PastilleroVirtualState {
    *  deslizando en la pantalla, y cualquiera de las dos puede confirmarse primero. */
   confirmCurrentDose(patientId: string, doseId: string): Promise<void>;
   dismissError(): void;
+  dismissStockNotice(): void;
 }
 
 export interface PastilleroVirtualDeps {
@@ -69,11 +76,12 @@ export function createPastilleroVirtualStore(
     status: 'idle',
     doses: [],
     error: null,
+    stockNotice: null,
     dailyProgress: null,
     celebrationTrigger: 0,
 
     async loadPendingDoses(patientId: string) {
-      set({ status: 'loading', error: null });
+      set({ status: 'loading', error: null, stockNotice: null });
       const result = await deps.getPendingDoses.execute({ patientId });
       if (!result.ok) {
         set({ status: 'error', error: describeError(result.error) });
@@ -87,7 +95,7 @@ export function createPastilleroVirtualStore(
       const current = get().doses.find((d) => d.doseId === doseId);
       if (!current) return; // no hay nada que confirmar — el botón no debería estar habilitado en este caso
 
-      set({ status: 'confirming', error: null });
+      set({ status: 'confirming', error: null, stockNotice: null });
       const result = await deps.confirmDose.execute({
         doseId: current.doseId,
         requestingPatientId: patientId,
@@ -103,12 +111,21 @@ export function createPastilleroVirtualStore(
         status: 'ready',
         doses: state.doses.filter((d) => d.doseId !== current.doseId),
         celebrationTrigger: state.celebrationTrigger + 1,
+        // La celebración se dispara igual: la toma ocurrió. Esto solo suma
+        // el dato de que el inventario del Cuidador quedó viejo.
+        stockNotice: result.value.stockWasShort
+          ? 'Quedó registrada. Avisale a tu cuidador que se terminó este remedio.'
+          : null,
       }));
       void refreshDailyProgress(patientId, set);
     },
 
     dismissError() {
       set({ status: get().doses.length > 0 ? 'ready' : 'idle', error: null });
+    },
+
+    dismissStockNotice() {
+      set({ stockNotice: null });
     },
   }));
 }
@@ -122,6 +139,10 @@ function describeError(error: DomainError): string {
   switch (error.code) {
     case 'DOSE_ALREADY_CONFIRMED':
       return 'Esta toma ya fue registrada. Pedile a tu cuidador que revise el pastillero.';
+    // Solo llega desde una base donde todavía no se aplicó la migración
+    // 0007: esa versión de `confirm_dose_atomic` no deja registrar la toma
+    // si el stock no alcanza. Con 0007 aplicada, esto pasa a ser
+    // `stockNotice` y la toma se registra igual.
     case 'STOCK_INSUFFICIENT':
       return 'No hay stock suficiente registrado. Avisale a tu cuidador para reponer la medicación.';
     case 'TREATMENT_NOT_ACTIVE':

@@ -1,6 +1,7 @@
 export * from './core/use-case';
 
 export * from './ports/clock.port';
+export * from './ports/snapshot-cache.port';
 export * from './ports/id-generator.port';
 export * from './ports/notification-scheduler.port';
 export * from './ports/medication-visual-suggestion.port';

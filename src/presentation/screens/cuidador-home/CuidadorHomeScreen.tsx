@@ -3,7 +3,7 @@ import { View, ScrollView, ActivityIndicator, Pressable, StyleSheet } from 'reac
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CuidadorStackParamList } from '../../navigation/types';
-import type { WeekDoseView, GetWeeklyScheduleOutput } from '../../../application';
+import type { WeekDoseView, GetWeeklyScheduleOutput, PausedTreatmentView } from '../../../application';
 import { useUseCases } from '../../providers/UseCasesProvider';
 import { useSession } from '../../providers/SessionContext';
 import { AccessibleText } from '../../design-system/AccessibleText';
@@ -45,12 +45,13 @@ const SUGGESTED_HOUR: Record<Turno, number> = { morning: 8, midday: 12, afternoo
  * así el pastillero queda como el indicador central que maneja todo.
  */
 export function CuidadorHomeScreen({ navigation }: Props): React.JSX.Element {
-  const { getWeeklySchedule, extendDoseHorizon } = useUseCases();
+  const { getWeeklySchedule, extendDoseHorizon, getPausedTreatments } = useUseCases();
   const { session } = useSession();
 
   const [status, setStatus] = useState<ScreenStatus>('loading');
   const [data, setData] = useState<GetWeeklyScheduleOutput | null>(null);
   const [selection, setSelection] = useState<CellSelection | null>(null);
+  const [paused, setPaused] = useState<readonly PausedTreatmentView[]>([]);
 
   const hasLinkedPatient = Boolean(session?.patientId);
 
@@ -64,8 +65,18 @@ export function CuidadorHomeScreen({ navigation }: Props): React.JSX.Element {
     }
     setData(result.value);
     setStatus('ready');
+
+    // Un tratamiento en pausa ya no aparece en la grilla ni en el aviso de
+    // stock — que es lo que se le pide a una pausa — y sin esta lista no
+    // quedaría NINGÚN camino para volver a abrirlo y reanudarlo. Va aparte
+    // de la carga principal y no la puede hacer fallar.
+    const pausedResult = await getPausedTreatments.execute({
+      caregiverId: session.caregiverId,
+      patientId: session.patientId,
+    });
+    setPaused(pausedResult.ok ? pausedResult.value.treatments : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.patientId, hasLinkedPatient]);
+  }, [session?.patientId, session?.caregiverId, hasLinkedPatient]);
 
   // Se recarga cada vez que la pantalla vuelve a tener foco (p. ej. al volver
   // de registrar un tratamiento nuevo) — no solo al montar una vez.
@@ -132,6 +143,30 @@ export function CuidadorHomeScreen({ navigation }: Props): React.JSX.Element {
                       justo lo que el banner no permitía hacer. */}
                   <AccessibleText variant="small" color={colors.critical}>
                     {formatDaysRemaining(t.estimatedDaysRemaining)}
+                  </AccessibleText>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
+          {paused.length > 0 ? (
+            <View style={styles.pausedBanner}>
+              <AccessibleText variant="small" bold color={colors.warning}>
+                En pausa
+              </AccessibleText>
+              {paused.map((t) => (
+                <Pressable
+                  key={t.treatmentId}
+                  onPress={() => navigation.navigate('AdherenceDashboard', { treatmentId: t.treatmentId })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Reanudar o ver ${t.medicationName}, en pausa`}
+                  style={({ pressed }) => [styles.attentionRow, pressed && styles.pausedRowPressed]}
+                >
+                  <AccessibleText variant="small" bold color={colors.warning}>
+                    {t.medicationName}
+                  </AccessibleText>
+                  <AccessibleText variant="small" color={colors.warning}>
+                    no suena
                   </AccessibleText>
                 </Pressable>
               ))}
@@ -216,6 +251,15 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
   },
   attentionRowPressed: { backgroundColor: 'rgba(185, 28, 28, 0.08)' },
+  pausedBanner: {
+    backgroundColor: colors.warningBackground,
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  pausedRowPressed: { backgroundColor: 'rgba(194, 65, 12, 0.08)' },
   nivel: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,

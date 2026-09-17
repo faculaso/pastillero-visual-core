@@ -4,6 +4,8 @@ import type {
   RegisterTreatmentUseCase,
   MonitorAdherenceUseCase,
   UpdateStockUseCase,
+  ChangeTreatmentStatusUseCase,
+  GetPausedTreatmentsUseCase,
   GetPendingDosesForPatientUseCase,
   SearchMedicationCatalogUseCase,
   SuggestVisualProfileUseCase,
@@ -31,6 +33,8 @@ export interface UseCasesBundle {
   readonly registerTreatment: RegisterTreatmentUseCase;
   readonly monitorAdherence: MonitorAdherenceUseCase;
   readonly updateStock: UpdateStockUseCase;
+  readonly changeTreatmentStatus: ChangeTreatmentStatusUseCase;
+  readonly getPausedTreatments: GetPausedTreatmentsUseCase;
   readonly getPendingDoses: GetPendingDosesForPatientUseCase;
   readonly searchMedicationCatalog: SearchMedicationCatalogUseCase;
   readonly suggestVisualProfile: SuggestVisualProfileUseCase;

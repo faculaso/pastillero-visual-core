@@ -30,6 +30,8 @@ import {
   RegisterTreatmentUseCase,
   MonitorAdherenceUseCase,
   UpdateStockUseCase,
+  ChangeTreatmentStatusUseCase,
+  GetPausedTreatmentsUseCase,
   GetPendingDosesForPatientUseCase,
   SearchMedicationCatalogUseCase,
   SuggestVisualProfileUseCase,
@@ -47,6 +49,8 @@ export interface BootstrapResult {
   readonly registerTreatment: RegisterTreatmentUseCase;
   readonly monitorAdherence: MonitorAdherenceUseCase;
   readonly updateStock: UpdateStockUseCase;
+  readonly changeTreatmentStatus: ChangeTreatmentStatusUseCase;
+  readonly getPausedTreatments: GetPausedTreatmentsUseCase;
   readonly getPendingDoses: GetPendingDosesForPatientUseCase;
   readonly searchMedicationCatalog: SearchMedicationCatalogUseCase;
   readonly suggestVisualProfile: SuggestVisualProfileUseCase;
@@ -182,6 +186,13 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
       clock,
     ),
     updateStock: new UpdateStockUseCase(treatmentRepository, stockRepository, notificationScheduler),
+    changeTreatmentStatus: new ChangeTreatmentStatusUseCase(
+      treatmentRepository,
+      doseRepository,
+      notificationScheduler,
+      clock,
+    ),
+    getPausedTreatments: new GetPausedTreatmentsUseCase(treatmentRepository),
     getPendingDoses: new GetPendingDosesForPatientUseCase(doseRepository, treatmentRepository, clock),
     searchMedicationCatalog: new SearchMedicationCatalogUseCase(medicationCatalogRepository),
     suggestVisualProfile: new SuggestVisualProfileUseCase(

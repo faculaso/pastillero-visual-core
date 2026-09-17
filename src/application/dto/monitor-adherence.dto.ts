@@ -1,4 +1,4 @@
-import type { AdherenceMetrics, StockInfo } from '../../domain';
+import type { AdherenceMetrics, StockInfo, TreatmentStatus } from '../../domain';
 
 export interface MonitorAdherenceInput {
   readonly treatmentId: string;
@@ -26,6 +26,13 @@ export interface MonitorAdherenceOutput {
    * nueva" sin decir de qué unidad ni cuánto había.
    */
   readonly stock: StockInfo;
+  /**
+   * Estado del tratamiento. La pantalla lo necesita para saber qué ofrecer:
+   * un tratamiento activo se pausa, uno pausado se reanuda y uno dado de
+   * baja no admite nada. Sin esto la pantalla mostraba siempre las mismas
+   * acciones, incluidas las que el dominio iba a rechazar.
+   */
+  readonly status: TreatmentStatus;
   /** true si el nivel CRITICAL disparó una notificación de reposición (CU-03 paso 4). */
   readonly criticalAlertDispatched: boolean;
 }

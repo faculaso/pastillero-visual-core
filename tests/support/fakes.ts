@@ -26,6 +26,7 @@ export class FakeNotificationScheduler implements NotificationScheduler {
   readonly dispatchedAlerts: string[] = [];
   readonly clearedAlerts: string[] = [];
   shouldFailScheduleFor: ReadonlySet<string> = new Set();
+  shouldFailCancelFor: ReadonlySet<string> = new Set();
   shouldFailDispatch = false;
 
   async scheduleDoseAlarm(dose: Dose): Promise<Result<void, DomainError>> {
@@ -37,6 +38,9 @@ export class FakeNotificationScheduler implements NotificationScheduler {
   }
 
   async cancelDoseAlarm(doseId: string): Promise<Result<void, DomainError>> {
+    if (this.shouldFailCancelFor.has(doseId)) {
+      return Err(DomainErrors.repositoryFailure(new Error('scheduler down')));
+    }
     this.cancelledAlarms.push(doseId);
     return Ok(undefined);
   }

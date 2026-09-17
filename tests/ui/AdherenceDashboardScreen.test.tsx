@@ -1,9 +1,10 @@
 import React from 'react';
-import { render, screen, waitFor, userEvent } from '@testing-library/react-native';
+import { render, screen, waitFor, userEvent, act } from '@testing-library/react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AdherenceDashboardScreen } from '../../src/presentation/screens/adherence-dashboard/AdherenceDashboardScreen';
 import type { CuidadorStackParamList } from '../../src/presentation/navigation/types';
-import { Ok, Err, DomainErrors, StockAlertLevel, MeasurementUnit } from '../../src/domain';
+import { Alert } from 'react-native';
+import { Ok, Err, DomainErrors, StockAlertLevel, MeasurementUnit, TreatmentStatus } from '../../src/domain';
 import { withProviders } from './test-utils';
 import type { AdherenceMetrics } from '../../src/domain';
 
@@ -38,6 +39,7 @@ function buildOutput(overrides: Record<string, unknown> = {}) {
       unit: MeasurementUnit.UNIT,
       criticalThresholdDays: 3,
     },
+    status: TreatmentStatus.ACTIVE,
     criticalAlertDispatched: false,
     ...overrides,
   };
@@ -126,6 +128,138 @@ describe('AdherenceDashboardScreen', () => {
 
     await waitFor(() => expect(monitorAdherence.execute).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByText('Stock normal')).toBeTruthy());
+  });
+
+  /**
+   * Hasta acá el Cuidador no tenía NINGUNA forma de apagar un remedio que
+   * el médico suspendió: seguía sonando para siempre y lo único parecido
+   * era borrarlo, que se lleva puesto el historial de adherencia.
+   */
+  describe('pausar, reanudar y dar de baja', () => {
+    function okCambio(overrides: Record<string, unknown> = {}) {
+      return Ok({ treatment: {}, alarmsAffected: 1, alarmWarnings: [], ...overrides });
+    }
+
+    it('pausar no pide confirmación: es reversible de un toque', async () => {
+      const monitorAdherence = {
+        execute: jest
+          .fn()
+          .mockResolvedValueOnce(Ok(buildOutput()))
+          .mockResolvedValueOnce(Ok(buildOutput({ status: TreatmentStatus.PAUSED }))),
+      };
+      const changeTreatmentStatus = { execute: jest.fn().mockResolvedValue(okCambio()) };
+      const user = userEvent.setup();
+
+      await render(
+        withProviders(<AdherenceDashboardScreen navigation={navigation} route={baseRoute} />, {
+          role: 'CUIDADOR',
+          useCases: { monitorAdherence: monitorAdherence as never, changeTreatmentStatus: changeTreatmentStatus as never },
+        }),
+      );
+
+      await waitFor(() => expect(screen.getByText('Pausar tratamiento')).toBeTruthy());
+      await user.press(screen.getByText('Pausar tratamiento'));
+
+      await waitFor(() =>
+        expect(changeTreatmentStatus.execute).toHaveBeenCalledWith({
+          treatmentId: 'treatment-1',
+          requestingCaregiverId: 'test-caregiver-1',
+          newStatus: TreatmentStatus.PAUSED,
+        }),
+      );
+      // El cartel explica la consecuencia, no repite el nombre del estado.
+      await waitFor(() => expect(screen.getByText('En pausa')).toBeTruthy());
+      expect(screen.getByText('Reanudar tratamiento')).toBeTruthy();
+    });
+
+    it('dar de baja PIDE confirmación antes de tocar nada', async () => {
+      const monitorAdherence = { execute: jest.fn().mockResolvedValue(Ok(buildOutput())) };
+      const changeTreatmentStatus = { execute: jest.fn().mockResolvedValue(okCambio()) };
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const user = userEvent.setup();
+
+      await render(
+        withProviders(<AdherenceDashboardScreen navigation={navigation} route={baseRoute} />, {
+          role: 'CUIDADOR',
+          useCases: { monitorAdherence: monitorAdherence as never, changeTreatmentStatus: changeTreatmentStatus as never },
+        }),
+      );
+
+      await waitFor(() => expect(screen.getByText('Dar de baja')).toBeTruthy());
+      await user.press(screen.getByText('Dar de baja'));
+
+      expect(alertSpy).toHaveBeenCalled();
+      // Nada se ejecuta hasta que la persona confirma en el diálogo.
+      expect(changeTreatmentStatus.execute).not.toHaveBeenCalled();
+
+      const [, mensaje, botones] = alertSpy.mock.calls[0] as [string, string, { text: string; onPress?: () => void }[]];
+      // El medicamento se nombra: dar de baja el equivocado no tiene vuelta atrás.
+      expect(mensaje).toContain('Paracetamol');
+
+      // El diálogo del SO vive fuera de React: sin `act` la actualización de
+      // estado que dispara su callback queda huérfana y React avisa.
+      await act(async () => {
+        botones.find((b) => b.text === 'Dar de baja')?.onPress?.();
+      });
+
+      await waitFor(() =>
+        expect(changeTreatmentStatus.execute).toHaveBeenCalledWith({
+          treatmentId: 'treatment-1',
+          requestingCaregiverId: 'test-caregiver-1',
+          newStatus: TreatmentStatus.CANCELLED,
+        }),
+      );
+      // Volver al pastillero ES el comprobante: el medicamento ya no está en la grilla.
+      await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+
+      alertSpy.mockRestore();
+    });
+
+    it('avisa cuando quedaron alarmas sin apagar — es lo único peor que no haber hecho nada', async () => {
+      const monitorAdherence = { execute: jest.fn().mockResolvedValue(Ok(buildOutput())) };
+      const changeTreatmentStatus = {
+        execute: jest.fn().mockResolvedValue(okCambio({ alarmsAffected: 0, alarmWarnings: ['dose-1'] })),
+      };
+      const user = userEvent.setup();
+
+      await render(
+        withProviders(<AdherenceDashboardScreen navigation={navigation} route={baseRoute} />, {
+          role: 'CUIDADOR',
+          useCases: { monitorAdherence: monitorAdherence as never, changeTreatmentStatus: changeTreatmentStatus as never },
+        }),
+      );
+
+      await waitFor(() => expect(screen.getByText('Pausar tratamiento')).toBeTruthy());
+      await user.press(screen.getByText('Pausar tratamiento'));
+
+      await waitFor(() =>
+        expect(
+          screen.getByText(
+            'El tratamiento cambió de estado, pero quedaron alarmas sin apagar. Reiniciá la app para que se actualicen.',
+          ),
+        ).toBeTruthy(),
+      );
+    });
+
+    it('a un tratamiento dado de baja no le ofrece acciones ni formulario de stock', async () => {
+      const monitorAdherence = {
+        execute: jest.fn().mockResolvedValue(Ok(buildOutput({ status: TreatmentStatus.CANCELLED }))),
+      };
+
+      await render(
+        withProviders(<AdherenceDashboardScreen navigation={navigation} route={baseRoute} />, {
+          role: 'CUIDADOR',
+          useCases: { monitorAdherence: monitorAdherence as never },
+        }),
+      );
+
+      await waitFor(() => expect(screen.getByText('Dado de baja')).toBeTruthy());
+      expect(screen.queryByText('Pausar tratamiento')).toBeNull();
+      expect(screen.queryByText('Reanudar tratamiento')).toBeNull();
+      expect(screen.queryByText('Dar de baja')).toBeNull();
+      // De un tratamiento terminado no se compra más: el formulario sobra.
+      expect(screen.queryByText('Guardar')).toBeNull();
+    });
   });
 
   it('muestra un mensaje de error si no se pueden cargar las métricas', async () => {

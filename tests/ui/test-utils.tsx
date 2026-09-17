@@ -28,6 +28,12 @@ export function createFakeUseCases(overrides: Partial<UseCasesBundle> = {}): Use
     registerTreatment: { execute: notImplemented } as unknown as UseCasesBundle['registerTreatment'],
     monitorAdherence: { execute: notImplemented } as unknown as UseCasesBundle['monitorAdherence'],
     updateStock: { execute: notImplemented } as unknown as UseCasesBundle['updateStock'],
+    changeTreatmentStatus: { execute: notImplemented } as unknown as UseCasesBundle['changeTreatmentStatus'],
+    // Como `extendDoseHorizon`: lo pide la home al cargar y a casi ningún
+    // test le importa. El default honesto es "no hay nada en pausa".
+    getPausedTreatments: {
+      execute: jest.fn().mockResolvedValue({ ok: true, value: { treatments: [] } }),
+    } as unknown as UseCasesBundle['getPausedTreatments'],
     getPendingDoses: { execute: notImplemented } as unknown as UseCasesBundle['getPendingDoses'],
     searchMedicationCatalog: { execute: notImplemented } as unknown as UseCasesBundle['searchMedicationCatalog'],
     suggestVisualProfile: { execute: notImplemented } as unknown as UseCasesBundle['suggestVisualProfile'],

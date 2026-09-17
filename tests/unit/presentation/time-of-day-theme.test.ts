@@ -25,6 +25,20 @@ describe('getTimeOfDayTheme', () => {
     expect(theme.accentText).toBe('#FFFFFF');
   });
 
+  it('el chip se aleja del color del texto en cada turno, no se le acerca', () => {
+    // El bug que esto previene: un blanco translúcido fijo servía para los
+    // turnos claros pero de noche dejaba texto blanco sobre lavanda (~1.9:1).
+    // De noche el chip tiene que oscurecer; de día, aclarar.
+    expect(getTimeOfDayTheme(atHour(21)).chipBackground).toMatch(/^rgba\(0, 0, 0/);
+    expect(getTimeOfDayTheme(atHour(8)).chipBackground).toMatch(/^rgba\(255, 255, 255/);
+    expect(getTimeOfDayTheme(atHour(14)).chipBackground).toMatch(/^rgba\(255, 255, 255/);
+  });
+
+  // El contraste real de cada par (texto/fondo, texto/chip) se verifica
+  // calculando el ratio WCAG en `time-of-day-contrast.test.ts`, no fijando
+  // hexadecimales acá: así se puede retocar un tono sin romper un test que
+  // no mide lo que importa.
+
   it('cada turno trae un ícono de instrucción asociado', () => {
     expect(getTimeOfDayTheme(atHour(8)).instructionEmoji).toBe('💧');
     expect(getTimeOfDayTheme(atHour(14)).instructionEmoji).toBe('🍽️');

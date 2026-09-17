@@ -20,21 +20,21 @@ describe('buildDoseVoiceMessage', () => {
     const message = buildDoseVoiceMessage(buildDoseView());
 
     expect(message).toContain('Es hora de tomar Paracetamol.');
-    expect(message).toContain('Dosis: 1 comprimido(s).');
+    expect(message).toContain('Dosis: 1 comprimido.');
     expect(message).toContain('Forma del comprimido: redonda.');
     expect(message).toContain('Presioná el botón Confirmar Toma después de tomarla.');
   });
 
-  it('incluye la ranura del pastillero cuando está presente', () => {
+  it('incluye la referencia visual (ranura o concentración) cuando está presente', () => {
     const message = buildDoseVoiceMessage(
       buildDoseView({ visualProfile: { shape: PillShape.CAPSULE, color: '#FFF', slotLabel: 'Mañana - Ranura 1' } }),
     );
-    expect(message).toContain('Ranura del pastillero: Mañana - Ranura 1.');
+    expect(message).toContain('Referencia: Mañana - Ranura 1.');
   });
 
-  it('omite la frase de ranura cuando no está presente', () => {
+  it('omite la frase de referencia cuando no está presente', () => {
     const message = buildDoseVoiceMessage(buildDoseView({ visualProfile: { shape: PillShape.ROUND, color: '#FFF' } }));
-    expect(message).not.toContain('Ranura del pastillero');
+    expect(message).not.toContain('Referencia:');
   });
 
   it('usa el nombre de unidad correcto en la dosis (mg en palabras, no abreviado)', () => {

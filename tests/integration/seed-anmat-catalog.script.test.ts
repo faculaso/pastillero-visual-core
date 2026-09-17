@@ -3,9 +3,19 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import Database from 'better-sqlite3';
 
 const SCRIPT_PATH = join(__dirname, '../../scripts/seed-anmat-catalog.ts');
+/**
+ * Se invoca el CLI de tsx con el MISMO node que corre los tests, en vez de
+ * `npx`: en Windows `npx` no es un ejecutable (es `npx.cmd`), y desde Node
+ * 20 `execFileSync` rechaza los `.cmd` sin `shell: true` (EINVAL). El
+ * resultado era que el script NUNCA se ejecutaba y los tres tests fallaban
+ * solo en Windows — con el script en realidad sano. Resolver el binario
+ * evita además depender del `shell`, que obligaría a citar rutas a mano.
+ */
+const TSX_CLI = createRequire(__filename).resolve('tsx/cli');
 
 const SAMPLE_CSV = `nro_certificado;nombre_comercial;generico_droga;forma_farmaceutica;concentracion;presentacion_unidades;laboratorio
 55.123;Actron;Ibuprofeno;COMPRIMIDOS RECUBIERTOS;400 MG;ENVASE X 10 COMPRIMIDOS;Bayer
@@ -23,7 +33,7 @@ const SAMPLE_CSV = `nro_certificado;nombre_comercial;generico_droga;forma_farmac
  */
 function runScript(args: readonly string[]): { stdout: string; status: number } {
   try {
-    const stdout = execFileSync('npx', ['tsx', SCRIPT_PATH, ...args], {
+    const stdout = execFileSync(process.execPath, [TSX_CLI, SCRIPT_PATH, ...args], {
       encoding: 'utf-8',
       cwd: join(__dirname, '../..'),
     });

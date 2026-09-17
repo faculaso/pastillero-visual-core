@@ -12,8 +12,10 @@ export interface CurrentDoseCardProps {
 }
 
 export function formatDosage(dose: PendingDoseView): string {
-  const unit = dose.dosagePerTake.unit === 'UNIT' ? 'comprimido(s)' : dose.dosagePerTake.unit.toLowerCase();
-  return `${dose.dosagePerTake.amount} ${unit}`;
+  const { amount, unit } = dose.dosagePerTake;
+  // Solo `UNIT` se pluraliza; "mg"/"ml" son símbolos, invariables en español.
+  const label = unit === 'UNIT' ? (amount === 1 ? 'comprimido' : 'comprimidos') : unit.toLowerCase();
+  return `${amount} ${label}`;
 }
 
 /**
@@ -29,10 +31,19 @@ export function CurrentDoseCard({ dose }: CurrentDoseCardProps): React.JSX.Eleme
   return (
     <View style={styles.card} accessible accessibilityRole="summary">
       <View style={[styles.showcase, shadows.pillShowcase]}>
-        <View style={styles.showcaseTag}>
-          <AccessibleText variant="small" color="#FFFFFF" bold style={styles.showcaseTagText}>
-            Aspecto exacto
-          </AccessibleText>
+        <View style={styles.showcaseHeader}>
+          <View style={styles.showcaseTag}>
+            <AccessibleText variant="small" color="#FFFFFF" bold style={styles.showcaseTagText}>
+              Así se ve tu pastilla
+            </AccessibleText>
+          </View>
+          {dose.visualProfile.slotLabel ? (
+            <View style={styles.slotChip}>
+              <AccessibleText variant="small" bold color={colors.textSecondary}>
+                {dose.visualProfile.slotLabel}
+              </AccessibleText>
+            </View>
+          ) : null}
         </View>
         <View style={styles.showcasePillSlot}>
           <PillVisual visualProfile={dose.visualProfile} size={170} medicationName={dose.medicationName} />
@@ -73,12 +84,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
-  showcaseTag: {
+  showcaseHeader: {
     // Fluye ANTES del comprimido (no superpuesto como esquina absoluta) —
     // con formas altas (p. ej. `PillShape.OTHER`, un hexágono) el pill
     // centrado verticalmente quedaba a solo unos px del rótulo "flotante"
     // en la esquina, y en algunos anchos de pantalla llegaban a pisarse.
-    alignSelf: 'flex-start',
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  slotChip: {
+    // `slotLabel` ANTES solo se insinuaba con un puntito azul vacío en la
+    // esquina del comprimido: se leía como un radio button (invita a
+    // tocarlo) y no decía absolutamente nada. Si el dato existe hay que
+    // mostrarlo — la voz de `buildDoseVoiceMessage` ya lo lee en voz alta.
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  showcaseTag: {
     backgroundColor: 'rgba(15, 23, 42, 0.8)',
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,

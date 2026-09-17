@@ -4,10 +4,12 @@ import { useUseCases } from '../../../providers/UseCasesProvider';
 import { AccessibleText } from '../../../design-system/AccessibleText';
 import { AccessibleButton } from '../../../design-system/AccessibleButton';
 import { colors, radii, spacing, shadows, touchTarget } from '../../../design-system/tokens';
+import type { TimeOfDayTheme } from '../../../utils/time-of-day-theme';
 
 export interface InviteCodeButtonProps {
   readonly patientId: string;
-  readonly accentColor?: string;
+  /** Tema del turno: el botón vive sobre el fondo teñido, no sobre una tarjeta blanca. */
+  readonly theme?: TimeOfDayTheme | null;
 }
 
 type CodeStatus = 'idle' | 'loading' | 'shown' | 'error';
@@ -20,7 +22,7 @@ type CodeStatus = 'idle' | 'loading' | 'shown' | 'error';
  * verlo. Este botón lo re-consulta on-demand vía `getProfile` (mismo campo
  * `Profile.inviteCode` que ya expone ese use case).
  */
-export function InviteCodeButton({ patientId, accentColor }: InviteCodeButtonProps): React.JSX.Element {
+export function InviteCodeButton({ patientId, theme }: InviteCodeButtonProps): React.JSX.Element {
   const { getProfile } = useUseCases();
   const [status, setStatus] = useState<CodeStatus>('idle');
   const [code, setCode] = useState<string | null>(null);
@@ -47,9 +49,13 @@ export function InviteCodeButton({ patientId, accentColor }: InviteCodeButtonPro
         accessibilityRole="button"
         accessibilityLabel="Ver mi código de invitación"
         hitSlop={8}
-        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+        style={({ pressed }) => [
+          styles.button,
+          theme ? { backgroundColor: theme.chipBackground, borderColor: theme.chipBorder } : null,
+          pressed && styles.buttonPressed,
+        ]}
       >
-        <AccessibleText variant="small" bold color={accentColor ?? colors.textSecondary}>
+        <AccessibleText variant="small" bold color={theme?.accentText ?? colors.textSecondary}>
           Mi código
         </AccessibleText>
       </Pressable>
@@ -89,9 +95,15 @@ export function InviteCodeButton({ patientId, accentColor }: InviteCodeButtonPro
 
 const styles = StyleSheet.create({
   button: {
+    // El target de 72px ya existía, pero era INVISIBLE: tres rótulos de
+    // texto flotando dejaban una banda vacía arriba de la pantalla que se
+    // leía como un error de layout, y nada indicaba dónde tocar. Con
+    // superficie propia la misma altura pasa a leerse como una botonera.
+    flex: 1,
     minHeight: touchTarget.minHeight,
-    minWidth: 72,
     borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,

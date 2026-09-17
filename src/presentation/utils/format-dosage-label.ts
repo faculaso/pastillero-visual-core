@@ -7,7 +7,16 @@ const UNIT_LABELS: Record<MeasurementUnit, string> = {
   [MeasurementUnit.G]: 'gramos',
   [MeasurementUnit.ML]: 'mililitros',
   [MeasurementUnit.UI]: 'unidades internacionales',
-  [MeasurementUnit.UNIT]: 'comprimido(s)',
+  [MeasurementUnit.UNIT]: 'comprimidos',
+};
+
+/**
+ * Solo `UNIT` se pluraliza: las unidades de medida ("miligramos") ya van
+ * siempre en plural aunque la cantidad sea 1, pero "1 comprimidos" suena
+ * mal — y peor leído por TTS, que es el consumidor de esta función.
+ */
+const UNIT_LABELS_SINGULAR: Partial<Record<MeasurementUnit, string>> = {
+  [MeasurementUnit.UNIT]: 'comprimido',
 };
 
 /**
@@ -20,5 +29,6 @@ const UNIT_LABELS: Record<MeasurementUnit, string> = {
  * ~10 líneas cada una — la duplicación es más barata que romper la capa.
  */
 export function formatDosageLabelForSpeech(dosage: Dosage): string {
-  return `${dosage.amount} ${UNIT_LABELS[dosage.unit]}`;
+  const label = (dosage.amount === 1 ? UNIT_LABELS_SINGULAR[dosage.unit] : undefined) ?? UNIT_LABELS[dosage.unit];
+  return `${dosage.amount} ${label}`;
 }

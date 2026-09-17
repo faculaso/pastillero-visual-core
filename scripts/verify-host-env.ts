@@ -54,6 +54,13 @@ export const REQUIRED_MANIFEST_PERMISSIONS = [
 ] as const;
 
 const MEDICAL_ALARM_PATH = 'android/app/src/main/res/raw/medical_alarm.mp3';
+/**
+ * Subcarpeta `custom/` OBLIGATORIA: es el `path` por defecto de
+ * `moveAssetsDatabase` en op-sqlite. Fuera de ahí no tira excepción —
+ * resuelve `false` en silencio, y `bootstrap` se lo come sin ruido. El
+ * síntoma es una app que abre perfecto con CERO medicamentos para buscar.
+ */
+const CATALOG_ASSET_PATH = 'android/app/src/main/assets/custom/pastillero-catalog.db';
 const ANDROID_MANIFEST_PATH = 'android/app/src/main/AndroidManifest.xml';
 const INDEX_JS_PATH = 'index.js';
 const MINIMUM_NODE_MAJOR = 18;
@@ -156,6 +163,18 @@ export function checkMedicalAlarmAsset(projectRoot: string): CheckResult {
   };
 }
 
+export function checkBundledCatalogAsset(projectRoot: string): CheckResult {
+  const assetPath = join(projectRoot, CATALOG_ASSET_PATH);
+  if (existsSync(assetPath)) {
+    return { name: 'Catálogo ANMAT embebido', status: 'ok', detail: CATALOG_ASSET_PATH };
+  }
+  return {
+    name: 'Catálogo ANMAT embebido',
+    status: 'fail',
+    detail: `No se encontró ${CATALOG_ASSET_PATH} — la app arranca igual, pero sin NINGÚN medicamento para buscar`,
+  };
+}
+
 /**
  * Heurística de orden: `onBackgroundEvent` tiene que aparecer ANTES que
  * `AppRegistry.registerComponent` en el archivo — no valida que el
@@ -231,6 +250,7 @@ export function runAllChecks(options: RunChecksOptions): readonly CheckResult[] 
     checkNodeModulesInstalled(options.projectRoot),
     checkAndroidManifest(options.projectRoot),
     checkMedicalAlarmAsset(options.projectRoot),
+    checkBundledCatalogAsset(options.projectRoot),
     checkIndexJsBackgroundHandlerOrder(options.projectRoot),
     checkEnvVar('ANDROID_HOME', options.env),
     checkEnvVar('JAVA_HOME', options.env),

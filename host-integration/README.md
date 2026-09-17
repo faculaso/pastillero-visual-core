@@ -19,14 +19,27 @@ todo lo de `src/` (SQLite, notifee, fotos, TTS) funcione en un build real.
    y `@style/AppTheme` si tu proyecto usa nombres distintos a los que
    genera el template estándar de RN.
 
-3. **`android/app/src/main/res/raw/medical_alarm.mp3`** — el único asset
-   binario que este Core no puede proveer (no es código). Formato
+3. **`android/app/src/main/res/raw/medical_alarm.mp3`** — asset binario
+   que este Core no puede proveer (no es código). Formato
    recomendado: mp3 u ogg, 2-4s, volumen normalizado. Sin este archivo, el
    canal `dose-reminders` cae al sonido default de notificación de Android
    sin avisar del error — `scripts/verify-host-env.ts` lo detecta antes del
    build.
 
-4. **Pod install / gradle sync** de los módulos nativos — ya están
+4. **`android/app/src/main/assets/custom/pastillero-catalog.db`** — el
+   catálogo ANMAT completo (~16.000 medicamentos) pre-poblado. Se genera
+   con `scripts/seed-anmat-catalog.ts` a partir del CSV del Vademécum
+   Nacional y se copia acá tal cual.
+
+   La subcarpeta **`custom/` es obligatoria**: es el `path` por defecto de
+   `moveAssetsDatabase` de op-sqlite. Si el `.db` queda directamente en
+   `assets/`, no falla nada visible — `moveAssetsDatabase` devuelve `false`
+   en silencio y `bootstrap` se lo come. El síntoma es una app que abre
+   perfecto y no encuentra NINGÚN medicamento al buscar.
+   `scripts/verify-host-env.ts` chequea las dos cosas (que esté, y que esté
+   en `custom/`).
+
+5. **Pod install / gradle sync** de los módulos nativos — ya están
    declarados en `package.json` (`dependencies`): `@op-engineering/op-sqlite`,
    `@notifee/react-native`, `react-native-fs`, `react-native-image-picker`,
    `react-native-tts`, `@react-navigation/*`, `react-native-screens`,
@@ -35,7 +48,7 @@ todo lo de `src/` (SQLite, notifee, fotos, TTS) funcione en un build real.
    app). `@supabase/supabase-js` y `react-native-url-polyfill` son JS puro,
    no necesitan pod install/gradle sync.
 
-5. Correr `npx tsx scripts/verify-host-env.ts` desde la raíz del proyecto
+6. Correr `npx tsx scripts/verify-host-env.ts` desde la raíz del proyecto
    host antes de compilar — ver la raíz del repo para el script.
 
 ## Qué NO hace falta tocar

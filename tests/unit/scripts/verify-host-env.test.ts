@@ -8,6 +8,7 @@ import {
   checkNodeModulesInstalled,
   checkAndroidManifest,
   checkMedicalAlarmAsset,
+  checkBundledCatalogAsset,
   checkIndexJsBackgroundHandlerOrder,
   checkEnvVar,
   runAllChecks,
@@ -122,6 +123,26 @@ describe('checks basados en filesystem', () => {
       ).join('\n');
       writeFileSync(join(manifestDir(), 'AndroidManifest.xml'), `<manifest>${permissions}</manifest>`);
       expect(checkAndroidManifest(dir).status).toBe('ok');
+    });
+  });
+
+  describe('checkBundledCatalogAsset', () => {
+    it('fail si no está el .db del catálogo', () => {
+      expect(checkBundledCatalogAsset(dir).status).toBe('fail');
+    });
+
+    it('ok si está en la subcarpeta custom/ exacta que espera moveAssetsDatabase', () => {
+      const assetsDir = join(dir, 'android/app/src/main/assets/custom');
+      mkdirSync(assetsDir, { recursive: true });
+      writeFileSync(join(assetsDir, 'pastillero-catalog.db'), 'contenido-falso');
+      expect(checkBundledCatalogAsset(dir).status).toBe('ok');
+    });
+
+    it('fail si el .db quedó en assets/ pero FUERA de custom/ — moveAssetsDatabase no lo ve', () => {
+      const assetsDir = join(dir, 'android/app/src/main/assets');
+      mkdirSync(assetsDir, { recursive: true });
+      writeFileSync(join(assetsDir, 'pastillero-catalog.db'), 'contenido-falso');
+      expect(checkBundledCatalogAsset(dir).status).toBe('fail');
     });
   });
 

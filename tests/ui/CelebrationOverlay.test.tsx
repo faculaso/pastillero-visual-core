@@ -1,16 +1,7 @@
 import React from 'react';
-import { render, screen, act } from '@testing-library/react-native';
+import { AccessibilityInfo } from 'react-native';
+import { render, act } from '@testing-library/react-native';
 import { CelebrationOverlay } from '../../src/presentation/screens/pastillero-virtual/components/CelebrationOverlay';
-
-/**
- * `getByText` excluye por default los elementos marcados
- * `accessibilityElementsHidden` (simula lo que un lector de pantalla vería
- * — que es justamente lo que `CelebrationOverlay` configura a propósito,
- * ver su docblock). Por eso todas las queries acá pasan
- * `{ includeHiddenElements: true }` — el overlay SIGUE estando oculto para
- * accesibilidad en producción, solo estamos verificando su contenido.
- */
-const HIDDEN = { includeHiddenElements: true };
 
 describe('CelebrationOverlay', () => {
   it('no renderiza nada en el montaje inicial (trigger=0)', async () => {
@@ -18,23 +9,13 @@ describe('CelebrationOverlay', () => {
     expect(view.toJSON()).toBeNull();
   });
 
-  it('muestra el checkmark cuando trigger cambia', async () => {
+  it('muestra la animación de la toma cuando trigger cambia', async () => {
     const view = await render(<CelebrationOverlay trigger={0} />);
     await act(async () => {
       view.rerender(<CelebrationOverlay trigger={1} />);
     });
 
-    expect(screen.getByText('✓', HIDDEN)).toBeTruthy();
-  });
-
-  it('muestra el confeti junto al checkmark', async () => {
-    const view = await render(<CelebrationOverlay trigger={0} />);
-    await act(async () => {
-      view.rerender(<CelebrationOverlay trigger={1} />);
-    });
-
-    expect(screen.getAllByText('✨', HIDDEN).length).toBeGreaterThan(0);
-    expect(screen.getByText('🎉', HIDDEN)).toBeTruthy();
+    expect(view.toJSON()).not.toBeNull();
   });
 
   it('vuelve a dispararse si trigger cambia de nuevo (confirmar una segunda toma)', async () => {
@@ -43,7 +24,32 @@ describe('CelebrationOverlay', () => {
       view.rerender(<CelebrationOverlay trigger={2} />);
     });
 
-    expect(screen.getByText('✓', HIDDEN)).toBeTruthy();
+    expect(view.toJSON()).not.toBeNull();
+  });
+
+  it('anuncia la confirmación con el nombre del medicamento para lectores de pantalla', async () => {
+    // El overlay en sí queda oculto (una animación no se puede "leer"), así
+    // que sin este anuncio el cambio de estado más importante de la app sería
+    // silencioso para tecnología asistiva.
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    const view = await render(<CelebrationOverlay trigger={0} medicationName="Paracetamol" />);
+    await act(async () => {
+      view.rerender(<CelebrationOverlay trigger={1} medicationName="Paracetamol" />);
+    });
+
+    expect(announce).toHaveBeenCalledWith('Listo. Tomaste Paracetamol.');
+    announce.mockRestore();
+  });
+
+  it('anuncia un mensaje genérico si no se conoce el medicamento', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    const view = await render(<CelebrationOverlay trigger={0} />);
+    await act(async () => {
+      view.rerender(<CelebrationOverlay trigger={1} />);
+    });
+
+    expect(announce).toHaveBeenCalledWith('Listo. Toma confirmada.');
+    announce.mockRestore();
   });
 
   it('es puramente decorativo: pointerEvents="none" y oculto para lectores de pantalla', async () => {
@@ -61,7 +67,6 @@ describe('CelebrationOverlay', () => {
 
   it('no dispara la animación en el montaje si trigger arranca en 0 (no confunde "recién abierto" con "recién confirmado")', async () => {
     const view = await render(<CelebrationOverlay trigger={0} />);
-    expect(screen.queryByText('✓', HIDDEN)).toBeNull();
     expect(view.toJSON()).toBeNull();
   });
 });

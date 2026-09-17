@@ -101,6 +101,7 @@ export class MonitorAdherenceUseCase
       metrics,
       medicationName: treatment.medication.name,
       stock: stockResult.value,
+      status: treatment.status,
       criticalAlertDispatched,
     });
   }

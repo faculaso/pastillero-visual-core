@@ -172,4 +172,45 @@ describe('CuidadorHomeScreen', () => {
 
     expect(navigation.navigate).toHaveBeenCalledWith('AdherenceDashboard', { treatmentId: 't1' });
   });
+
+  /**
+   * Pausar un tratamiento lo saca de la grilla y del aviso de stock — que
+   * es lo que se le pide a una pausa. Sin esta lista no quedaba NINGÚN
+   * camino en la app para volver a abrirlo y reanudarlo.
+   */
+  it('lista los tratamientos en pausa y deja volver a ellos', async () => {
+    const getWeeklySchedule = { execute: jest.fn().mockResolvedValue(Ok(buildWeeklySchedule())) };
+    const getPausedTreatments = {
+      execute: jest.fn().mockResolvedValue(Ok({ treatments: [{ treatmentId: 't-pausado', medicationName: 'Ibuprofeno' }] })),
+    };
+    const navigation = buildNavigationMock();
+    const user = userEvent.setup();
+
+    await render(
+      withProviders(<CuidadorHomeScreen navigation={navigation} route={baseRoute} />, {
+        role: 'CUIDADOR',
+        useCases: { getWeeklySchedule: getWeeklySchedule as never, getPausedTreatments: getPausedTreatments as never },
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByText('Ibuprofeno')).toBeTruthy());
+    await user.press(screen.getByLabelText('Reanudar o ver Ibuprofeno, en pausa'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('AdherenceDashboard', { treatmentId: 't-pausado' });
+  });
+
+  it('sin tratamientos en pausa no muestra la sección', async () => {
+    const getWeeklySchedule = { execute: jest.fn().mockResolvedValue(Ok(buildWeeklySchedule())) };
+    const navigation = buildNavigationMock();
+
+    await render(
+      withProviders(<CuidadorHomeScreen navigation={navigation} route={baseRoute} />, {
+        role: 'CUIDADOR',
+        useCases: { getWeeklySchedule: getWeeklySchedule as never },
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByText('Todavía no registraste ningún tratamiento')).toBeTruthy());
+    expect(screen.queryByText('En pausa')).toBeNull();
+  });
 });

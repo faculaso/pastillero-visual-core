@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MonitorAdherenceOutput } from '../../../application';
+import { TreatmentStatus } from '../../../domain';
 import { useUseCases } from '../../providers/UseCasesProvider';
 import { useSession } from '../../providers/SessionContext';
 import type { CuidadorStackParamList } from '../../navigation/types';
@@ -11,6 +12,7 @@ import { colors, spacing } from '../../design-system/tokens';
 import { AdherenceMetricsCard } from './components/AdherenceMetricsCard';
 import { StockAlertBadge } from './components/StockAlertBadge';
 import { UpdateStockForm } from './components/UpdateStockForm';
+import { TreatmentStatusActions } from './components/TreatmentStatusActions';
 
 type Props = NativeStackScreenProps<CuidadorStackParamList, 'AdherenceDashboard'>;
 
@@ -23,15 +25,16 @@ type ScreenStatus = 'loading' | 'ready' | 'error';
  * primera para reflejar el nuevo nivel de alerta post-recarga (paso 5 del
  * CU cierra el ciclo abierto en el paso 4).
  */
-export function AdherenceDashboardScreen({ route }: Props): React.JSX.Element {
+export function AdherenceDashboardScreen({ route, navigation }: Props): React.JSX.Element {
   const { treatmentId } = route.params;
-  const { monitorAdherence, updateStock } = useUseCases();
+  const { monitorAdherence, updateStock, changeTreatmentStatus } = useUseCases();
   const { session } = useSession();
 
   const [status, setStatus] = useState<ScreenStatus>('loading');
   const [data, setData] = useState<MonitorAdherenceOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updatingStock, setUpdatingStock] = useState(false);
+  const [changingStatus, setChangingStatus] = useState(false);
 
   const loadMetrics = useCallback(async () => {
     if (!session) return;
@@ -69,6 +72,40 @@ export function AdherenceDashboardScreen({ route }: Props): React.JSX.Element {
     // Refetch en vez de mergear localmente: `adherencePercentage` y
     // `estimatedDaysRemaining` dependen de más que el campo que acabamos
     // de cambiar — más simple y correcto pedirle al dominio que recalcule.
+    await loadMetrics();
+  }
+
+  async function handleChangeStatus(newStatus: TreatmentStatus): Promise<void> {
+    if (!session) return;
+    setChangingStatus(true);
+    setError(null);
+    const result = await changeTreatmentStatus.execute({
+      treatmentId,
+      requestingCaregiverId: session.caregiverId,
+      newStatus,
+    });
+    setChangingStatus(false);
+
+    if (!result.ok) {
+      setError('No pudimos cambiar el estado del tratamiento. Intentá de nuevo.');
+      return;
+    }
+
+    // Una alarma que no se pudo apagar es lo único peor que no haber hecho
+    // nada: el tratamiento figura de baja y el teléfono igual suena. Se
+    // avisa, sin revertir — el estado ya quedó guardado.
+    if (result.value.alarmWarnings.length > 0) {
+      setError('El tratamiento cambió de estado, pero quedaron alarmas sin apagar. Reiniciá la app para que se actualicen.');
+    }
+
+    if (newStatus === TreatmentStatus.CANCELLED) {
+      // Volver al pastillero ES el comprobante: el medicamento ya no está
+      // en la grilla. Quedarse en la pantalla de un tratamiento muerto, en
+      // cambio, no ofrece nada que hacer.
+      navigation.goBack();
+      return;
+    }
+
     await loadMetrics();
   }
 
@@ -114,11 +151,22 @@ export function AdherenceDashboardScreen({ route }: Props): React.JSX.Element {
         </AccessibleText>
       ) : null}
 
-      <UpdateStockForm
-        loading={updatingStock}
-        currentQuantity={data.stock.currentQuantity}
-        unit={data.stock.unit}
-        onSubmit={handleUpdateStock}
+      {/* Reponer stock solo tiene sentido mientras el tratamiento siga en
+          curso: de uno dado de baja no se compra más. */}
+      {data.status === TreatmentStatus.ACTIVE || data.status === TreatmentStatus.PAUSED ? (
+        <UpdateStockForm
+          loading={updatingStock}
+          currentQuantity={data.stock.currentQuantity}
+          unit={data.stock.unit}
+          onSubmit={handleUpdateStock}
+        />
+      ) : null}
+
+      <TreatmentStatusActions
+        status={data.status}
+        medicationName={data.medicationName}
+        busy={changingStatus}
+        onChange={(newStatus) => void handleChangeStatus(newStatus)}
       />
     </ScrollView>
   );

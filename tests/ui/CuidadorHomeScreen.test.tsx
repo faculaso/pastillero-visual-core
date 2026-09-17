@@ -89,7 +89,10 @@ describe('CuidadorHomeScreen', () => {
         },
       ],
       treatmentsNeedingAttention: [
-        { treatmentId: 't1', medicationName: 'Losartán', stockAlertLevel: StockAlertLevel.CRITICAL },
+        { treatmentId: 't1', medicationName: 'Losartán', stockAlertLevel: StockAlertLevel.CRITICAL, estimatedDaysRemaining: 2 },
+        // Mismo medicamento, otro tratamiento: antes las dos filas se veían
+        // idénticas y no había forma de saber cuál se estaba tocando.
+        { treatmentId: 't2', medicationName: 'Losartán', stockAlertLevel: StockAlertLevel.CRITICAL, estimatedDaysRemaining: 0 },
       ],
     });
     const getWeeklySchedule = { execute: jest.fn().mockResolvedValue(Ok(schedule)) };
@@ -103,7 +106,9 @@ describe('CuidadorHomeScreen', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Necesitan reponer stock')).toBeTruthy());
-    expect(screen.getByText('• Losartán →')).toBeTruthy();
+    expect(screen.getAllByText('Losartán')).toHaveLength(2);
+    expect(screen.getByText('quedan 2 días')).toBeTruthy();
+    expect(screen.getByText('se acabó')).toBeTruthy();
   });
 
   it('tocar un casillero vacío y luego "Agregar tratamiento" navega a Registrar tratamiento con la hora sugerida del turno', async () => {

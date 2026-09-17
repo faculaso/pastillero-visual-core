@@ -3,7 +3,7 @@ import { render, screen, waitFor, userEvent } from '@testing-library/react-nativ
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AdherenceDashboardScreen } from '../../src/presentation/screens/adherence-dashboard/AdherenceDashboardScreen';
 import type { CuidadorStackParamList } from '../../src/presentation/navigation/types';
-import { Ok, Err, DomainErrors, StockAlertLevel } from '../../src/domain';
+import { Ok, Err, DomainErrors, StockAlertLevel, MeasurementUnit } from '../../src/domain';
 import { withProviders } from './test-utils';
 import type { AdherenceMetrics } from '../../src/domain';
 
@@ -23,12 +23,32 @@ function buildMetrics(overrides: Partial<AdherenceMetrics> = {}): AdherenceMetri
   };
 }
 
+/**
+ * `MonitorAdherenceOutput` ahora también trae de QUÉ tratamiento son las
+ * métricas y el stock completo — la pantalla necesita nombrar el
+ * medicamento y decir cuánto hay antes de pedir una cantidad nueva.
+ */
+function buildOutput(overrides: Record<string, unknown> = {}) {
+  return {
+    metrics: buildMetrics(),
+    medicationName: 'Paracetamol',
+    stock: {
+      currentQuantity: 30,
+      dailyConsumption: 2,
+      unit: MeasurementUnit.UNIT,
+      criticalThresholdDays: 3,
+    },
+    criticalAlertDispatched: false,
+    ...overrides,
+  };
+}
+
 const baseRoute = { key: 'dash-1', name: 'AdherenceDashboard' as const, params: { treatmentId: 'treatment-1' } };
 const navigation = { replace: jest.fn(), navigate: jest.fn(), goBack: jest.fn() } as unknown as Props['navigation'];
 
 describe('AdherenceDashboardScreen', () => {
   it('muestra el porcentaje de adherencia y los días de stock restantes', async () => {
-    const monitorAdherence = { execute: jest.fn().mockResolvedValue(Ok({ metrics: buildMetrics(), criticalAlertDispatched: false })) };
+    const monitorAdherence = { execute: jest.fn().mockResolvedValue(Ok(buildOutput())) };
 
     await render(
       withProviders(<AdherenceDashboardScreen navigation={navigation} route={baseRoute} />, {
@@ -38,8 +58,16 @@ describe('AdherenceDashboardScreen', () => {
     );
 
     await waitFor(() => expect(screen.getByText('80%')).toBeTruthy());
+    // El nombre del medicamento titula la pantalla: se llega desde una lista
+    // donde dos tratamientos pueden mostrar el mismo nombre comercial, y acá
+    // abajo hay un formulario que le cambia el stock.
+    expect(screen.getByText('Paracetamol')).toBeTruthy();
+    // Nivel de adherencia en texto, no solo en color.
+    expect(screen.getByText('Al día')).toBeTruthy();
+    // Cuánto hay hoy y en qué unidad, antes de pedir una cantidad nueva.
+    expect(screen.getByText('Ahora hay 30 comprimidos. Escribí cuánto queda en total después de reponer.')).toBeTruthy();
     expect(screen.getByText('8 de 10 tomas')).toBeTruthy();
-    expect(screen.getByText('15 día(s)')).toBeTruthy();
+    expect(screen.getByText('15 días')).toBeTruthy();
     expect(screen.getByText('Stock normal')).toBeTruthy();
     expect(monitorAdherence.execute).toHaveBeenCalledWith({
       treatmentId: 'treatment-1',
@@ -51,7 +79,7 @@ describe('AdherenceDashboardScreen', () => {
     const monitorAdherence = {
       execute: jest
         .fn()
-        .mockResolvedValue(Ok({ metrics: buildMetrics({ stockAlertLevel: StockAlertLevel.CRITICAL, estimatedDaysRemaining: 2 }), criticalAlertDispatched: true })),
+        .mockResolvedValue(Ok(buildOutput({ metrics: buildMetrics({ stockAlertLevel: StockAlertLevel.CRITICAL, estimatedDaysRemaining: 2 }), criticalAlertDispatched: true }))),
     };
 
     await render(
@@ -68,8 +96,8 @@ describe('AdherenceDashboardScreen', () => {
     const monitorAdherence = {
       execute: jest
         .fn()
-        .mockResolvedValueOnce(Ok({ metrics: buildMetrics({ stockAlertLevel: StockAlertLevel.CRITICAL }), criticalAlertDispatched: true }))
-        .mockResolvedValueOnce(Ok({ metrics: buildMetrics({ stockAlertLevel: StockAlertLevel.NORMAL, estimatedDaysRemaining: 30 }), criticalAlertDispatched: false })),
+        .mockResolvedValueOnce(Ok(buildOutput({ metrics: buildMetrics({ stockAlertLevel: StockAlertLevel.CRITICAL }), criticalAlertDispatched: true })))
+        .mockResolvedValueOnce(Ok(buildOutput({ metrics: buildMetrics({ stockAlertLevel: StockAlertLevel.NORMAL, estimatedDaysRemaining: 30 }) }))),
     };
     const updateStock = {
       execute: jest.fn().mockResolvedValue(Ok({ stock: { currentQuantity: 30, dailyConsumption: 1, unit: 'UNIT', criticalThresholdDays: 3 }, stockAlertLevel: StockAlertLevel.NORMAL })),
@@ -85,7 +113,7 @@ describe('AdherenceDashboardScreen', () => {
 
     await waitFor(() => expect(screen.getByText('Stock crítico — reponer ahora')).toBeTruthy());
 
-    await user.type(screen.getByLabelText('Nueva cantidad de stock disponible'), '30');
+    await user.type(screen.getByLabelText('Nueva cantidad total de stock. Ahora hay 30 comprimidos'), '30');
     await user.press(screen.getByText('Guardar'));
 
     await waitFor(() =>

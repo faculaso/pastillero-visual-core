@@ -6,6 +6,7 @@ export * from './errors/domain.errors';
 export * from './enums/treatment.enums';
 export * from './enums/dose.enums';
 export * from './enums/stock.enums';
+export * from './enums/adherence.enums';
 
 // Value Objects
 export * from './value-objects/dosage.vo';

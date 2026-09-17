@@ -32,3 +32,23 @@ export function formatDosageLabelForSpeech(dosage: Dosage): string {
   const label = (dosage.amount === 1 ? UNIT_LABELS_SINGULAR[dosage.unit] : undefined) ?? UNIT_LABELS[dosage.unit];
   return `${dosage.amount} ${label}`;
 }
+
+/** Abreviatura corta para mostrar al lado de un número en pantalla ("30 comprimidos", "500 mg"). */
+const UNIT_SHORT: Record<MeasurementUnit, { singular: string; plural: string }> = {
+  [MeasurementUnit.MG]: { singular: 'mg', plural: 'mg' },
+  [MeasurementUnit.MCG]: { singular: 'mcg', plural: 'mcg' },
+  [MeasurementUnit.G]: { singular: 'g', plural: 'g' },
+  [MeasurementUnit.ML]: { singular: 'ml', plural: 'ml' },
+  [MeasurementUnit.UI]: { singular: 'UI', plural: 'UI' },
+  [MeasurementUnit.UNIT]: { singular: 'comprimido', plural: 'comprimidos' },
+};
+
+/**
+ * Para pantalla, no para voz: los símbolos van abreviados ("mg", no
+ * "miligramos"). Solo `UNIT` se pluraliza — el resto son símbolos y son
+ * invariables.
+ */
+export function formatQuantityWithUnit(amount: number, unit: MeasurementUnit): string {
+  const { singular, plural } = UNIT_SHORT[unit];
+  return `${amount} ${amount === 1 ? singular : plural}`;
+}

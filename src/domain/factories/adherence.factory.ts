@@ -1,4 +1,5 @@
 import { DoseStatus } from '../enums/dose.enums';
+import { AdherenceLevel } from '../enums/adherence.enums';
 import type { Dose } from '../entities/dose.entity';
 import type { StockInfo } from '../entities/stock-info.entity';
 import type { AdherenceMetrics } from '../entities/adherence-metrics.entity';
@@ -32,4 +33,20 @@ export function calculateAdherenceMetrics(
     estimatedDaysRemaining: calculateDaysRemaining(stock),
     stockAlertLevel: calculateStockAlertLevel(stock),
   };
+}
+
+/** Umbral convencional de "tratamiento cumplido" en adherencia a la medicación. */
+const GOOD_ADHERENCE_THRESHOLD = 80;
+const PARTIAL_ADHERENCE_THRESHOLD = 50;
+
+/**
+ * Traduce el porcentaje a una lectura accionable. Vive en el dominio (no en
+ * la pantalla) por el mismo motivo que `calculateStockAlertLevel`: si cada
+ * vista decide su propio criterio, terminan discrepando — y acá discrepar
+ * significa decirle a un cuidador que todo está bien cuando no lo está.
+ */
+export function calculateAdherenceLevel(adherencePercentage: number): AdherenceLevel {
+  if (adherencePercentage >= GOOD_ADHERENCE_THRESHOLD) return AdherenceLevel.GOOD;
+  if (adherencePercentage >= PARTIAL_ADHERENCE_THRESHOLD) return AdherenceLevel.PARTIAL;
+  return AdherenceLevel.POOR;
 }

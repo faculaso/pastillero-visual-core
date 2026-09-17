@@ -13,6 +13,13 @@ export interface TreatmentStockSummary {
   readonly treatmentId: string;
   readonly medicationName: string;
   readonly stockAlertLevel: StockAlertLevel;
+  /**
+   * Un mismo medicamento puede tener DOS tratamientos activos (distinta
+   * dosis, u otro cargado por error). En el banner se veían dos entradas
+   * idénticas, imposibles de distinguir antes de tocarlas — y cada una
+   * lleva a una pantalla que cambia stock.
+   */
+  readonly estimatedDaysRemaining: number;
 }
 
 export interface GetWeeklyScheduleInput {

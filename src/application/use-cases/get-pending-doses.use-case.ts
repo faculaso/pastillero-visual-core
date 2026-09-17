@@ -1,4 +1,13 @@
-import { Ok, Err, type Result, DomainErrors, type DomainError, type DoseRepository, type TreatmentRepository } from '../../domain';
+import {
+  Ok,
+  Err,
+  type Result,
+  DomainErrors,
+  TreatmentStatus,
+  type DomainError,
+  type DoseRepository,
+  type TreatmentRepository,
+} from '../../domain';
 import type { UseCase } from '../core/use-case';
 import type { Clock } from '../ports/clock.port';
 import type { GetPendingDosesInput, GetPendingDosesOutput, PendingDoseView } from '../dto/get-pending-doses.dto';
@@ -36,6 +45,15 @@ export class GetPendingDosesForPatientUseCase
       if (!treatmentResult.ok) return treatmentResult;
       const treatment = treatmentResult.value;
       if (!treatment) return Err(DomainErrors.treatmentNotFound(dose.treatmentId));
+
+      // Cancelar o pausar un tratamiento NO borra las dosis PENDING que ya
+      // se habían generado (las crea `RegisterTreatmentUseCase` de una vez,
+      // con 30 días de horizonte, y nada las limpia después). Sin este
+      // filtro la app le sigue diciendo al paciente que tome un medicamento
+      // que el Cuidador ya dio de baja — el peor error posible acá, y
+      // además deja la pantalla en desacuerdo con `GetWeeklyScheduleUseCase`,
+      // que sí parte de `findActiveByPatient`.
+      if (treatment.status !== TreatmentStatus.ACTIVE) continue;
 
       views.push({
         doseId: dose.id,

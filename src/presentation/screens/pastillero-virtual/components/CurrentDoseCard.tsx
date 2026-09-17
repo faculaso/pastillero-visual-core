@@ -39,7 +39,19 @@ export function CurrentDoseCard({ dose }: CurrentDoseCardProps): React.JSX.Eleme
           </View>
           {dose.visualProfile.slotLabel ? (
             <View style={styles.slotChip}>
-              <AccessibleText variant="small" bold color={colors.textSecondary}>
+              {/* Dos líneas como techo: el catálogo de ANMAT trae
+                  concentraciones de hasta ~50 caracteres (radiofármacos,
+                  combinaciones) que si no se acotan empujan el rótulo y se
+                  comen el showcase del comprimido, que es lo que la persona
+                  vino a mirar. El valor completo no se pierde: lo lee
+                  "Escuchar indicaciones". */}
+              <AccessibleText
+                variant="small"
+                bold
+                color={colors.textSecondary}
+                numberOfLines={2}
+                accessibilityLabel={dose.visualProfile.slotLabel}
+              >
                 {dose.visualProfile.slotLabel}
               </AccessibleText>
             </View>
@@ -107,6 +119,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
+    // Nunca más de la mitad de la fila: el rótulo "Así se ve tu pastilla"
+    // tiene prioridad, este chip es dato de referencia.
+    maxWidth: '50%',
   },
   showcaseTag: {
     backgroundColor: 'rgba(15, 23, 42, 0.8)',

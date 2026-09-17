@@ -24,6 +24,11 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 function describeSignUpError(code: string | undefined): string {
   if (code === 'AUTH_EMAIL_ALREADY_IN_USE') return 'Ya existe una cuenta con ese correo.';
   if (code === 'INVITE_CODE_INVALID') return 'El código de invitación no es válido.';
+  // Dice QUÉ pasó y QUÉ hacer, sin retar a nadie: que la contraseña haya
+  // aparecido en una filtración no es culpa de quien la eligió.
+  if (code === 'PASSWORD_LEAKED') {
+    return 'Esa contraseña apareció en filtraciones de otros sitios y ya no es segura. Elegí otra distinta.';
+  }
   return 'No pudimos crear la cuenta. Intentá de nuevo.';
 }
 

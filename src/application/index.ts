@@ -8,6 +8,7 @@ export * from './ports/medication-visual-suggestion.port';
 export * from './ports/local-image-storage.port';
 export * from './ports/voice-guidance.port';
 export * from './ports/auth.port';
+export * from './ports/leaked-password-check.port';
 
 export * from './dto/confirm-dose.dto';
 export * from './dto/register-treatment.dto';

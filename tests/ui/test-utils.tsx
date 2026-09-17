@@ -56,6 +56,11 @@ export function createFakeUseCases(overrides: Partial<UseCasesBundle> = {}): Use
     extendDoseHorizon: {
       execute: jest.fn().mockResolvedValue({ ok: true, value: { createdCount: 0, alarmWarnings: [] } }),
     } as unknown as UseCasesBundle['extendDoseHorizon'],
+    // Default honesto para los tests: la contraseña no está filtrada. Los
+    // que prueban lo contrario lo pisan explícitamente.
+    leakedPasswordCheck: {
+      isLeaked: jest.fn().mockResolvedValue({ ok: true, value: false }),
+    } as unknown as UseCasesBundle['leakedPasswordCheck'],
     auth: {
       signUp: notImplemented,
       signIn: notImplemented,

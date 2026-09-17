@@ -15,6 +15,7 @@ export type AuthActionErrorCode =
   | 'AUTH_INVALID_CREDENTIALS'
   | 'AUTH_EMAIL_ALREADY_IN_USE'
   | 'INVITE_CODE_INVALID'
+  | 'PASSWORD_LEAKED'
   | 'UNKNOWN';
 
 export interface AuthActionResult {
@@ -77,7 +78,7 @@ export interface SessionProviderProps {
  *    mostrar el estado "vinculá a tu paciente" en ese caso.
  */
 export function SessionProvider({ children, initialRole, initialPatientId }: SessionProviderProps): React.JSX.Element {
-  const { auth, redeemInviteCode, getLinkedPatient, getProfile } = useUseCases();
+  const { auth, redeemInviteCode, getLinkedPatient, getProfile, leakedPasswordCheck } = useUseCases();
   const [session, setSession] = useState<Session | null>(
     initialRole
       ? { role: initialRole, patientId: initialPatientId ?? TEST_PATIENT_ID, caregiverId: TEST_CAREGIVER_ID }
@@ -157,6 +158,13 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
   }, [initialRole]);
 
   async function signUp(params: SignUpParams): Promise<AuthActionResult> {
+    // FAIL-OPEN: solo frena si el servicio dice que SÍ está filtrada. Si no
+    // se pudo consultar (sin red, servicio caído), se sigue con el alta —
+    // dejar a alguien sin poder crear su cuenta porque un servicio ajeno no
+    // contesta es peor que aceptarle una contraseña mediocre.
+    const leaked = await leakedPasswordCheck.isLeaked(params.password);
+    if (leaked.ok && leaked.value) return { ok: false, errorCode: 'PASSWORD_LEAKED' };
+
     const result = await auth.signUp({
       email: params.email,
       password: params.password,

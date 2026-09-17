@@ -23,10 +23,29 @@
 -- TRIGGER privilege on the table and the EXECUTE privilege on the trigger
 -- function"). Revocarlo no afecta al alta de usuarios.
 --
--- Lo que este archivo NO toca: `rls_auto_enable()`, que el linter también
--- marca como `security definer` ejecutable por `anon`. Esa función NO
--- existe en ninguna migración de este repo (igual que la 0006 que falta).
--- No se toca a ciegas algo cuyo código no se puede leer.
+-- Sobre `rls_auto_enable()`, que el linter también marca: no existe en
+-- ninguna migración de este repo, así que se leyó su definición en la base
+-- antes de decidir. Resultó ser una función de EVENT TRIGGER (usa
+-- `pg_event_trigger_ddl_commands()`) que prende RLS sola en las tablas
+-- nuevas. Tres cosas quedan claras de eso:
+--
+--   * Su `search_path` YA está fijo (`pg_catalog`), así que ese hallazgo no
+--     le corresponde.
+--   * `security definer` es correcto y necesario: un event trigger que
+--     prende RLS tiene que correr con privilegios, no con los de quien haga
+--     el DDL.
+--   * Estar publicada en la API es inofensivo:
+--     `pg_event_trigger_ddl_commands()` tira error si se la llama fuera de
+--     un event trigger, cosa que la documentación de Postgres dice
+--     explícitamente. Llamarla por RPC no hace nada.
+--
+-- O sea: no es un agujero, y encima es una defensa útil para una app de
+-- salud (evita que una tabla nueva quede sin RLS por olvido). Igual se le
+-- saca de la API para que el informe del linter quede limpio y los
+-- hallazgos futuros no se pierdan entre ruido conocido — pero de forma
+-- BEST-EFFORT: la creó un superusuario (Postgres no deja crear event
+-- triggers de otra manera), así que puede ser de Supabase y no nuestra.
+-- Si no se puede revocar, la migración avisa y sigue.
 -- =========================================================================
 
 -- -------------------------------------------------------------------------
@@ -100,3 +119,17 @@ grant execute on function public.redeem_invite_code(text) to authenticated;
 -- `security definer`) y `set_invite_code` llama a `generate_invite_code`
 -- como INVOKER, así que revocarle EXECUTE podría romper un alta de perfil
 -- por un camino que no se ve desde acá. No se arregla lo que no está roto.
+
+-- Ver el bloque de arriba: es inofensiva y además útil, pero no tiene por
+-- qué estar publicada. Best-effort porque puede no ser nuestra.
+do $$
+begin
+  revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+  raise notice 'rls_auto_enable(): EXECUTE revocado.';
+exception
+  when insufficient_privilege then
+    raise notice 'rls_auto_enable(): no somos dueños (la maneja Supabase). Se deja como está.';
+  when undefined_function then
+    raise notice 'rls_auto_enable(): no existe en esta base. Nada que hacer.';
+end;
+$$;

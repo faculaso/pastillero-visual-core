@@ -82,4 +82,32 @@ describe('SupabaseDoseRepository.confirmDoseWithStockDecrement — compatibilida
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe('STOCK_INSUFFICIENT');
   });
+
+  /**
+   * La migración 0007 perdió sin querer el freno que abortaba cuando el
+   * UPDATE de la dosis no tocaba ninguna fila, y pasó a devolver un ÉXITO
+   * con la toma en null. Lo arregla la 0008, pero entre una y otra hay una
+   * base real que puede devolver eso: mapearlo daría una toma inventada.
+   */
+  it('un payload con la toma en null NO se mapea como una toma confirmada', async () => {
+    const repo = new SupabaseDoseRepository(
+      clientQueDevuelve({ dose: null, stock: null, stockShortfall: 1 }),
+    );
+
+    const result = await repo.confirmDoseWithStockDecrement('d1', new Date(), CANTIDAD);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('DOSE_ALREADY_CONFIRMED');
+  });
+
+  it('con 0008: el freno de RLS se traduce a falta de autorización, no a un error genérico', async () => {
+    const repo = new SupabaseDoseRepository(
+      clientQueDevuelve(null, { message: 'UNAUTHORIZED_ACTOR' }),
+    );
+
+    const result = await repo.confirmDoseWithStockDecrement('d1', new Date(), CANTIDAD);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('UNAUTHORIZED_ACTOR');
+  });
 });

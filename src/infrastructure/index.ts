@@ -25,3 +25,5 @@ export * from './services/image-storage';
 export * from './services/tts';
 
 export * from './bootstrap';
+export * from './persistence/offline/offline-fallback.repositories';
+export * from './services/async-storage-snapshot-cache';

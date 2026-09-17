@@ -1,5 +1,12 @@
 import { open, moveAssetsDatabase } from '@op-engineering/op-sqlite';
 import { OpSqliteAdapter } from './persistence/sqlite/adapters/op-sqlite.adapter';
+import {
+  OfflineFallbackDoseRepository,
+  OfflineFallbackTreatmentRepository,
+  OfflineFallbackProfileRepository,
+  OfflineFallbackPairingRepository,
+} from './persistence/offline/offline-fallback.repositories';
+import { AsyncStorageSnapshotCache } from './services/async-storage-snapshot-cache';
 import { MigrationRunner } from './persistence/sqlite/migration-runner';
 import { MIGRATIONS } from './persistence/sqlite/migrations';
 import { importBundledCatalogIfStale } from './persistence/sqlite/import-bundled-catalog';
@@ -125,11 +132,30 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
   // Cuidador y el Adulto Mayor necesitan ver sincronizados entre sus dos
   // teléfonos distintos. Bootstrap mixto a propósito, no un descuido.
   const medicationCatalogRepository = new SqliteMedicationCatalogRepository(context);
-  const treatmentRepository = new SupabaseTreatmentRepository(supabase, medicationCatalogRepository);
-  const doseRepository = new SupabaseDoseRepository(supabase);
+
+  // Respaldo local de LECTURA sobre los repos remotos. Los contratos del
+  // dominio prometen poder funcionar sin red (ver los docblocks de
+  // `DoseRepository` y `TreatmentRepository`) y hasta acá no se cumplía:
+  // sin conexión la pantalla quedaba en blanco justo después de que sonara
+  // la alarma. No es sincronización: Supabase manda, esto solo evita que
+  // perder la red signifique perder el pastillero.
+  const snapshotCache = new AsyncStorageSnapshotCache();
+  const treatmentRepository = new OfflineFallbackTreatmentRepository(
+    new SupabaseTreatmentRepository(supabase, medicationCatalogRepository),
+    snapshotCache,
+  );
+  const doseRepository = new OfflineFallbackDoseRepository(new SupabaseDoseRepository(supabase), snapshotCache);
   const stockRepository = new SupabaseStockRepository(supabase, medicationCatalogRepository);
-  const profileRepository = new SupabaseProfileRepository(supabase);
-  const pairingRepository = new SupabasePairingRepository(supabase);
+  // El perfil es el más crítico de todos: `SessionContext` lo pide para
+  // saber el rol y, si no lo consigue, te devuelve a la pantalla de login.
+  const profileRepository = new OfflineFallbackProfileRepository(
+    new SupabaseProfileRepository(supabase),
+    snapshotCache,
+  );
+  const pairingRepository = new OfflineFallbackPairingRepository(
+    new SupabasePairingRepository(supabase),
+    snapshotCache,
+  );
   const authAdapter = new SupabaseAuthAdapter(supabase);
 
   const clock = new SystemClock();

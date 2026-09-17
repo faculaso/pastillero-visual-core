@@ -103,7 +103,11 @@ export function PastilleroCompartment({ doses, label, isToday, onOpen }: Pastill
         onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel={
-          hasDoses ? `${label} — ${doses.length} medicamento(s)` : `${label} — sin dosis programadas, tocá para agregar un tratamiento`
+          // "medicamento(s)" lo lee un lector de pantalla como "medicamento
+          // paréntesis ese". El plural se resuelve acá, no con un paréntesis.
+          hasDoses
+            ? `${label} — ${doses.length} ${doses.length === 1 ? 'medicamento' : 'medicamentos'}`
+            : `${label} — sin dosis programadas, tocá para agregar un tratamiento`
         }
         style={styles.pressable}
       >

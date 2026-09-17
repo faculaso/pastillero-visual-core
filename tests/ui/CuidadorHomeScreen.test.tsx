@@ -21,7 +21,7 @@ jest.mock('@react-navigation/native', () => {
 
 import { CuidadorHomeScreen } from '../../src/presentation/screens/cuidador-home/CuidadorHomeScreen';
 import type { CuidadorStackParamList } from '../../src/presentation/navigation/types';
-import { Ok, PillShape, DoseStatus, StockAlertLevel } from '../../src/domain';
+import { Ok, Err, DomainErrors, PillShape, DoseStatus, StockAlertLevel } from '../../src/domain';
 import type { GetWeeklyScheduleOutput } from '../../src/application';
 import { withProviders } from './test-utils';
 
@@ -164,8 +164,8 @@ describe('CuidadorHomeScreen', () => {
       }),
     );
 
-    await waitFor(() => expect(screen.getByLabelText('Domingo · MAÑ — 1 medicamento(s)')).toBeTruthy());
-    await user.press(screen.getByLabelText('Domingo · MAÑ — 1 medicamento(s)'));
+    await waitFor(() => expect(screen.getByLabelText('Domingo · MAÑ — 1 medicamento')).toBeTruthy());
+    await user.press(screen.getByLabelText('Domingo · MAÑ — 1 medicamento'));
 
     await waitFor(() => expect(screen.getByText('Metformina')).toBeTruthy());
     await user.press(screen.getByLabelText('Ver adherencia y stock de Metformina'));
@@ -212,5 +212,28 @@ describe('CuidadorHomeScreen', () => {
 
     await waitFor(() => expect(screen.getByText('Todavía no registraste ningún tratamiento')).toBeTruthy());
     expect(screen.queryByText('En pausa')).toBeNull();
+  });
+
+  it('el error ofrece un botón para reintentar, no solo el pedido de reintentar', async () => {
+    const getWeeklySchedule = {
+      execute: jest
+        .fn()
+        .mockResolvedValueOnce(Err(DomainErrors.repositoryFailure(new Error('sin red'))))
+        .mockResolvedValueOnce(Ok(buildWeeklySchedule())),
+    };
+    const navigation = buildNavigationMock();
+    const user = userEvent.setup();
+
+    await render(
+      withProviders(<CuidadorHomeScreen navigation={navigation} route={baseRoute} />, {
+        role: 'CUIDADOR',
+        useCases: { getWeeklySchedule: getWeeklySchedule as never },
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByText('No pudimos cargar tu semana.')).toBeTruthy());
+    await user.press(screen.getByText('Reintentar'));
+
+    await waitFor(() => expect(screen.getByText('Todavía no registraste ningún tratamiento')).toBeTruthy());
   });
 });

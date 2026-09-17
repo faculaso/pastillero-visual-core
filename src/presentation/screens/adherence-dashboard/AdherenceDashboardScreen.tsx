@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AdherenceMetrics } from '../../../domain';
+import type { MonitorAdherenceOutput } from '../../../application';
 import { useUseCases } from '../../providers/UseCasesProvider';
 import { useSession } from '../../providers/SessionContext';
 import type { CuidadorStackParamList } from '../../navigation/types';
 import { AccessibleText } from '../../design-system/AccessibleText';
+import { AccessibleButton } from '../../design-system/AccessibleButton';
 import { colors, spacing } from '../../design-system/tokens';
 import { AdherenceMetricsCard } from './components/AdherenceMetricsCard';
 import { StockAlertBadge } from './components/StockAlertBadge';
@@ -28,7 +29,7 @@ export function AdherenceDashboardScreen({ route }: Props): React.JSX.Element {
   const { session } = useSession();
 
   const [status, setStatus] = useState<ScreenStatus>('loading');
-  const [metrics, setMetrics] = useState<AdherenceMetrics | null>(null);
+  const [data, setData] = useState<MonitorAdherenceOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updatingStock, setUpdatingStock] = useState(false);
 
@@ -44,7 +45,7 @@ export function AdherenceDashboardScreen({ route }: Props): React.JSX.Element {
       setError('No pudimos cargar las métricas de este tratamiento.');
       return;
     }
-    setMetrics(result.value.metrics);
+    setData(result.value);
     setStatus('ready');
   }, [monitorAdherence, session, treatmentId]);
 
@@ -79,24 +80,33 @@ export function AdherenceDashboardScreen({ route }: Props): React.JSX.Element {
     );
   }
 
-  if (status === 'error' || !metrics) {
+  if (status === 'error' || !data) {
     return (
       <View style={styles.centered}>
         <AccessibleText color={colors.critical} bold style={styles.centerText}>
           {error ?? 'No pudimos cargar este tratamiento.'}
         </AccessibleText>
+        {/* Sin este botón el texto pedía reintentar sin ofrecer cómo: había
+            que salir de la pantalla y volver a entrar. */}
+        <AccessibleButton label="Reintentar" variant="secondary" onPress={() => void loadMetrics()} />
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      {/* El nombre del medicamento ES el título: se llega acá desde una
+          lista donde dos tratamientos pueden mostrar el mismo nombre
+          comercial, y abajo hay un formulario que le cambia el stock. */}
       <AccessibleText variant="title" bold>
-        Adherencia y stock
+        {data.medicationName}
+      </AccessibleText>
+      <AccessibleText variant="small" color={colors.textSecondary}>
+        Adherencia y stock de los últimos 30 días
       </AccessibleText>
 
-      <StockAlertBadge level={metrics.stockAlertLevel} />
-      <AdherenceMetricsCard metrics={metrics} />
+      <StockAlertBadge level={data.metrics.stockAlertLevel} />
+      <AdherenceMetricsCard metrics={data.metrics} />
 
       {error ? (
         <AccessibleText color={colors.critical} bold>
@@ -106,6 +116,8 @@ export function AdherenceDashboardScreen({ route }: Props): React.JSX.Element {
 
       <UpdateStockForm
         loading={updatingStock}
+        currentQuantity={data.stock.currentQuantity}
+        unit={data.stock.unit}
         onSubmit={handleUpdateStock}
       />
     </ScrollView>

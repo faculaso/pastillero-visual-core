@@ -9,6 +9,7 @@ import { useSession } from '../../providers/SessionContext';
 import { AccessibleText } from '../../design-system/AccessibleText';
 import { colors, radii, spacing, shadows } from '../../design-system/tokens';
 import { groupDosesByWeek } from '../../utils/group-doses-by-week';
+import { getAdherenceDisplay, formatAdherencePercentage } from '../../utils/adherence-display';
 import { LinkPatientPrompt } from '../register-treatment/components/LinkPatientPrompt';
 import { WeekGrid, type Turno } from './components/WeekGrid';
 import { WeekCellDetailModal } from './components/WeekCellDetailModal';
@@ -22,6 +23,14 @@ interface CellSelection {
   readonly doses: readonly WeekDoseView[];
   readonly label: string;
   readonly turno: Turno;
+}
+
+/** Días de stock que quedan, en palabras — el número solo no dice nada al lado de un nombre. */
+function formatDaysRemaining(days: number): string {
+  if (!Number.isFinite(days)) return 'sin consumo registrado';
+  const enteros = Math.floor(days);
+  if (enteros === 0) return 'se acabó';
+  return enteros === 1 ? 'queda 1 día' : `quedan ${enteros} días`;
 }
 
 /** Hora representativa de cada turno, para sugerir un horario al agregar un tratamiento desde un casillero. */
@@ -98,10 +107,16 @@ export function CuidadorHomeScreen({ navigation }: Props): React.JSX.Element {
                   key={t.treatmentId}
                   onPress={() => navigation.navigate('AdherenceDashboard', { treatmentId: t.treatmentId })}
                   accessibilityRole="button"
-                  accessibilityLabel={`Ver adherencia y stock de ${t.medicationName}`}
+                  accessibilityLabel={`Ver adherencia y stock de ${t.medicationName}, ${formatDaysRemaining(t.estimatedDaysRemaining)}`}
+                  style={({ pressed }) => [styles.attentionRow, pressed && styles.attentionRowPressed]}
                 >
+                  <AccessibleText variant="small" bold color={colors.critical}>
+                    {t.medicationName}
+                  </AccessibleText>
+                  {/* Distingue dos tratamientos del mismo medicamento, que es
+                      justo lo que el banner no permitía hacer. */}
                   <AccessibleText variant="small" color={colors.critical}>
-                    • {t.medicationName} →
+                    {formatDaysRemaining(t.estimatedDaysRemaining)}
                   </AccessibleText>
                 </Pressable>
               ))}
@@ -113,9 +128,28 @@ export function CuidadorHomeScreen({ navigation }: Props): React.JSX.Element {
               <AccessibleText variant="small" color={colors.textSecondary}>
                 Adherencia de esta semana
               </AccessibleText>
-              <AccessibleText variant="title" bold color={colors.success}>
-                {data.adherencePercentage}%
-              </AccessibleText>
+              <View style={styles.statRow}>
+                <AccessibleText
+                  variant="title"
+                  bold
+                  color={getAdherenceDisplay(data.adherencePercentage).color}
+                >
+                  {formatAdherencePercentage(data.adherencePercentage)}
+                </AccessibleText>
+                <View
+                  style={[
+                    styles.nivel,
+                    {
+                      backgroundColor: getAdherenceDisplay(data.adherencePercentage).background,
+                      borderColor: getAdherenceDisplay(data.adherencePercentage).border,
+                    },
+                  ]}
+                >
+                  <AccessibleText variant="small" bold color={getAdherenceDisplay(data.adherencePercentage).color}>
+                    {getAdherenceDisplay(data.adherencePercentage).label}
+                  </AccessibleText>
+                </View>
+              </View>
             </View>
           ) : null}
 
@@ -153,6 +187,25 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     padding: spacing.md,
     gap: spacing.xs,
+  },
+  statRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  attentionRow: {
+    // Superficie táctil real: antes era una línea de texto con una flecha
+    // dibujada a mano, sin área que se pudiera tocar con comodidad.
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+  },
+  attentionRowPressed: { backgroundColor: 'rgba(185, 28, 28, 0.08)' },
+  nivel: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    borderWidth: 1,
   },
   statCard: {
     backgroundColor: colors.surface,

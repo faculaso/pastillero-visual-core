@@ -54,7 +54,7 @@ export function CuidadorStack(): React.JSX.Element {
       <Stack.Screen
         name="CuidadorHome"
         component={CuidadorHomeScreen}
-        options={{ title: 'Mi semana' }}
+        options={{ title: 'Semana de quien cuidás' }}
       />
       <Stack.Screen
         name="RegisterTreatment"

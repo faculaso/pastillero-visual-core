@@ -4,6 +4,7 @@ import {
   DoseStatus,
   StockAlertLevel,
   calculateStockAlertLevel,
+  calculateDaysRemaining,
   type DomainError,
   type DoseRepository,
   type TreatmentRepository,
@@ -71,6 +72,7 @@ export class GetWeeklyScheduleUseCase
           treatmentId: treatment.id,
           medicationName: treatment.medication.name,
           stockAlertLevel: level,
+          estimatedDaysRemaining: calculateDaysRemaining(treatment.stock),
         });
       }
     }

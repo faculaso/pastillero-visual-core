@@ -97,7 +97,12 @@ export class MonitorAdherenceUseCase
       criticalAlertDispatched = alertResult.ok;
     }
 
-    return Ok({ metrics, criticalAlertDispatched });
+    return Ok({
+      metrics,
+      medicationName: treatment.medication.name,
+      stock: stockResult.value,
+      criticalAlertDispatched,
+    });
   }
 
   private subtractDays(date: Date, days: number): Date {

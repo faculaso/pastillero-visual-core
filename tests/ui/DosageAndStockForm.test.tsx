@@ -13,6 +13,8 @@ const INITIAL: DosageAndStockFormValue = {
   dailyConsumption: '1',
   allDays: true,
   weekdays: [],
+  startOffsetDays: 0,
+  durationDays: null,
 };
 
 function StatefulForm({ onChangeSpy }: { onChangeSpy: (v: DosageAndStockFormValue) => void }) {
@@ -44,5 +46,33 @@ describe('DosageAndStockForm — checkbox "Todos los días"', () => {
 
     await user.press(screen.getByLabelText('Todos los días'));
     expect(screen.getByLabelText('Todos los días').props.accessibilityState.checked).toBe(true);
+  });
+});
+
+describe('fechas del tratamiento', () => {
+  it('elegir una duración deja de ser crónico y lo informa en palabras', async () => {
+    // Sin fecha de fin, un tratamiento de 7 días generaba igual las dosis de
+    // los 30 días del horizonte: 23 tomas fantasma que suenan la alarma y
+    // cuentan como incumplidas.
+    const user = userEvent.setup();
+    const onChangeSpy = jest.fn();
+    await render(withProviders(<StatefulForm onChangeSpy={onChangeSpy} />));
+
+    expect(screen.getByText(/sin fecha de fin\./i)).toBeTruthy();
+
+    await user.press(screen.getByLabelText('7 días'));
+
+    expect(onChangeSpy).toHaveBeenCalledWith(expect.objectContaining({ durationDays: 7 }));
+    expect(screen.getByText(/^Desde hoy hasta el /)).toBeTruthy();
+  });
+
+  it('se puede arrancar otro día de la semana', async () => {
+    const user = userEvent.setup();
+    const onChangeSpy = jest.fn();
+    await render(withProviders(<StatefulForm onChangeSpy={onChangeSpy} />));
+
+    await user.press(screen.getByLabelText('Mañana'));
+
+    expect(onChangeSpy).toHaveBeenCalledWith(expect.objectContaining({ startOffsetDays: 1 }));
   });
 });

@@ -11,6 +11,7 @@ import { AccessibleButton } from '../../design-system/AccessibleButton';
 import { colors, spacing } from '../../design-system/tokens';
 import { MedicationSearchField } from './components/MedicationSearchField';
 import { VisualProfileEditor, type VisualProfileFormValue } from './components/VisualProfileEditor';
+import { buildTreatmentDates } from '../../utils/treatment-dates';
 import { DosageAndStockForm, type DosageAndStockFormValue } from './components/DosageAndStockForm';
 import { LinkPatientPrompt } from './components/LinkPatientPrompt';
 
@@ -35,6 +36,10 @@ function buildInitialDosage(suggestedHour?: number): DosageAndStockFormValue {
     dailyConsumption: '1',
     allDays: true,
     weekdays: [],
+    // Por defecto arranca hoy y sin fecha de fin: es el comportamiento que
+    // ya tenía el alta, ahora explícito y modificable.
+    startOffsetDays: 0,
+    durationDays: null,
   };
 }
 
@@ -133,7 +138,11 @@ export function RegisterTreatmentScreen({ navigation, route }: Props): React.JSX
         frequency: DosageFrequency.DAILY,
         timesOfDay: [{ hour: parsed.timeHour, minute: parsed.timeMinute }],
         dosagePerTake: { amount: parsed.dosageAmount, unit: dosage.dosageUnit },
-        startDate: new Date(),
+        // Antes acá iba `startDate: new Date()` fijo y ningún `endDate`, así
+        // que todo tratamiento nacía crónico: uno de 7 días generaba igual
+        // 30 días de dosis, y las 23 sobrantes sonaban la alarma y contaban
+        // como incumplidas.
+        ...buildTreatmentDates(new Date(), dosage.startOffsetDays, dosage.durationDays),
       },
       initialStock: {
         currentQuantity: parsed.initialStock,

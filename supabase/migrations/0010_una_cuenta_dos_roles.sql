@@ -139,3 +139,7 @@ $$;
 
 revoke execute on function redeem_invite_code(text) from public, anon;
 grant execute on function redeem_invite_code(text) to authenticated;
+
+-- Ver la nota al final de 0011: PostgREST cachea el esquema y no ve los
+-- cambios hasta que se le avisa.
+notify pgrst, 'reload schema';

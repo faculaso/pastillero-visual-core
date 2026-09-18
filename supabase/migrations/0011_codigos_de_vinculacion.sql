@@ -295,3 +295,16 @@ $fn$;
 
 revoke execute on function redeem_invite_code(text) from public, anon;
 grant execute on function redeem_invite_code(text) to authenticated;
+
+-- =========================================================================
+-- Recargar la caché de esquema de PostgREST.
+-- =========================================================================
+-- Sin esto la tabla existe en Postgres pero la API REST no la ve, y toda
+-- consulta a `patient_invite_codes` vuelve con
+-- `PGRST205: Could not find the table 'public.patient_invite_codes' in the
+-- schema cache`. Pasó de verdad al aplicar esta migración: la pantalla "Mis
+-- cuidadores" mostraba su estado de error y parecía un bug del cliente.
+--
+-- Va al final de toda migración que cree o cambie tablas, vistas o
+-- funciones. Es no disruptivo: no reinicia la base ni el servicio.
+notify pgrst, 'reload schema';

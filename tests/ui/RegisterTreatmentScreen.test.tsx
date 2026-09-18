@@ -74,38 +74,116 @@ describe('RegisterTreatmentScreen', () => {
     );
   });
 
-  it('destildar "Todos los días" no bloquea el guardado (todavía no hay UI para elegir días sueltos, así que igual guarda DAILY)', async () => {
-    const medication = buildMedication({ id: 'med-1', name: 'Paracetamol 500mg' });
-    const treatment = buildTreatment({ id: 'treatment-1', medication });
-    const searchMedicationCatalog = { execute: jest.fn().mockResolvedValue(Ok({ medications: [medication] })) };
-    const registerTreatment = {
-      execute: jest.fn().mockResolvedValue(Ok({ treatment, generatedDoses: [], notificationWarnings: [] })),
-    };
-    const navigation = buildNavigationMock();
-    const user = userEvent.setup();
+  /**
+   * El checkbox existía pero NO HACÍA NADA: destildarlo guardaba DAILY
+   * igual. En una app de medicación eso significa que el Cuidador cree que
+   * configuró martes y jueves y el remedio le suena al Adulto Mayor los
+   * siete días.
+   */
+  describe('días sueltos de la semana', () => {
+    async function llegarAlFormulario() {
+      const medication = buildMedication({ id: 'med-1', name: 'Paracetamol 500mg' });
+      const treatment = buildTreatment({ id: 'treatment-1', medication });
+      const searchMedicationCatalog = { execute: jest.fn().mockResolvedValue(Ok({ medications: [medication] })) };
+      const registerTreatment = {
+        execute: jest.fn().mockResolvedValue(Ok({ treatment, generatedDoses: [], notificationWarnings: [] })),
+      };
+      const user = userEvent.setup();
 
-    await render(
-      withProviders(<RegisterTreatmentScreen navigation={navigation} route={baseRoute} />, {
-        role: 'CUIDADOR',
-        useCases: {
-          searchMedicationCatalog: searchMedicationCatalog as never,
-          registerTreatment: registerTreatment as never,
-        },
-      }),
-    );
+      await render(
+        withProviders(<RegisterTreatmentScreen navigation={buildNavigationMock()} route={baseRoute} />, {
+          role: 'CUIDADOR',
+          useCases: {
+            searchMedicationCatalog: searchMedicationCatalog as never,
+            registerTreatment: registerTreatment as never,
+          },
+        }),
+      );
 
-    await user.type(screen.getByLabelText('Buscar medicamento por nombre o código de barras'), 'paracet');
-    await user.press(screen.getByText('Buscar'));
-    await waitFor(() => expect(screen.getByText('Paracetamol 500mg')).toBeTruthy());
-    await user.press(screen.getByText('Paracetamol 500mg'));
+      await user.type(screen.getByLabelText('Buscar medicamento por nombre o código de barras'), 'paracet');
+      await user.press(screen.getByText('Buscar'));
+      await waitFor(() => expect(screen.getByText('Paracetamol 500mg')).toBeTruthy());
+      await user.press(screen.getByText('Paracetamol 500mg'));
+      await waitFor(() => expect(screen.getByLabelText('Todos los días')).toBeTruthy());
 
-    await waitFor(() => expect(screen.getByLabelText('Todos los días')).toBeTruthy());
-    await user.press(screen.getByLabelText('Todos los días'));
-    await user.press(screen.getByText('Guardar tratamiento'));
+      return { user, registerTreatment };
+    }
 
-    await waitFor(() => expect(registerTreatment.execute).toHaveBeenCalled());
-    const callArg = registerTreatment.execute.mock.calls[0][0];
-    expect(callArg.dosageScheme.frequency).toBe('DAILY');
+    it('tildado sigue guardando DAILY', async () => {
+      const { user, registerTreatment } = await llegarAlFormulario();
+
+      await user.press(screen.getByText('Guardar tratamiento'));
+
+      await waitFor(() => expect(registerTreatment.execute).toHaveBeenCalled());
+      expect(registerTreatment.execute.mock.calls[0][0].dosageScheme.frequency).toBe('DAILY');
+    });
+
+    it('destildarlo muestra los siete días para elegir', async () => {
+      const { user } = await llegarAlFormulario();
+
+      expect(screen.queryByLabelText('Martes')).toBeNull();
+      await user.press(screen.getByLabelText('Todos los días'));
+
+      // Por el día COMPLETO, no por la letra: "M" no distingue martes de miércoles.
+      expect(screen.getByLabelText('Domingo')).toBeTruthy();
+      expect(screen.getByLabelText('Martes')).toBeTruthy();
+      expect(screen.getByLabelText('Miércoles')).toBeTruthy();
+      expect(screen.getByLabelText('Sábado')).toBeTruthy();
+    });
+
+    it('los días elegidos llegan al dominio como SPECIFIC_WEEKDAYS', async () => {
+      const { user, registerTreatment } = await llegarAlFormulario();
+
+      await user.press(screen.getByLabelText('Todos los días'));
+      await user.press(screen.getByLabelText('Jueves'));
+      await user.press(screen.getByLabelText('Martes'));
+      await user.press(screen.getByText('Guardar tratamiento'));
+
+      await waitFor(() => expect(registerTreatment.execute).toHaveBeenCalled());
+      const { dosageScheme } = registerTreatment.execute.mock.calls[0][0];
+      expect(dosageScheme.frequency).toBe('SPECIFIC_WEEKDAYS');
+      // Ordenados aunque se hayan tocado al revés: 2 = martes, 4 = jueves.
+      expect(dosageScheme.weekdays).toEqual([2, 4]);
+    });
+
+    it('volver a tocar un día lo saca', async () => {
+      const { user, registerTreatment } = await llegarAlFormulario();
+
+      await user.press(screen.getByLabelText('Todos los días'));
+      await user.press(screen.getByLabelText('Martes'));
+      await user.press(screen.getByLabelText('Jueves'));
+      await user.press(screen.getByLabelText('Martes'));
+      await user.press(screen.getByText('Guardar tratamiento'));
+
+      await waitFor(() => expect(registerTreatment.execute).toHaveBeenCalled());
+      expect(registerTreatment.execute.mock.calls[0][0].dosageScheme.weekdays).toEqual([4]);
+    });
+
+    it('sin ningún día elegido no guarda, y dice por qué', async () => {
+      const { user, registerTreatment } = await llegarAlFormulario();
+
+      await user.press(screen.getByLabelText('Todos los días'));
+
+      // El botón deshabilitado sin explicación era el callejón sin salida
+      // que tenía la versión vieja de esta pantalla.
+      expect(screen.getByText('Elegí al menos un día.')).toBeTruthy();
+      await user.press(screen.getByText('Guardar tratamiento'));
+      expect(registerTreatment.execute).not.toHaveBeenCalled();
+    });
+
+    it('volver a tildar "Todos los días" esconde los días y vuelve a DAILY', async () => {
+      const { user, registerTreatment } = await llegarAlFormulario();
+
+      await user.press(screen.getByLabelText('Todos los días'));
+      await user.press(screen.getByLabelText('Martes'));
+      await user.press(screen.getByLabelText('Todos los días'));
+
+      expect(screen.queryByLabelText('Martes')).toBeNull();
+      await user.press(screen.getByText('Guardar tratamiento'));
+
+      await waitFor(() => expect(registerTreatment.execute).toHaveBeenCalled());
+      expect(registerTreatment.execute.mock.calls[0][0].dosageScheme.frequency).toBe('DAILY');
+    });
   });
 
   it('prefila la hora sugerida cuando se llega desde un casillero de la grilla semanal', async () => {

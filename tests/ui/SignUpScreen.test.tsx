@@ -137,4 +137,73 @@ describe('SignUpScreen', () => {
 
     await waitFor(() => expect(screen.getByText('Ya existe una cuenta con ese correo.')).toBeTruthy());
   });
+
+  /**
+   * Supabase trae este chequeo de fábrica pero solo en Plan Pro, así que se
+   * implementó del lado de la app para no atar una medida de seguridad
+   * básica a una decisión de facturación.
+   */
+  describe('contraseñas filtradas', () => {
+    it('no crea la cuenta si la contraseña ya apareció en una filtración', async () => {
+      const signUp = jest.fn();
+      const leakedPasswordCheck = { isLeaked: jest.fn().mockResolvedValue(Ok(true)) };
+      const user = userEvent.setup();
+
+      await render(
+        withProviders(<SignUpScreen navigation={buildNavigationMock()} route={baseRoute} />, {
+          useCases: {
+            auth: buildAuthMock({ signUp }) as never,
+            leakedPasswordCheck: leakedPasswordCheck as never,
+          },
+        }),
+      );
+
+      await user.press(screen.getByLabelText('Soy el Adulto Mayor'));
+      await user.type(screen.getByLabelText('Nombre'), 'Rosa Gómez');
+      await user.type(screen.getByLabelText('Correo electrónico'), 'rosa@x.com');
+      await user.type(screen.getByLabelText('Contraseña'), 'password123');
+      await user.press(screen.getByRole('button', { name: 'Crear cuenta' }));
+
+      await waitFor(() =>
+        expect(
+          screen.getByText(
+            'Esa contraseña apareció en filtraciones de otros sitios y ya no es segura. Elegí otra distinta.',
+          ),
+        ).toBeTruthy(),
+      );
+      // No se llegó a crear nada: se corta ANTES de tocar Supabase.
+      expect(signUp).not.toHaveBeenCalled();
+    });
+
+    /**
+     * FAIL-OPEN. Dejar a alguien sin poder crear su cuenta porque un
+     * servicio ajeno no contesta es peor que aceptarle una contraseña
+     * mediocre — más todavía acá, donde la cuenta suele crearla un adulto
+     * mayor con ayuda de alguien que vino un rato.
+     */
+    it('si el servicio no responde, el alta CONTINÚA', async () => {
+      const signUp = jest.fn().mockResolvedValue(Ok({ session: { user: { id: 'u1' } } }));
+      const leakedPasswordCheck = {
+        isLeaked: jest.fn().mockResolvedValue(Err(DomainErrors.repositoryFailure(new Error('sin red')))),
+      };
+      const user = userEvent.setup();
+
+      await render(
+        withProviders(<SignUpScreen navigation={buildNavigationMock()} route={baseRoute} />, {
+          useCases: {
+            auth: buildAuthMock({ signUp }) as never,
+            leakedPasswordCheck: leakedPasswordCheck as never,
+          },
+        }),
+      );
+
+      await user.press(screen.getByLabelText('Soy el Adulto Mayor'));
+      await user.type(screen.getByLabelText('Nombre'), 'Rosa Gómez');
+      await user.type(screen.getByLabelText('Correo electrónico'), 'rosa@x.com');
+      await user.type(screen.getByLabelText('Contraseña'), 'secreta123');
+      await user.press(screen.getByRole('button', { name: 'Crear cuenta' }));
+
+      await waitFor(() => expect(signUp).toHaveBeenCalled());
+    });
+  });
 });

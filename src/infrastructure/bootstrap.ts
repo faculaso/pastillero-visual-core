@@ -20,6 +20,7 @@ import { SupabaseStockRepository } from './persistence/supabase/repositories/sup
 import { SupabaseProfileRepository } from './persistence/supabase/repositories/supabase-profile.repository';
 import { SupabasePairingRepository } from './persistence/supabase/repositories/supabase-pairing.repository';
 import { SupabaseAuthAdapter } from './services/supabase-auth.adapter';
+import { HibpLeakedPasswordCheck } from './services/hibp-leaked-password-check';
 import { SystemClock } from './services/system-clock';
 import { CryptoIdGenerator } from './services/crypto-id-generator';
 import { NotifeeNotificationScheduler } from './services/notifee';
@@ -42,7 +43,13 @@ import {
   GetProfileUseCase,
   GetWeeklyScheduleUseCase,
 } from '../application';
-import type { NotificationScheduler, LocalImageStorageService, VoiceGuidancePort, AuthPort } from '../application';
+import type {
+  NotificationScheduler,
+  LocalImageStorageService,
+  VoiceGuidancePort,
+  AuthPort,
+  LeakedPasswordCheck,
+} from '../application';
 
 export interface BootstrapResult {
   readonly confirmDose: ConfirmDoseUseCase;
@@ -63,6 +70,7 @@ export interface BootstrapResult {
   readonly getProfile: GetProfileUseCase;
   readonly getWeeklySchedule: GetWeeklyScheduleUseCase;
   readonly auth: AuthPort;
+  readonly leakedPasswordCheck: LeakedPasswordCheck;
 }
 
 export interface BootstrapOptions {
@@ -213,6 +221,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
     getProfile: new GetProfileUseCase(profileRepository),
     getWeeklySchedule: new GetWeeklyScheduleUseCase(doseRepository, treatmentRepository, clock),
     auth: authAdapter,
+    leakedPasswordCheck: new HibpLeakedPasswordCheck(),
   };
 }
 

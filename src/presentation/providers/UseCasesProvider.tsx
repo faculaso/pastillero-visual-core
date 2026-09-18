@@ -18,6 +18,7 @@ import type {
   GetWeeklyScheduleUseCase,
   ExtendDoseHorizonUseCase,
   AuthPort,
+  LeakedPasswordCheck,
 } from '../../application';
 
 /**
@@ -47,6 +48,7 @@ export interface UseCasesBundle {
   readonly getWeeklySchedule: GetWeeklyScheduleUseCase;
   readonly extendDoseHorizon: ExtendDoseHorizonUseCase;
   readonly auth: AuthPort;
+  readonly leakedPasswordCheck: LeakedPasswordCheck;
 }
 
 const UseCasesContext = createContext<UseCasesBundle | null>(null);

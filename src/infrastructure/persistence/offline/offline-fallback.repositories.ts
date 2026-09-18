@@ -7,6 +7,8 @@ import {
   type Profile,
   type UserRole,
   type PatientInviteLink,
+  type PatientInviteCode,
+  type LinkedCaregiver,
   type DoseRepository,
   type TreatmentRepository,
   type ProfileRepository,
@@ -194,8 +196,30 @@ export class OfflineFallbackPairingRepository extends OfflineFallback implements
     );
   }
 
-  /** Vincular es una escritura contra el servidor: sin red no hay nada que servir de respaldo. */
+  findInviteCodesByPatient(patientId: string): Promise<Result<readonly PatientInviteCode[], DomainError>> {
+    return this.cachedRead(`invite-codes:${patientId}`, () => this.remote.findInviteCodesByPatient(patientId));
+  }
+
+  findCaregiversByPatient(patientId: string): Promise<Result<readonly LinkedCaregiver[], DomainError>> {
+    return this.cachedRead(`caregivers:${patientId}`, () => this.remote.findCaregiversByPatient(patientId));
+  }
+
+  // --- Escrituras: sin red no hay nada que servir de respaldo ---
+
+  /** Vincular es una escritura contra el servidor. */
   redeemInviteCode(inviteCode: string, caregiverId: string): Promise<Result<PatientInviteLink, DomainError>> {
     return this.remote.redeemInviteCode(inviteCode, caregiverId);
+  }
+
+  createInviteCode(): Promise<Result<PatientInviteCode, DomainError>> {
+    return this.remote.createInviteCode();
+  }
+
+  revokeInviteCode(codeId: string): Promise<Result<void, DomainError>> {
+    return this.remote.revokeInviteCode(codeId);
+  }
+
+  unlinkCaregiver(caregiverId: string): Promise<Result<void, DomainError>> {
+    return this.remote.unlinkCaregiver(caregiverId);
   }
 }

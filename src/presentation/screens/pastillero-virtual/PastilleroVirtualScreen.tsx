@@ -147,7 +147,7 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
     >
       {theme ? <TimeOfDayBackdrop theme={theme} /> : null}
       <Animated.View style={[styles.topBar, topBarEntrance]}>
-        <InviteCodeButton patientId={patientId} theme={theme} />
+        <InviteCodeButton onPress={() => navigation.navigate('MisCuidadores')} theme={theme} />
         <Pressable
           onPress={() => navigation.navigate('MiSemana')}
           accessibilityRole="button"

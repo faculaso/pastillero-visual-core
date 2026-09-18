@@ -250,25 +250,22 @@ describe('PastilleroVirtualScreen', () => {
     await waitFor(() => expect(screen.getByText('Confirmar Toma')).toBeTruthy());
   });
 
-  it('el botón "Mi código" muestra el código de invitación del Adulto Mayor', async () => {
+  it('el botón "Mi código" abre la pantalla de cuidadores y códigos', async () => {
+    // Antes abría un modal con EL código. Con hasta tres códigos, la baja de
+    // cada uno y la lista de quién te cuida, eso pasó a ser una pantalla.
     const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [] })) };
-    const getProfile = {
-      execute: jest.fn().mockResolvedValue(
-        Ok({ profile: { id: 'patient-1', role: 'ADULTO_MAYOR', displayName: 'Rosa', inviteCode: '7F2K9M' } }),
-      ),
-    };
+    const navigation = buildNavigationMock();
     const user = userEvent.setup();
 
     await render(
-      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
-        useCases: { getPendingDoses: getPendingDoses as never, getProfile: getProfile as never },
+      withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={navigation} />, {
+        useCases: { getPendingDoses: getPendingDoses as never },
       }),
     );
 
-    await user.press(screen.getByLabelText('Ver mi código de invitación'));
+    await user.press(screen.getByLabelText('Mi código y quién me cuida'));
 
-    await waitFor(() => expect(getProfile.execute).toHaveBeenCalledWith({ userId: 'patient-1' }));
-    await waitFor(() => expect(screen.getByText('7F2K9M')).toBeTruthy());
+    expect(navigation.navigate).toHaveBeenCalledWith('MisCuidadores');
   });
 
   it('completa el horizonte de dosis sin bloquear la primera lectura, y recarga solo si creó tomas', async () => {

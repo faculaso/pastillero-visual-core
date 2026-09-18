@@ -20,6 +20,9 @@ export type DomainErrorCode =
   | 'UNAUTHORIZED_ACTOR'
   | 'INVITE_CODE_INVALID'
   | 'CANNOT_LINK_TO_SELF'
+  | 'INVITE_CODE_ALREADY_USED'
+  | 'INVITE_CODE_LIMIT_REACHED'
+  | 'TOO_MANY_CAREGIVERS'
   | 'AUTH_INVALID_CREDENTIALS'
   | 'AUTH_EMAIL_ALREADY_IN_USE';
 
@@ -87,6 +90,18 @@ export const DomainErrors = {
   /** Con los dos roles en una misma cuenta, el código propio queda a la vista de quien también puede redimir. */
   cannotLinkToSelf: () =>
     new DomainError('CANNOT_LINK_TO_SELF', 'No podés vincularte a tu propia cuenta'),
+
+  /** Cada código sirve una sola vez: ya hay un cuidador atado a este. */
+  inviteCodeAlreadyUsed: () =>
+    new DomainError('INVITE_CODE_ALREADY_USED', 'Ese código ya fue usado por otro cuidador'),
+
+  /** Del lado del Adulto Mayor: pedir un cuarto código cuando ya hay 3 lugares ocupados o entregados. */
+  inviteCodeLimitReached: (max: number) =>
+    new DomainError('INVITE_CODE_LIMIT_REACHED', `No se pueden tener más de ${max} cuidadores`),
+
+  /** Del lado del Cuidador: el tope ya está lleno del otro lado. */
+  tooManyCaregivers: (max: number) =>
+    new DomainError('TOO_MANY_CAREGIVERS', `Esa persona ya tiene ${max} cuidadores`),
 
   authInvalidCredentials: () =>
     new DomainError('AUTH_INVALID_CREDENTIALS', 'Correo o contraseña incorrectos'),

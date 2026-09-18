@@ -49,6 +49,7 @@ export function createFakeUseCases(overrides: Partial<UseCasesBundle> = {}): Use
     redeemInviteCode: { execute: notImplemented } as unknown as UseCasesBundle['redeemInviteCode'],
     getLinkedPatient: { execute: notImplemented } as unknown as UseCasesBundle['getLinkedPatient'],
     getProfile: { execute: notImplemented } as unknown as UseCasesBundle['getProfile'],
+    enableRole: { execute: notImplemented } as unknown as UseCasesBundle['enableRole'],
     getWeeklySchedule: { execute: notImplemented } as unknown as UseCasesBundle['getWeeklySchedule'],
     // Este NO va a `notImplemented`: es mantenimiento idempotente que las
     // pantallas disparan al cargar, y a casi ningún test le importa. El

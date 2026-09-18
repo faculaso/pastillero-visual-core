@@ -1,20 +1,38 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import type { UserRole } from '../../domain';
+import { availableRoles, type UserRole } from '../../domain';
 import type { AuthUser } from '../../application';
 import { useUseCases } from './UseCasesProvider';
 
 export type { UserRole };
 
 export interface Session {
+  /** El rol ACTIVO — con cuál de sus roles entró esta vez, no "el rol de la cuenta". */
   readonly role: UserRole;
   readonly patientId: string;
   readonly caregiverId: string;
+  /** Id de la cuenta, independiente del rol activo (como Cuidador, `patientId` es de otra persona). */
+  readonly userId: string;
+  readonly displayName: string | null;
+  /** Los roles que esta cuenta tiene prendidos. Uno solo = nunca se le pregunta al entrar. */
+  readonly availableRoles: readonly UserRole[];
+}
+
+/**
+ * Cuenta autenticada que todavía no eligió con qué rol entrar. Mientras
+ * esto no sea `null`, `session` es `null` — `RootNavigator` muestra el
+ * selector en vez de un stack.
+ */
+export interface PendingRoleChoice {
+  readonly userId: string;
+  readonly displayName: string | null;
+  readonly roles: readonly UserRole[];
 }
 
 export type AuthActionErrorCode =
   | 'AUTH_INVALID_CREDENTIALS'
   | 'AUTH_EMAIL_ALREADY_IN_USE'
   | 'INVITE_CODE_INVALID'
+  | 'CANNOT_LINK_TO_SELF'
   | 'PASSWORD_LEAKED'
   | 'UNKNOWN';
 
@@ -37,6 +55,8 @@ export interface SignUpParams {
 interface SessionContextValue {
   readonly session: Session | null;
   readonly status: 'loading' | 'ready';
+  /** No `null` cuando hay que preguntar con qué rol entrar (o se pidió cambiar de rol). */
+  readonly roleChoice: PendingRoleChoice | null;
   signUp(params: SignUpParams): Promise<AuthActionResult>;
   signIn(email: string, password: string): Promise<AuthActionResult>;
   signOut(): Promise<void>;
@@ -44,6 +64,12 @@ interface SessionContextValue {
   requestPasswordReset(email: string): Promise<AuthActionResult>;
   /** CUIDADOR ya logueado, sin paciente vinculado todavía (p. ej. tipeó mal el código al registrarse) — redime uno nuevo y refresca `session.patientId`. */
   linkPatient(inviteCode: string): Promise<AuthActionResult>;
+  /** Entra con uno de los roles disponibles — solo tiene efecto con `roleChoice` pendiente. */
+  chooseRole(role: UserRole): Promise<void>;
+  /** Vuelve al selector sin cerrar sesión. Sirve también con un solo rol: desde ahí se activa el otro. */
+  switchRole(): void;
+  /** Suma un rol a la cuenta (el mismo mail pasa a servir para los dos). */
+  enableRole(role: UserRole): Promise<AuthActionResult>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -67,7 +93,7 @@ export interface SessionProviderProps {
  * `AdultoMayorStack`, `RegisterTreatmentScreen` y `AdherenceDashboardScreen`
  * — solo cambia CÓMO se llena, no lo que exponen.
  *
- * Resolución de `patientId`/`caregiverId` por rol:
+ * Resolución de `patientId`/`caregiverId` según el rol ACTIVO:
  *  - ADULTO_MAYOR: `patientId` = su propio id de usuario. No usa `caregiverId`
  *    en ningún consumidor actual, así que queda vacío.
  *  - CUIDADOR: `caregiverId` = su propio id. `patientId` = el primer
@@ -76,17 +102,65 @@ export interface SessionProviderProps {
  *    primero por ahora (ver `get-linked-patient.use-case.ts`). Si todavía
  *    no vinculó ninguno, queda vacío — `CuidadorHomeScreen` es quien debe
  *    mostrar el estado "vinculá a tu paciente" en ese caso.
+ *
+ * Una cuenta puede tener los DOS roles prendidos. En ese caso autenticarse
+ * no alcanza para armar una sesión: falta saber con cuál entra hoy. Ahí
+ * `session` queda en `null` y se expone `roleChoice`, que `RootNavigator`
+ * traduce en el selector. Con un solo rol no se pregunta nada.
  */
 export function SessionProvider({ children, initialRole, initialPatientId }: SessionProviderProps): React.JSX.Element {
-  const { auth, redeemInviteCode, getLinkedPatient, getProfile, leakedPasswordCheck } = useUseCases();
+  const { auth, redeemInviteCode, getLinkedPatient, getProfile, leakedPasswordCheck, enableRole: enableRoleUseCase } =
+    useUseCases();
   const [session, setSession] = useState<Session | null>(
     initialRole
-      ? { role: initialRole, patientId: initialPatientId ?? TEST_PATIENT_ID, caregiverId: TEST_CAREGIVER_ID }
+      ? {
+          role: initialRole,
+          patientId: initialPatientId ?? TEST_PATIENT_ID,
+          caregiverId: TEST_CAREGIVER_ID,
+          userId: initialRole === 'CUIDADOR' ? TEST_CAREGIVER_ID : (initialPatientId ?? TEST_PATIENT_ID),
+          displayName: null,
+          availableRoles: [initialRole],
+        }
       : null,
   );
+  const [roleChoice, setRoleChoice] = useState<PendingRoleChoice | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready'>(initialRole ? 'ready' : 'loading');
   // Evita reconciliar la invitación pendiente más de una vez por sesión activa.
   const reconciledInviteFor = useRef<string | null>(null);
+
+  /**
+   * Arma la sesión para un rol ya elegido. Separado de `resolveSession`
+   * porque el mismo trabajo (reconciliar la invitación pendiente, resolver
+   * el paciente) hace falta tanto al entrar solo con un rol como al elegir
+   * uno en el selector.
+   */
+  async function activateRole(
+    userId: string,
+    role: UserRole,
+    roles: readonly UserRole[],
+    displayName: string | null,
+  ): Promise<void> {
+    if (role === 'CUIDADOR' && reconciledInviteFor.current !== userId) {
+      reconciledInviteFor.current = userId;
+      const pendingCode = await auth.getPendingInviteCode();
+      if (pendingCode) {
+        await redeemInviteCode.execute({ caregiverId: userId, inviteCode: pendingCode });
+        await auth.clearPendingInviteCode();
+      }
+    }
+
+    let patientId = userId;
+    let caregiverId = '';
+    if (role === 'CUIDADOR') {
+      caregiverId = userId;
+      const linkedResult = await getLinkedPatient.execute({ caregiverId: userId });
+      patientId = linkedResult.ok ? (linkedResult.value.patientId ?? '') : '';
+    }
+
+    setRoleChoice(null);
+    setSession({ role, patientId, caregiverId, userId, displayName, availableRoles: roles });
+    setStatus('ready');
+  }
 
   async function resolveSession(user: AuthUser): Promise<void> {
     const profileResult = await getProfile.execute({ userId: user.id });
@@ -97,29 +171,22 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
       // pasa (cuenta huérfana, o todavía no hay fila), no hay sesión útil
       // que armar.
       setSession(null);
+      setRoleChoice(null);
       setStatus('ready');
       return;
     }
 
-    if (profile.role === 'CUIDADOR' && reconciledInviteFor.current !== user.id) {
-      reconciledInviteFor.current = user.id;
-      const pendingCode = await auth.getPendingInviteCode();
-      if (pendingCode) {
-        await redeemInviteCode.execute({ caregiverId: user.id, inviteCode: pendingCode });
-        await auth.clearPendingInviteCode();
-      }
+    const roles = availableRoles(profile);
+    if (roles.length > 1) {
+      // Cuenta con los dos roles: entrar no alcanza, falta elegir cuál.
+      setSession(null);
+      setRoleChoice({ userId: user.id, displayName: profile.displayName, roles });
+      setStatus('ready');
+      return;
     }
 
-    let patientId = user.id;
-    let caregiverId = '';
-    if (profile.role === 'CUIDADOR') {
-      caregiverId = user.id;
-      const linkedResult = await getLinkedPatient.execute({ caregiverId: user.id });
-      patientId = linkedResult.ok ? (linkedResult.value.patientId ?? '') : '';
-    }
-
-    setSession({ role: profile.role, patientId, caregiverId });
-    setStatus('ready');
+    // `availableRoles` nunca devuelve vacío, pero el índice no se lo prueba a TS.
+    await activateRole(user.id, roles[0] ?? profile.role, roles, profile.displayName);
   }
 
   useEffect(() => {
@@ -144,6 +211,7 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
       } else {
         reconciledInviteFor.current = null;
         setSession(null);
+        setRoleChoice(null);
         setStatus('ready');
       }
     });
@@ -187,11 +255,49 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
   async function signOut(): Promise<void> {
     await auth.signOut();
     setSession(null);
+    setRoleChoice(null);
   }
 
   async function requestPasswordReset(email: string): Promise<AuthActionResult> {
     const result = await auth.resetPasswordForEmail(email);
     if (!result.ok) return { ok: false, errorCode: mapErrorCode(result.error.code) };
+    return { ok: true };
+  }
+
+  async function chooseRole(role: UserRole): Promise<void> {
+    if (!roleChoice || !roleChoice.roles.includes(role)) return;
+    setStatus('loading');
+    await activateRole(roleChoice.userId, role, roleChoice.roles, roleChoice.displayName);
+  }
+
+  /**
+   * No cierra sesión ni toca Supabase: solo vuelve a poner la app en
+   * "todavía no elegiste rol". Se ofrece también con un solo rol prendido,
+   * porque el selector es el lugar desde donde se activa el otro.
+   */
+  function switchRole(): void {
+    if (!session) return;
+    setRoleChoice({ userId: session.userId, displayName: session.displayName, roles: session.availableRoles });
+    setSession(null);
+  }
+
+  async function enableRole(role: UserRole): Promise<AuthActionResult> {
+    const userId = roleChoice?.userId ?? session?.userId;
+    if (!userId) return { ok: false, errorCode: 'UNKNOWN' };
+
+    const result = await enableRoleUseCase.execute({ userId, role });
+    if (!result.ok) return { ok: false, errorCode: mapErrorCode(result.error.code) };
+
+    const roles = availableRoles(result.value.profile);
+    // El rol recién activado todavía no tiene nada adentro (un Cuidador sin
+    // pacientes, un Adulto Mayor sin tratamientos), así que no se entra solo:
+    // se actualiza el selector y la persona elige.
+    setRoleChoice((current) =>
+      current
+        ? { ...current, roles }
+        : { userId, displayName: result.value.profile.displayName, roles },
+    );
+    setSession(null);
     return { ok: true };
   }
 
@@ -210,12 +316,29 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
     return { ok: true };
   }
 
-  const value: SessionContextValue = { session, status, signUp, signIn, signOut, linkPatient, requestPasswordReset };
+  const value: SessionContextValue = {
+    session,
+    status,
+    roleChoice,
+    signUp,
+    signIn,
+    signOut,
+    linkPatient,
+    requestPasswordReset,
+    chooseRole,
+    switchRole,
+    enableRole,
+  };
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
 function mapErrorCode(code: string): AuthActionErrorCode {
-  if (code === 'AUTH_INVALID_CREDENTIALS' || code === 'AUTH_EMAIL_ALREADY_IN_USE' || code === 'INVITE_CODE_INVALID') {
+  if (
+    code === 'AUTH_INVALID_CREDENTIALS' ||
+    code === 'AUTH_EMAIL_ALREADY_IN_USE' ||
+    code === 'INVITE_CODE_INVALID' ||
+    code === 'CANNOT_LINK_TO_SELF'
+  ) {
     return code;
   }
   return 'UNKNOWN';

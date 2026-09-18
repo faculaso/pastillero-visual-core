@@ -15,11 +15,12 @@ function mapRowToLink(row: LinkRow): PatientInviteLink {
 export class SupabasePairingRepository implements PairingRepository {
   constructor(private readonly client: SupabaseClient) {}
 
-  /** Ver `redeem_invite_code` en `supabase/migrations/0001_accounts_and_pairing.sql` — valida el código y crea el vínculo server-side (`security definer`). */
+  /** Ver `redeem_invite_code` en `supabase/migrations/0010_una_cuenta_dos_roles.sql` — valida el código y crea el vínculo server-side (`security definer`). */
   async redeemInviteCode(inviteCode: string, caregiverId: string): Promise<Result<PatientInviteLink, DomainError>> {
     const { data, error } = await this.client.rpc('redeem_invite_code', { p_invite_code: inviteCode });
     if (error) {
       if (error.message.includes('INVITE_CODE_INVALID')) return Err(DomainErrors.inviteCodeInvalid(inviteCode));
+      if (error.message.includes('CANNOT_LINK_TO_SELF')) return Err(DomainErrors.cannotLinkToSelf());
       return Err(DomainErrors.repositoryFailure(error));
     }
     return Ok(mapRowToLink({ ...(data as LinkRow), caregiver_id: caregiverId }));

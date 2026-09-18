@@ -15,6 +15,7 @@ import type {
   RedeemInviteCodeUseCase,
   GetLinkedPatientUseCase,
   GetProfileUseCase,
+  EnableRoleUseCase,
   GetWeeklyScheduleUseCase,
   ExtendDoseHorizonUseCase,
   AuthPort,
@@ -45,6 +46,7 @@ export interface UseCasesBundle {
   readonly redeemInviteCode: RedeemInviteCodeUseCase;
   readonly getLinkedPatient: GetLinkedPatientUseCase;
   readonly getProfile: GetProfileUseCase;
+  readonly enableRole: EnableRoleUseCase;
   readonly getWeeklySchedule: GetWeeklyScheduleUseCase;
   readonly extendDoseHorizon: ExtendDoseHorizonUseCase;
   readonly auth: AuthPort;

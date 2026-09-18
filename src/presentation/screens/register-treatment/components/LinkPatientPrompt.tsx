@@ -9,6 +9,9 @@ import { PrimaryAuthButton } from '../../auth/components/PrimaryAuthButton';
 
 function describeLinkError(code: string | undefined): string {
   if (code === 'INVITE_CODE_INVALID') return 'Ese código no es válido. Pedile el código a tu Adulto Mayor y revisá que esté bien escrito.';
+  // Posible desde que una misma cuenta puede tener los dos roles: el código
+  // propio queda a la vista de alguien que también puede redimir códigos.
+  if (code === 'CANNOT_LINK_TO_SELF') return 'Ese es tu propio código. Necesitás el de la persona que vas a cuidar.';
   return 'No pudimos vincular la cuenta. Intentá de nuevo.';
 }
 

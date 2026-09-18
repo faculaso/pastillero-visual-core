@@ -53,7 +53,7 @@ export interface PastilleroVirtualScreenProps {
  */
 export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVirtualScreenProps): React.JSX.Element {
   const { getPendingDoses, confirmDose, getDailyProgress, extendDoseHorizon } = useUseCases();
-  const { signOut } = useSession();
+  const { signOut, switchRole } = useSession();
   // Se instancia una sola vez por montaje de pantalla (ver justificación en el hook).
   const confirmationFeedback = useMemo(() => new NativeConfirmationFeedback(), []);
   const useStore = usePastilleroVirtualStore({ getPendingDoses, confirmDose, getDailyProgress, confirmationFeedback });
@@ -128,9 +128,12 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
   const instructionEntrance = useStaggeredEntrance(3);
   const pillboxEntrance = useStaggeredEntrance(4);
 
-  function handleSignOutPress(): void {
-    Alert.alert('Cerrar sesión', '¿Querés salir de tu cuenta?', [
+  // "Cambiar de rol" no cierra sesión: lleva al selector, que es también el
+  // único lugar desde donde se activa el otro rol con el mismo correo.
+  function handleAccountPress(): void {
+    Alert.alert('Tu cuenta', '¿Qué querés hacer?', [
       { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cambiar de rol', onPress: switchRole },
       { text: 'Cerrar sesión', style: 'destructive', onPress: () => void signOut() },
     ]);
   }
@@ -161,9 +164,9 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
           </AccessibleText>
         </Pressable>
         <Pressable
-          onPress={handleSignOutPress}
+          onPress={handleAccountPress}
           accessibilityRole="button"
-          accessibilityLabel="Cerrar sesión"
+          accessibilityLabel="Tu cuenta: cambiar de rol o cerrar sesión"
           hitSlop={8}
           style={({ pressed }) => [
             styles.navButton,
@@ -172,7 +175,7 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
           ]}
         >
           <AccessibleText variant="small" bold color={theme?.accentText ?? colors.textSecondary}>
-            Salir
+            Cuenta
           </AccessibleText>
         </Pressable>
       </Animated.View>

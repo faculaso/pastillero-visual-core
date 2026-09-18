@@ -5,6 +5,7 @@ import {
   type Dose,
   type Treatment,
   type Profile,
+  type UserRole,
   type PatientInviteLink,
   type DoseRepository,
   type TreatmentRepository,
@@ -171,6 +172,11 @@ export class OfflineFallbackProfileRepository extends OfflineFallback implements
 
   findById(id: string): Promise<Result<Profile | null, DomainError>> {
     return this.cachedRead(`profile:${id}`, () => this.remote.findById(id));
+  }
+
+  /** Escritura: sin red no hay nada que servir de respaldo. */
+  enableRole(userId: string, role: UserRole): Promise<Result<Profile, DomainError>> {
+    return this.remote.enableRole(userId, role);
   }
 }
 

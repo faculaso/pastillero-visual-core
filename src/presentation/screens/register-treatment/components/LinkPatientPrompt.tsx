@@ -12,6 +12,10 @@ function describeLinkError(code: string | undefined): string {
   // Posible desde que una misma cuenta puede tener los dos roles: el código
   // propio queda a la vista de alguien que también puede redimir códigos.
   if (code === 'CANNOT_LINK_TO_SELF') return 'Ese es tu propio código. Necesitás el de la persona que vas a cuidar.';
+  // Cada código sirve una sola vez desde la migración 0011: dos cuidadores
+  // no pueden entrar con el mismo.
+  if (code === 'INVITE_CODE_ALREADY_USED') return 'Ese código ya lo usó otra persona. Pedile uno nuevo: desde su pastillero puede generarlo.';
+  if (code === 'TOO_MANY_CAREGIVERS') return 'Esa persona ya tiene 3 cuidadores. Para sumarte, tiene que quitarle el acceso a alguno.';
   return 'No pudimos vincular la cuenta. Intentá de nuevo.';
 }
 

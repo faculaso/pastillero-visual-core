@@ -3,15 +3,17 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AdultoMayorStackParamList } from './types';
 import { PastilleroVirtualScreen } from '../screens/pastillero-virtual/PastilleroVirtualScreen';
 import { MiSemanaScreen } from '../screens/mi-semana/MiSemanaScreen';
+import { MisCuidadoresScreen } from '../screens/mis-cuidadores/MisCuidadoresScreen';
 import { useSession } from '../providers/SessionContext';
 
 const Stack = createNativeStackNavigator<AdultoMayorStackParamList>();
 
 /**
  * `PastilleroVirtual` (CU-02, tu toma actual) + `MiSemana` (vista semanal de
- * solo lectura, accesible desde el botón "Semana"). Las dos necesitan
- * `patientId` de la sesión (no es un route param), por eso se siguen
- * montando con render-prop en vez de `component={...}`.
+ * solo lectura, accesible desde el botón "Semana") + `MisCuidadores` (quién
+ * te cuida y tus códigos de invitación, desde el botón "Mi código"). Las
+ * tres necesitan `patientId` de la sesión (no es un route param), por eso se
+ * siguen montando con render-prop en vez de `component={...}`.
  */
 export function AdultoMayorStack(): React.JSX.Element {
   const { session } = useSession();
@@ -25,6 +27,9 @@ export function AdultoMayorStack(): React.JSX.Element {
       </Stack.Screen>
       <Stack.Screen name="MiSemana">
         {({ navigation }) => <MiSemanaScreen patientId={patientId} navigation={navigation} />}
+      </Stack.Screen>
+      <Stack.Screen name="MisCuidadores">
+        {({ navigation }) => <MisCuidadoresScreen patientId={patientId} navigation={navigation} />}
       </Stack.Screen>
     </Stack.Navigator>
   );

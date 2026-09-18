@@ -39,6 +39,8 @@ export type AuthActionErrorCode =
   | 'AUTH_EMAIL_ALREADY_IN_USE'
   | 'INVITE_CODE_INVALID'
   | 'CANNOT_LINK_TO_SELF'
+  | 'INVITE_CODE_ALREADY_USED'
+  | 'TOO_MANY_CAREGIVERS'
   | 'PASSWORD_LEAKED'
   | 'UNKNOWN';
 
@@ -356,7 +358,9 @@ function mapErrorCode(code: string): AuthActionErrorCode {
     code === 'AUTH_INVALID_CREDENTIALS' ||
     code === 'AUTH_EMAIL_ALREADY_IN_USE' ||
     code === 'INVITE_CODE_INVALID' ||
-    code === 'CANNOT_LINK_TO_SELF'
+    code === 'CANNOT_LINK_TO_SELF' ||
+    code === 'INVITE_CODE_ALREADY_USED' ||
+    code === 'TOO_MANY_CAREGIVERS'
   ) {
     return code;
   }

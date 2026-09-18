@@ -25,6 +25,7 @@ export * from './dto/redeem-invite-code.dto';
 export * from './dto/get-linked-patient.dto';
 export * from './dto/get-profile.dto';
 export * from './dto/enable-role.dto';
+export * from './dto/pairing.dto';
 export * from './dto/get-weekly-schedule.dto';
 
 export * from './use-cases/confirm-dose.use-case';
@@ -42,4 +43,6 @@ export * from './use-cases/redeem-invite-code.use-case';
 export * from './use-cases/get-linked-patient.use-case';
 export * from './use-cases/get-profile.use-case';
 export * from './use-cases/enable-role.use-case';
+export * from './use-cases/get-pairing-overview.use-case';
+export * from './use-cases/manage-invite-codes.use-case';
 export * from './use-cases/get-weekly-schedule.use-case';

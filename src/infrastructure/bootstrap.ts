@@ -42,6 +42,10 @@ import {
   GetLinkedPatientUseCase,
   GetProfileUseCase,
   EnableRoleUseCase,
+  GetPairingOverviewUseCase,
+  CreateInviteCodeUseCase,
+  RevokeInviteCodeUseCase,
+  UnlinkCaregiverUseCase,
   GetWeeklyScheduleUseCase,
 } from '../application';
 import type {
@@ -70,6 +74,10 @@ export interface BootstrapResult {
   readonly getLinkedPatient: GetLinkedPatientUseCase;
   readonly getProfile: GetProfileUseCase;
   readonly enableRole: EnableRoleUseCase;
+  readonly getPairingOverview: GetPairingOverviewUseCase;
+  readonly createInviteCode: CreateInviteCodeUseCase;
+  readonly revokeInviteCode: RevokeInviteCodeUseCase;
+  readonly unlinkCaregiver: UnlinkCaregiverUseCase;
   readonly getWeeklySchedule: GetWeeklyScheduleUseCase;
   readonly auth: AuthPort;
   readonly leakedPasswordCheck: LeakedPasswordCheck;
@@ -222,6 +230,10 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
     getLinkedPatient: new GetLinkedPatientUseCase(pairingRepository),
     getProfile: new GetProfileUseCase(profileRepository),
     enableRole: new EnableRoleUseCase(profileRepository),
+    getPairingOverview: new GetPairingOverviewUseCase(pairingRepository),
+    createInviteCode: new CreateInviteCodeUseCase(pairingRepository),
+    revokeInviteCode: new RevokeInviteCodeUseCase(pairingRepository),
+    unlinkCaregiver: new UnlinkCaregiverUseCase(pairingRepository),
     getWeeklySchedule: new GetWeeklyScheduleUseCase(doseRepository, treatmentRepository, clock),
     auth: authAdapter,
     leakedPasswordCheck: new HibpLeakedPasswordCheck(),

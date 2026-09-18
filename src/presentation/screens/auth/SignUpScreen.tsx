@@ -25,6 +25,8 @@ function describeSignUpError(code: string | undefined): string {
   if (code === 'AUTH_EMAIL_ALREADY_IN_USE') return 'Ya existe una cuenta con ese correo.';
   if (code === 'INVITE_CODE_INVALID') return 'El código de invitación no es válido.';
   if (code === 'CANNOT_LINK_TO_SELF') return 'Ese es tu propio código de invitación. Necesitás el de la persona que vas a cuidar.';
+  if (code === 'INVITE_CODE_ALREADY_USED') return 'Ese código ya lo usó otra persona. Pedile uno nuevo.';
+  if (code === 'TOO_MANY_CAREGIVERS') return 'Esa persona ya tiene 3 cuidadores.';
   // Dice QUÉ pasó y QUÉ hacer, sin retar a nadie: que la contraseña haya
   // aparecido en una filtración no es culpa de quien la eligió.
   if (code === 'PASSWORD_LEAKED') {

@@ -19,6 +19,7 @@ export type DomainErrorCode =
   | 'REPOSITORY_FAILURE'
   | 'UNAUTHORIZED_ACTOR'
   | 'INVITE_CODE_INVALID'
+  | 'CANNOT_LINK_TO_SELF'
   | 'AUTH_INVALID_CREDENTIALS'
   | 'AUTH_EMAIL_ALREADY_IN_USE';
 
@@ -82,6 +83,10 @@ export const DomainErrors = {
 
   inviteCodeInvalid: (code: string) =>
     new DomainError('INVITE_CODE_INVALID', `Código de invitación inválido: ${code}`),
+
+  /** Con los dos roles en una misma cuenta, el código propio queda a la vista de quien también puede redimir. */
+  cannotLinkToSelf: () =>
+    new DomainError('CANNOT_LINK_TO_SELF', 'No podés vincularte a tu propia cuenta'),
 
   authInvalidCredentials: () =>
     new DomainError('AUTH_INVALID_CREDENTIALS', 'Correo o contraseña incorrectos'),

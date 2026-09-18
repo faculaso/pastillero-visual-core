@@ -11,20 +11,28 @@ import { useSession } from '../providers/SessionContext';
 
 const Stack = createNativeStackNavigator<CuidadorStackParamList>();
 
-function SignOutHeaderButton(): React.JSX.Element {
-  const { signOut } = useSession();
+/** "Cambiar de rol" no cierra sesión: lleva al selector, que es también el único lugar desde donde se activa el otro rol con el mismo correo. */
+function AccountHeaderButton(): React.JSX.Element {
+  const { signOut, switchRole } = useSession();
 
   function handlePress(): void {
-    Alert.alert('Cerrar sesión', '¿Querés salir de tu cuenta?', [
+    Alert.alert('Tu cuenta', '¿Qué querés hacer?', [
       { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cambiar de rol', onPress: switchRole },
       { text: 'Cerrar sesión', style: 'destructive', onPress: () => void signOut() },
     ]);
   }
 
   return (
-    <Pressable onPress={handlePress} accessibilityRole="button" accessibilityLabel="Cerrar sesión" hitSlop={8} style={styles.signOutButton}>
+    <Pressable
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel="Tu cuenta: cambiar de rol o cerrar sesión"
+      hitSlop={8}
+      style={styles.accountButton}
+    >
       <AccessibleText variant="small" bold color={colors.primary}>
-        Salir
+        Cuenta
       </AccessibleText>
     </Pressable>
   );
@@ -48,7 +56,7 @@ export function CuidadorStack(): React.JSX.Element {
         headerStyle: { backgroundColor: colors.surface },
         headerTitleStyle: { fontSize: typography.label, color: colors.textPrimary },
         headerTintColor: colors.primary,
-        headerRight: () => <SignOutHeaderButton />,
+        headerRight: () => <AccountHeaderButton />,
       }}
     >
       <Stack.Screen
@@ -71,7 +79,7 @@ export function CuidadorStack(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  signOutButton: {
+  accountButton: {
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },

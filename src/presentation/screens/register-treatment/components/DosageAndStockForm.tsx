@@ -37,12 +37,33 @@ export interface DosageAndStockFormProps {
 }
 
 /**
- * CU-01 paso 8 (RF-01, RF-05). Simplificación MVP deliberada: por ahora el
- * checkbox "Todos los días" solo cubre el caso DAILY — destildarlo NO
- * muestra un selector de días sueltos (a pedido explícito: se probaron un
- * par de variantes de esa UI y ninguna terminó de andar bien), así que
- * `weekdays` queda sin una forma de cargarse todavía. Si el negocio necesita
- * SPECIFIC_WEEKDAYS de nuevo, hay que sumarle una UI a esta sección.
+ * Días de la semana, en el orden en que los lee cualquier calendario en
+ * castellano. El índice ES el valor que espera el dominio
+ * (`DosageScheme.weekdays`, 0 = domingo), así que no hay tabla de
+ * conversión que se pueda desincronizar.
+ */
+const DIAS: readonly { readonly value: number; readonly corto: string; readonly largo: string }[] = [
+  { value: 0, corto: 'D', largo: 'Domingo' },
+  { value: 1, corto: 'L', largo: 'Lunes' },
+  { value: 2, corto: 'M', largo: 'Martes' },
+  { value: 3, corto: 'M', largo: 'Miércoles' },
+  { value: 4, corto: 'J', largo: 'Jueves' },
+  { value: 5, corto: 'V', largo: 'Viernes' },
+  { value: 6, corto: 'S', largo: 'Sábado' },
+];
+
+/**
+ * CU-01 paso 8 (RF-01, RF-05).
+ *
+ * El checkbox "Todos los días" existía pero NO HACÍA NADA: destildarlo no
+ * mostraba nada y el tratamiento se guardaba como DAILY igual. En una app
+ * de medicación eso es de lo peor que puede pasar — el Cuidador cree que
+ * configuró martes y jueves, y el remedio le suena al Adulto Mayor los
+ * siete días. El control estaba visible y mentía.
+ *
+ * El dominio ya soportaba `SPECIFIC_WEEKDAYS` entero (validación en
+ * `createDosageScheme`, generación en `calculateScheduledDoseTimes`, y el
+ * CHECK de la tabla): lo único que faltaba era esta UI y pasarle el valor.
  */
 export function DosageAndStockForm({ value, onChange }: DosageAndStockFormProps): React.JSX.Element {
   function update(patch: Partial<DosageAndStockFormValue>): void {
@@ -124,6 +145,28 @@ export function DosageAndStockForm({ value, onChange }: DosageAndStockFormProps)
         <AccessibleText variant="body">Todos los días</AccessibleText>
       </Pressable>
 
+      {!value.allDays ? (
+        <View>
+          <View style={styles.chipRow}>
+            {DIAS.map((dia) => (
+              <DayChip
+                key={dia.value}
+                dia={dia}
+                selected={value.weekdays.includes(dia.value)}
+                onPress={() => update({ weekdays: toggleDay(value.weekdays, dia.value) })}
+              />
+            ))}
+          </View>
+          {value.weekdays.length === 0 ? (
+            // Sin esto el botón de guardar queda deshabilitado sin decir por
+            // qué, que es el callejón sin salida que tenía la versión vieja.
+            <AccessibleText variant="small" bold color={colors.warning}>
+              Elegí al menos un día.
+            </AccessibleText>
+          ) : null}
+        </View>
+      ) : null}
+
       <AccessibleText variant="label" bold style={styles.sectionSpacing}>
         Stock inicial
       </AccessibleText>
@@ -143,6 +186,46 @@ export function DosageAndStockForm({ value, onChange }: DosageAndStockFormProps)
         />
       </View>
     </View>
+  );
+}
+
+/** Inmutable y ordenado: el orden estable hace que dos esquemas iguales se vean iguales. */
+function toggleDay(weekdays: readonly number[], day: number): readonly number[] {
+  return weekdays.includes(day)
+    ? weekdays.filter((d) => d !== day)
+    : [...weekdays, day].sort((a, b) => a - b);
+}
+
+interface DayChipProps {
+  readonly dia: { readonly value: number; readonly corto: string; readonly largo: string };
+  readonly selected: boolean;
+  readonly onPress: () => void;
+}
+
+/**
+ * Hermano del `Chip` de abajo, pero de selección MÚLTIPLE — de ahí
+ * `accessibilityRole="checkbox"` y no `radio`: un lector de pantalla tiene
+ * que anunciar "Martes, casilla, marcada", no tratarlos como opciones
+ * excluyentes.
+ *
+ * La etiqueta visible es una sola letra porque entran siete en el ancho de
+ * un teléfono, pero la etiqueta ACCESIBLE dice el día completo: "M" a secas
+ * no distingue martes de miércoles, ni leído ni mirado. Por eso el
+ * seleccionado además lleva borde y negrita, nunca solo el color.
+ */
+function DayChip({ dia, selected, onPress }: DayChipProps): React.JSX.Element {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={dia.largo}
+      style={[styles.chip, styles.dayChip, selected && styles.chipSelected]}
+    >
+      <AccessibleText variant="small" bold color={selected ? '#FFFFFF' : colors.textPrimary}>
+        {dia.corto}
+      </AccessibleText>
+    </Pressable>
   );
 }
 
@@ -206,6 +289,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
+  dayChip: { minWidth: 48, alignItems: 'center', paddingHorizontal: spacing.sm },
   chipSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primaryDark,

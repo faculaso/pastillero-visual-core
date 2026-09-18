@@ -61,7 +61,11 @@ export function RegisterTreatmentScreen({ navigation, route }: Props): React.JSX
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = medication !== null && status !== 'submitting';
+  // Días sueltos sin ningún día elegido no es un tratamiento: el dominio lo
+  // rechazaría, así que el botón no deja llegar hasta ahí. El formulario
+  // dice al lado de los días por qué está deshabilitado.
+  const diasIncompletos = !dosage.allDays && dosage.weekdays.length === 0;
+  const canSubmit = medication !== null && status !== 'submitting' && !diasIncompletos;
 
   // Sin paciente vinculado, `registerTreatment` fallaría recién al guardar
   // (patientId vacío) — se corta antes de mostrar el formulario, con un
@@ -129,13 +133,13 @@ export function RegisterTreatmentScreen({ navigation, route }: Props): React.JSX
         pillImageUrl: visual.pillImageUrl || undefined,
         boxImageUrl: visual.boxImageUrl || undefined,
       },
-      // El checkbox "Todos los días" todavía no tiene forma de elegir días
-      // sueltos (se probaron un par de variantes de esa UI y se sacaron) —
-      // hasta que la tenga, el tratamiento siempre se guarda como DAILY,
-      // destildado o no, para no bloquear el guardado con un error de
-      // "elegí un día" que no hay cómo resolver desde acá.
+      // Antes esto era DAILY fijo, tildado o no el checkbox: el Cuidador
+      // podía creer que configuró martes y jueves y el remedio sonaba los
+      // siete días.
       dosageScheme: {
-        frequency: DosageFrequency.DAILY,
+        ...(dosage.allDays
+          ? { frequency: DosageFrequency.DAILY }
+          : { frequency: DosageFrequency.SPECIFIC_WEEKDAYS, weekdays: dosage.weekdays }),
         timesOfDay: [{ hour: parsed.timeHour, minute: parsed.timeMinute }],
         dosagePerTake: { amount: parsed.dosageAmount, unit: dosage.dosageUnit },
         // Antes acá iba `startDate: new Date()` fijo y ningún `endDate`, así

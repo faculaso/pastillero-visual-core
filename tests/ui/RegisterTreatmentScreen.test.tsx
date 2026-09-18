@@ -316,9 +316,14 @@ describe('RegisterTreatmentScreen', () => {
     expect(callArg.initialStock.currentQuantity).toBe(20);
   });
 
-  it('si el Cuidador todavía no tiene paciente vinculado, muestra el prompt de vinculación en vez del formulario', async () => {
+  it('sin paciente elegido no muestra el formulario: manda a elegir a quién gestionar', async () => {
+    // Antes acá se ofrecía pegar un código de invitación. Desde que la raíz
+    // del stack es `MisPacientes`, "no hay paciente" dejó de significar "no
+    // vinculaste a nadie" y pasa a significar "no elegiste a cuál de tus
+    // pacientes gestionás" — vincular es trabajo de esa otra pantalla.
     const navigation = buildNavigationMock();
     const searchMedicationCatalog = { execute: jest.fn() };
+    const user = userEvent.setup();
 
     await render(
       withProviders(<RegisterTreatmentScreen navigation={navigation} route={baseRoute} />, {
@@ -328,41 +333,11 @@ describe('RegisterTreatmentScreen', () => {
       }),
     );
 
-    expect(screen.getByText('Vinculá a tu Adulto Mayor')).toBeTruthy();
+    expect(screen.getByText('Elegí a quién gestionás')).toBeTruthy();
     expect(screen.queryByLabelText('Buscar medicamento por nombre o código de barras')).toBeNull();
     expect(searchMedicationCatalog.execute).not.toHaveBeenCalled();
-  });
 
-  it('al vincular exitosamente desde el prompt, pasa a mostrar el formulario de alta', async () => {
-    const navigation = buildNavigationMock();
-    const searchMedicationCatalog = { execute: jest.fn().mockResolvedValue(Ok({ medications: [] })) };
-    const redeemInviteCode = { execute: jest.fn().mockResolvedValue(Ok({ link: {} })) };
-    const getLinkedPatient = { execute: jest.fn().mockResolvedValue(Ok({ patientId: 'patient-recien-vinculado' })) };
-    const user = userEvent.setup();
-
-    await render(
-      withProviders(<RegisterTreatmentScreen navigation={navigation} route={baseRoute} />, {
-        role: 'CUIDADOR',
-        patientId: '',
-        useCases: {
-          searchMedicationCatalog: searchMedicationCatalog as never,
-          redeemInviteCode: redeemInviteCode as never,
-          getLinkedPatient: getLinkedPatient as never,
-        },
-      }),
-    );
-
-    await user.type(screen.getByLabelText('Código de invitación'), '7f2k9m');
-    await user.press(screen.getByText('Vincular'));
-
-    await waitFor(() =>
-      expect(redeemInviteCode.execute).toHaveBeenCalledWith({
-        caregiverId: 'test-caregiver-1',
-        inviteCode: '7F2K9M',
-      }),
-    );
-    await waitFor(() =>
-      expect(screen.getByLabelText('Buscar medicamento por nombre o código de barras')).toBeTruthy(),
-    );
+    await user.press(screen.getByText('Ver a quiénes cuido'));
+    expect(navigation.navigate).toHaveBeenCalledWith('MisPacientes');
   });
 });

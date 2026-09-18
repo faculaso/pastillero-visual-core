@@ -39,7 +39,7 @@ import {
   GetDailyProgressUseCase,
   ExtendDoseHorizonUseCase,
   RedeemInviteCodeUseCase,
-  GetLinkedPatientUseCase,
+  GetLinkedPatientsUseCase,
   GetProfileUseCase,
   EnableRoleUseCase,
   GetWeeklyScheduleUseCase,
@@ -67,7 +67,7 @@ export interface BootstrapResult {
   readonly getDailyProgress: GetDailyProgressUseCase;
   readonly extendDoseHorizon: ExtendDoseHorizonUseCase;
   readonly redeemInviteCode: RedeemInviteCodeUseCase;
-  readonly getLinkedPatient: GetLinkedPatientUseCase;
+  readonly getLinkedPatients: GetLinkedPatientsUseCase;
   readonly getProfile: GetProfileUseCase;
   readonly enableRole: EnableRoleUseCase;
   readonly getWeeklySchedule: GetWeeklyScheduleUseCase;
@@ -219,7 +219,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
       clock,
     ),
     redeemInviteCode: new RedeemInviteCodeUseCase(pairingRepository),
-    getLinkedPatient: new GetLinkedPatientUseCase(pairingRepository),
+    getLinkedPatients: new GetLinkedPatientsUseCase(pairingRepository),
     getProfile: new GetProfileUseCase(profileRepository),
     enableRole: new EnableRoleUseCase(profileRepository),
     getWeeklySchedule: new GetWeeklyScheduleUseCase(doseRepository, treatmentRepository, clock),

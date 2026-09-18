@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, Pressable, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { CuidadorStackParamList } from './types';
+import { MisPacientesScreen } from '../screens/mis-pacientes/MisPacientesScreen';
 import { CuidadorHomeScreen } from '../screens/cuidador-home/CuidadorHomeScreen';
 import { RegisterTreatmentScreen } from '../screens/register-treatment/RegisterTreatmentScreen';
 import { AdherenceDashboardScreen } from '../screens/adherence-dashboard/AdherenceDashboardScreen';
@@ -39,9 +40,11 @@ function AccountHeaderButton(): React.JSX.Element {
 }
 
 /**
- * `CuidadorHome` (el pastillero semanal) es la ruta raíz — `RegisterTreatment`
- * y `AdherenceDashboard` se apilan (push) arriba, así que "atrás" siempre
- * vuelve a la semana en vez de quedar en un callejón sin salida.
+ * `MisPacientes` es la ruta raíz: primero se elige a quién se gestiona y
+ * recién después se abre su semana (`CuidadorHome`), con `RegisterTreatment`
+ * y `AdherenceDashboard` apilados arriba. Así "atrás" desde la semana vuelve
+ * a la lista en vez de quedar en un callejón sin salida, y un Cuidador con
+ * dos personas a cargo tiene por dónde pasar de una a la otra.
  *
  * CU-01 -> CU-03: al guardar un tratamiento (`RegisterTreatmentScreen`) se
  * navega con `replace` (no `push`) al dashboard de ese mismo tratamiento —
@@ -51,7 +54,7 @@ function AccountHeaderButton(): React.JSX.Element {
 export function CuidadorStack(): React.JSX.Element {
   return (
     <Stack.Navigator
-      initialRouteName="CuidadorHome"
+      initialRouteName="MisPacientes"
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface },
         headerTitleStyle: { fontSize: typography.label, color: colors.textPrimary },
@@ -60,10 +63,11 @@ export function CuidadorStack(): React.JSX.Element {
       }}
     >
       <Stack.Screen
-        name="CuidadorHome"
-        component={CuidadorHomeScreen}
-        options={{ title: 'Semana de quien cuidás' }}
+        name="MisPacientes"
+        component={MisPacientesScreen}
+        options={{ title: 'A quiénes cuidás' }}
       />
+      <Stack.Screen name="CuidadorHome" component={CuidadorHomeScreen} options={tituloDelPaciente} />
       <Stack.Screen
         name="RegisterTreatment"
         component={RegisterTreatmentScreen}
@@ -77,6 +81,19 @@ export function CuidadorStack(): React.JSX.Element {
     </Stack.Navigator>
   );
 }
+
+/** El título de la semana dice de quién es: con dos personas a cargo, "Semana de quien cuidás" no alcanza para saber dónde estás parado. */
+function TituloDelPaciente(): React.JSX.Element {
+  const { session } = useSession();
+  const nombre = session?.patientName?.trim();
+  return (
+    <AccessibleText variant="label" bold numberOfLines={1}>
+      {nombre ? `Semana de ${nombre}` : 'Semana'}
+    </AccessibleText>
+  );
+}
+
+const tituloDelPaciente = { headerTitle: () => <TituloDelPaciente /> };
 
 const styles = StyleSheet.create({
   accountButton: {

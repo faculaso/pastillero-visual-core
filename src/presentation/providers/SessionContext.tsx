@@ -8,7 +8,13 @@ export type { UserRole };
 export interface Session {
   /** El rol ACTIVO — con cuál de sus roles entró esta vez, no "el rol de la cuenta". */
   readonly role: UserRole;
+  /**
+   * Como ADULTO_MAYOR, su propio id. Como CUIDADOR, el paciente que eligió
+   * gestionar en esta vuelta — vacío hasta que elija uno en `MisPacientes`.
+   */
   readonly patientId: string;
+  /** Nombre del paciente activo, para los títulos. Solo tiene sentido como CUIDADOR. */
+  readonly patientName: string | null;
   readonly caregiverId: string;
   /** Id de la cuenta, independiente del rol activo (como Cuidador, `patientId` es de otra persona). */
   readonly userId: string;
@@ -70,6 +76,10 @@ interface SessionContextValue {
   switchRole(): void;
   /** Suma un rol a la cuenta (el mismo mail pasa a servir para los dos). */
   enableRole(role: UserRole): Promise<AuthActionResult>;
+  /** CUIDADOR: fija a cuál de sus pacientes está gestionando. Sin esto, `patientId` queda vacío. */
+  selectPatient(patient: { readonly id: string; readonly displayName: string | null }): void;
+  /** Vuelve a "ningún paciente elegido", para que la home del Cuidador liste a todos otra vez. */
+  clearSelectedPatient(): void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -96,12 +106,11 @@ export interface SessionProviderProps {
  * Resolución de `patientId`/`caregiverId` según el rol ACTIVO:
  *  - ADULTO_MAYOR: `patientId` = su propio id de usuario. No usa `caregiverId`
  *    en ningún consumidor actual, así que queda vacío.
- *  - CUIDADOR: `caregiverId` = su propio id. `patientId` = el primer
- *    paciente vinculado (`GetLinkedPatientUseCase`) — alcance MVP
- *    deliberado: un cuidador con más de un paciente vinculado solo ve el
- *    primero por ahora (ver `get-linked-patient.use-case.ts`). Si todavía
- *    no vinculó ninguno, queda vacío — `CuidadorHomeScreen` es quien debe
- *    mostrar el estado "vinculá a tu paciente" en ese caso.
+ *  - CUIDADOR: `caregiverId` = su propio id. `patientId` arranca VACÍO y lo
+ *    llena `selectPatient()` cuando la persona elige a quién gestionar en
+ *    `MisPacientesScreen`. Antes se autoelegía el primer vínculo, y un
+ *    cuidador con dos personas a cargo solo veía a una, sin ningún aviso de
+ *    que la otra existía.
  *
  * Una cuenta puede tener los DOS roles prendidos. En ese caso autenticarse
  * no alcanza para armar una sesión: falta saber con cuál entra hoy. Ahí
@@ -109,13 +118,13 @@ export interface SessionProviderProps {
  * traduce en el selector. Con un solo rol no se pregunta nada.
  */
 export function SessionProvider({ children, initialRole, initialPatientId }: SessionProviderProps): React.JSX.Element {
-  const { auth, redeemInviteCode, getLinkedPatient, getProfile, leakedPasswordCheck, enableRole: enableRoleUseCase } =
-    useUseCases();
+  const { auth, redeemInviteCode, getProfile, leakedPasswordCheck, enableRole: enableRoleUseCase } = useUseCases();
   const [session, setSession] = useState<Session | null>(
     initialRole
       ? {
           role: initialRole,
           patientId: initialPatientId ?? TEST_PATIENT_ID,
+          patientName: null,
           caregiverId: TEST_CAREGIVER_ID,
           userId: initialRole === 'CUIDADOR' ? TEST_CAREGIVER_ID : (initialPatientId ?? TEST_PATIENT_ID),
           displayName: null,
@@ -149,16 +158,13 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
       }
     }
 
-    let patientId = userId;
-    let caregiverId = '';
-    if (role === 'CUIDADOR') {
-      caregiverId = userId;
-      const linkedResult = await getLinkedPatient.execute({ caregiverId: userId });
-      patientId = linkedResult.ok ? (linkedResult.value.patientId ?? '') : '';
-    }
+    // Como CUIDADOR no se elige paciente acá: eso es una decisión de la
+    // persona, no algo que se deduzca del orden de los vínculos.
+    const patientId = role === 'CUIDADOR' ? '' : userId;
+    const caregiverId = role === 'CUIDADOR' ? userId : '';
 
     setRoleChoice(null);
-    setSession({ role, patientId, caregiverId, userId, displayName, availableRoles: roles });
+    setSession({ role, patientId, patientName: null, caregiverId, userId, displayName, availableRoles: roles });
     setStatus('ready');
   }
 
@@ -301,6 +307,21 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
     return { ok: true };
   }
 
+  function selectPatient(patient: { readonly id: string; readonly displayName: string | null }): void {
+    setSession((current) =>
+      current ? { ...current, patientId: patient.id, patientName: patient.displayName } : current,
+    );
+  }
+
+  function clearSelectedPatient(): void {
+    setSession((current) => (current ? { ...current, patientId: '', patientName: null } : current));
+  }
+
+  /**
+   * Redime un código y listo. Ya NO elige paciente activo: quién se gestiona
+   * lo decide la persona en `MisPacientesScreen`, que se recarga al volver a
+   * tener foco y muestra al recién vinculado en la lista.
+   */
   async function linkPatient(inviteCode: string): Promise<AuthActionResult> {
     if (!session || session.role !== 'CUIDADOR') return { ok: false, errorCode: 'UNKNOWN' };
 
@@ -309,10 +330,6 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
       inviteCode: inviteCode.trim().toUpperCase(),
     });
     if (!result.ok) return { ok: false, errorCode: mapErrorCode(result.error.code) };
-
-    const linkedResult = await getLinkedPatient.execute({ caregiverId: session.caregiverId });
-    const patientId = linkedResult.ok ? (linkedResult.value.patientId ?? '') : '';
-    setSession((current) => (current ? { ...current, patientId } : current));
     return { ok: true };
   }
 
@@ -328,6 +345,8 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
     chooseRole,
     switchRole,
     enableRole,
+    selectPatient,
+    clearSelectedPatient,
   };
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

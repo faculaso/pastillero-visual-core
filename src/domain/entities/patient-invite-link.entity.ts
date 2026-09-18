@@ -4,3 +4,10 @@ export interface PatientInviteLink {
   readonly patientId: string;
   readonly linkedAt: Date;
 }
+
+/** Un Adulto Mayor al que este Cuidador ya tiene acceso, con nombre para poder distinguirlo de los demás. */
+export interface LinkedPatient {
+  readonly patientId: string;
+  readonly displayName: string | null;
+  readonly linkedAt: Date;
+}

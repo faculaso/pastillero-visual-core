@@ -60,9 +60,13 @@ describe('CuidadorHomeScreen', () => {
     expect(screen.getByLabelText('Domingo · MAÑ — sin dosis programadas, tocá para agregar un tratamiento')).toBeTruthy();
   });
 
-  it('si el Cuidador no tiene paciente vinculado, muestra el prompt de vinculación en vez de la semana', async () => {
+  it('sin paciente elegido no consulta la semana: manda de vuelta a la lista', async () => {
+    // Antes esto mostraba el prompt para pegar un código de invitación.
+    // Desde que la raíz del stack es `MisPacientes`, "no hay paciente"
+    // significa "no elegiste a cuál gestionás", no "no vinculaste a nadie".
     const getWeeklySchedule = { execute: jest.fn() };
     const navigation = buildNavigationMock();
+    const user = userEvent.setup();
 
     await render(
       withProviders(<CuidadorHomeScreen navigation={navigation} route={baseRoute} />, {
@@ -72,8 +76,11 @@ describe('CuidadorHomeScreen', () => {
       }),
     );
 
-    expect(screen.getByText('Vinculá a tu Adulto Mayor')).toBeTruthy();
+    expect(screen.getByText('Elegí a quién gestionás')).toBeTruthy();
     expect(getWeeklySchedule.execute).not.toHaveBeenCalled();
+
+    await user.press(screen.getByText('Ver a quiénes cuido'));
+    expect(navigation.navigate).toHaveBeenCalledWith('MisPacientes');
   });
 
   it('muestra el banner de tratamientos que necesitan reponer stock', async () => {

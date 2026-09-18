@@ -13,7 +13,7 @@ import type {
   VoiceGuidancePort,
   GetDailyProgressUseCase,
   RedeemInviteCodeUseCase,
-  GetLinkedPatientUseCase,
+  GetLinkedPatientsUseCase,
   GetProfileUseCase,
   EnableRoleUseCase,
   GetWeeklyScheduleUseCase,
@@ -44,7 +44,7 @@ export interface UseCasesBundle {
   readonly voiceGuidance: VoiceGuidancePort;
   readonly getDailyProgress: GetDailyProgressUseCase;
   readonly redeemInviteCode: RedeemInviteCodeUseCase;
-  readonly getLinkedPatient: GetLinkedPatientUseCase;
+  readonly getLinkedPatients: GetLinkedPatientsUseCase;
   readonly getProfile: GetProfileUseCase;
   readonly enableRole: EnableRoleUseCase;
   readonly getWeeklySchedule: GetWeeklyScheduleUseCase;

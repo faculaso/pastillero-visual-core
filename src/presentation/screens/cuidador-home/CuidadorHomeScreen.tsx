@@ -11,7 +11,7 @@ import { AccessibleButton } from '../../design-system/AccessibleButton';
 import { colors, radii, spacing, shadows } from '../../design-system/tokens';
 import { groupDosesByWeek } from '../../utils/group-doses-by-week';
 import { getAdherenceDisplay, formatAdherencePercentage } from '../../utils/adherence-display';
-import { LinkPatientPrompt } from '../register-treatment/components/LinkPatientPrompt';
+import { SinPacienteElegido } from './components/SinPacienteElegido';
 import { WeekGrid, type Turno } from './components/WeekGrid';
 import { WeekCellDetailModal } from './components/WeekCellDetailModal';
 import { EmptyWeek } from './components/EmptyWeek';
@@ -54,10 +54,10 @@ export function CuidadorHomeScreen({ navigation }: Props): React.JSX.Element {
   const [selection, setSelection] = useState<CellSelection | null>(null);
   const [paused, setPaused] = useState<readonly PausedTreatmentView[]>([]);
 
-  const hasLinkedPatient = Boolean(session?.patientId);
+  const hayPacienteElegido = Boolean(session?.patientId);
 
   const load = useCallback(async () => {
-    if (!session || !hasLinkedPatient) return;
+    if (!session || !hayPacienteElegido) return;
     setStatus('loading');
     const result = await getWeeklySchedule.execute({ patientId: session.patientId });
     if (!result.ok) {
@@ -77,7 +77,7 @@ export function CuidadorHomeScreen({ navigation }: Props): React.JSX.Element {
     });
     setPaused(pausedResult.ok ? pausedResult.value.treatments : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.patientId, session?.caregiverId, hasLinkedPatient]);
+  }, [session?.patientId, session?.caregiverId, hayPacienteElegido]);
 
   // Se recarga cada vez que la pantalla vuelve a tener foco (p. ej. al volver
   // de registrar un tratamiento nuevo) — no solo al montar una vez.
@@ -94,16 +94,16 @@ export function CuidadorHomeScreen({ navigation }: Props): React.JSX.Element {
   // podían pisarse — la más lenta terminaba escribiendo un pastillero a
   // medio llenar. Solo se vuelve a leer si de verdad creó tomas.
   useEffect(() => {
-    if (!session || !hasLinkedPatient) return;
+    if (!session || !hayPacienteElegido) return;
     void (async () => {
       const result = await extendDoseHorizon.execute({ patientId: session.patientId });
       if (result.ok && result.value.createdCount > 0) await load();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.patientId, hasLinkedPatient]);
+  }, [session?.patientId, hayPacienteElegido]);
 
-  if (session && session.role === 'CUIDADOR' && !hasLinkedPatient) {
-    return <LinkPatientPrompt />;
+  if (session && session.role === 'CUIDADOR' && !hayPacienteElegido) {
+    return <SinPacienteElegido onVolver={() => navigation.navigate('MisPacientes')} />;
   }
 
   const buckets = data ? groupDosesByWeek(data.doses, data.weekStart) : [];

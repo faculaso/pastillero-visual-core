@@ -30,6 +30,17 @@ create table if not exists patient_invite_codes (
 
 create index if not exists idx_invite_codes_patient on patient_invite_codes(patient_id);
 
+-- Privilegios explícitos, no heredados de los default privileges del
+-- proyecto. Sin un GRANT, PostgREST directamente NO INCLUYE la tabla en su
+-- caché de esquema y devuelve `PGRST205` — el mismo error que da una tabla
+-- inexistente, aunque esté creada y la caché recién recargada. Las tablas
+-- de 0001/0002 sí lo tienen, por eso funcionan.
+--
+-- Solo SELECT: escribir pasa por las RPC `security definer` de más abajo,
+-- que corren como su dueño y no necesitan privilegios del que llama. Las
+-- filas que cada uno ve las sigue filtrando la policy de RLS.
+grant select on patient_invite_codes to authenticated;
+
 -- Los códigos que ya existían pasan a la tabla SIN marcar como usados: son
 -- los que la gente ya tiene anotados y le dictó a su cuidador, y tienen que
 -- seguir funcionando. Los vínculos que ya existen no se tocan.

@@ -24,6 +24,28 @@ tabla estaba creada, y "Mis cuidadores" igual no cargaba.
 
 Es no disruptivo: no reinicia la base ni el servicio.
 
+## Regla: toda tabla nueva lleva su `grant` explícito
+
+```sql
+grant select on <tabla> to authenticated;
+```
+
+No alcanzar con los *default privileges* del proyecto. **Sin un GRANT,
+PostgREST no incluye la tabla en su caché de esquema** y devuelve el mismo
+`PGRST205` que daría una tabla inexistente — aunque esté creada y la caché
+recién recargada. Es el segundo síntoma idéntico con causa distinta, así que
+conviene descartar los dos de una:
+
+```sql
+select
+  to_regclass('public.<tabla>') is not null                              as existe,
+  has_table_privilege('authenticated', 'public.<tabla>', 'SELECT')       as la_ve_la_api;
+```
+
+Solo `select`: escribir debería pasar por RPC `security definer`, que corren
+como su dueño y no necesitan privilegios de quien llama. Qué filas ve cada
+uno lo sigue decidiendo la RLS.
+
 ## Verificar qué está aplicado
 
 Consulta de solo lectura:

@@ -35,7 +35,6 @@ function conCuenta(profile: Profile, extra: RenderWithProvidersOptions['useCases
         clearPendingInviteCode: jest.fn().mockResolvedValue(undefined),
       } as never,
       getProfile: { execute: jest.fn().mockResolvedValue(Ok({ profile })) } as never,
-      getLinkedPatient: { execute: jest.fn().mockResolvedValue(Ok({ patientId: 'p1' })) } as never,
       ...extra,
     },
   } satisfies RenderWithProvidersOptions;
@@ -65,22 +64,27 @@ describe('ChooseRoleScreen', () => {
   });
 
   it('al elegir Cuidador arma la sesión de cuidador y deja de preguntar', async () => {
-    const getLinkedPatient = { execute: jest.fn().mockResolvedValue(Ok({ patientId: 'p1' })) };
+    // Reconciliar la invitación pendiente es lo único que pasa solo al
+    // entrar COMO cuidador: el rol de Adulto Mayor no la mira. (Ya no se
+    // resuelve un paciente acá — a cuál se gestiona se elige después, en
+    // `MisPacientesScreen`.)
+    const getPendingInviteCode = jest.fn().mockResolvedValue(null);
     const user = userEvent.setup();
 
-    await render(
-      withProviders(
-        <ChooseRoleScreen />,
-        conCuenta(perfil({ isPatient: true, isCaregiver: true }), { getLinkedPatient: getLinkedPatient as never }),
-      ),
-    );
+    const base = conCuenta(perfil({ isPatient: true, isCaregiver: true }));
+    const opciones = {
+      useCases: {
+        ...base.useCases,
+        auth: { ...(base.useCases.auth as object), getPendingInviteCode } as never,
+      },
+    };
+
+    await render(withProviders(<ChooseRoleScreen />, opciones));
 
     await waitFor(() => expect(screen.getByLabelText('Entrar como Cuidador')).toBeTruthy());
     await user.press(screen.getByLabelText('Entrar como Cuidador'));
 
-    // Resolver el paciente vinculado es la marca de que entró COMO cuidador:
-    // el rol de Adulto Mayor no consulta vínculos.
-    await waitFor(() => expect(getLinkedPatient.execute).toHaveBeenCalledWith({ caregiverId: 'u1' }));
+    await waitFor(() => expect(getPendingInviteCode).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByLabelText('Entrar como Cuidador')).toBeNull());
   });
 

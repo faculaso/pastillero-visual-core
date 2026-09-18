@@ -13,7 +13,7 @@ import { MedicationSearchField } from './components/MedicationSearchField';
 import { VisualProfileEditor, type VisualProfileFormValue } from './components/VisualProfileEditor';
 import { buildTreatmentDates } from '../../utils/treatment-dates';
 import { DosageAndStockForm, type DosageAndStockFormValue } from './components/DosageAndStockForm';
-import { LinkPatientPrompt } from './components/LinkPatientPrompt';
+import { SinPacienteElegido } from '../cuidador-home/components/SinPacienteElegido';
 
 type Props = NativeStackScreenProps<CuidadorStackParamList, 'RegisterTreatment'>;
 
@@ -72,7 +72,7 @@ export function RegisterTreatmentScreen({ navigation, route }: Props): React.JSX
   // mensaje honesto sobre la causa real en vez de un error de dominio
   // genérico mal interpretado como un problema del perfil visual.
   if (session && session.role === 'CUIDADOR' && !session.patientId) {
-    return <LinkPatientPrompt />;
+    return <SinPacienteElegido onVolver={() => navigation.navigate('MisPacientes')} />;
   }
 
   /**

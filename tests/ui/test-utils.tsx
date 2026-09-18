@@ -47,7 +47,7 @@ export function createFakeUseCases(overrides: Partial<UseCasesBundle> = {}): Use
     } as unknown as UseCasesBundle['voiceGuidance'],
     getDailyProgress: { execute: notImplemented } as unknown as UseCasesBundle['getDailyProgress'],
     redeemInviteCode: { execute: notImplemented } as unknown as UseCasesBundle['redeemInviteCode'],
-    getLinkedPatient: { execute: notImplemented } as unknown as UseCasesBundle['getLinkedPatient'],
+    getLinkedPatients: { execute: notImplemented } as unknown as UseCasesBundle['getLinkedPatients'],
     getProfile: { execute: notImplemented } as unknown as UseCasesBundle['getProfile'],
     enableRole: { execute: notImplemented } as unknown as UseCasesBundle['enableRole'],
     getPairingOverview: { execute: notImplemented } as unknown as UseCasesBundle['getPairingOverview'],

@@ -29,3 +29,11 @@ export interface LinkedCaregiver {
 
 /** Tope de Cuidadores por Adulto Mayor. Espeja `max_caregivers_per_patient()` en la base, que es quien lo hace cumplir de verdad. */
 export const MAX_CAREGIVERS_PER_PATIENT = 3;
+
+/** Un Adulto Mayor al que este Cuidador ya tiene acceso, con nombre para poder distinguirlo de los demás. */
+export interface LinkedPatient {
+  readonly patientId: string;
+  readonly displayName: string | null;
+  readonly linkedAt: Date;
+}
+

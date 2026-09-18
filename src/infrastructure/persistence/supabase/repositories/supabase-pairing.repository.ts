@@ -6,6 +6,7 @@ import {
   type PatientInviteLink,
   type PatientInviteCode,
   type LinkedCaregiver,
+  type LinkedPatient,
 } from '../../../../domain';
 
 interface LinkRow {
@@ -83,11 +84,12 @@ export class SupabasePairingRepository implements PairingRepository {
   }
 
   /**
-   * El nombre del Cuidador vive en `profiles`, no en el vínculo. El join
-   * anidado de PostgREST lo trae en una sola consulta; quien habilita ver
-   * esa fila es la policy `profiles_select_own_or_linked`.
+   * Las dos puntas del vínculo, con nombre: quién cuida a un paciente, y a
+   * quiénes cuida un cuidador. El nombre vive en `profiles`, no en el
+   * vínculo; el join anidado de PostgREST lo trae en una sola consulta, y
+   * quien habilita ver esa fila es la policy `profiles_select_own_or_linked`.
    *
-   * El `!caregiver_id` no es decorativo: `caregiver_patient_links` tiene DOS
+   * El `!<columna>` no es decorativo: `caregiver_patient_links` tiene DOS
    * claves foráneas a `profiles` (cuidador y paciente), así que sin decir
    * cuál la consulta es ambigua y PostgREST la rechaza. Se desambigua por
    * nombre de COLUMNA, que es la forma documentada y no depende de cómo
@@ -109,6 +111,29 @@ export class SupabasePairingRepository implements PairingRepository {
     return Ok(
       ((data ?? []) as unknown as CaregiverRow[]).map((row) => ({
         caregiverId: row.caregiver_id,
+        displayName: row.profiles?.display_name ?? null,
+        linkedAt: new Date(row.linked_at),
+      })),
+    );
+  }
+
+  /** La otra punta del join de arriba: a quiénes cuida este Cuidador. */
+  async findPatientsByCaregiver(caregiverId: string): Promise<Result<readonly LinkedPatient[], DomainError>> {
+    const { data, error } = await this.client
+      .from('caregiver_patient_links')
+      .select('patient_id, linked_at, profiles!patient_id(display_name)')
+      .eq('caregiver_id', caregiverId)
+      .order('linked_at', { ascending: true });
+    if (error) return Err(DomainErrors.repositoryFailure(error));
+
+    interface PatientRow {
+      readonly patient_id: string;
+      readonly linked_at: string;
+      readonly profiles: { readonly display_name: string | null } | null;
+    }
+    return Ok(
+      ((data ?? []) as unknown as PatientRow[]).map((row) => ({
+        patientId: row.patient_id,
         displayName: row.profiles?.display_name ?? null,
         linkedAt: new Date(row.linked_at),
       })),

@@ -9,6 +9,7 @@ import {
   type PatientInviteLink,
   type PatientInviteCode,
   type LinkedCaregiver,
+  type LinkedPatient,
   type DoseRepository,
   type TreatmentRepository,
   type ProfileRepository,
@@ -193,6 +194,12 @@ export class OfflineFallbackPairingRepository extends OfflineFallback implements
   findLinkedPatientsByCaregiver(caregiverId: string): Promise<Result<readonly string[], DomainError>> {
     return this.cachedRead(`pairing:${caregiverId}`, () =>
       this.remote.findLinkedPatientsByCaregiver(caregiverId),
+    );
+  }
+
+  findPatientsByCaregiver(caregiverId: string): Promise<Result<readonly LinkedPatient[], DomainError>> {
+    return this.cachedRead(`pairing:patients:${caregiverId}`, () =>
+      this.remote.findPatientsByCaregiver(caregiverId),
     );
   }
 

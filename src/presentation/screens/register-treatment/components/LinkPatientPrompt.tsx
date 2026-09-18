@@ -19,6 +19,13 @@ function describeLinkError(code: string | undefined): string {
   return 'No pudimos vincular la cuenta. Intentá de nuevo.';
 }
 
+export interface LinkPatientPromptProps {
+  /** Se llama tras vincular OK. La home de pacientes lo usa para recargar su lista. */
+  readonly onLinked?: () => void;
+  /** `otro` cambia el texto para quien ya tiene a alguien a cargo y está sumando a otra persona. */
+  readonly variant?: 'primero' | 'otro';
+}
+
 /**
  * Se muestra en vez del formulario de alta cuando el Cuidador todavía no
  * tiene un paciente vinculado (`session.patientId` vacío) — sin esto,
@@ -31,7 +38,7 @@ function describeLinkError(code: string | undefined): string {
  * (rol Cuidador) — es el mismo gesto (redimir un invite code), solo que acá
  * el Cuidador ya tiene sesión iniciada.
  */
-export function LinkPatientPrompt(): React.JSX.Element {
+export function LinkPatientPrompt({ onLinked, variant = 'primero' }: LinkPatientPromptProps): React.JSX.Element {
   const { linkPatient } = useSession();
   const [inviteCode, setInviteCode] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
@@ -47,20 +54,21 @@ export function LinkPatientPrompt(): React.JSX.Element {
       setError(describeLinkError(result.errorCode));
       return;
     }
-    // Éxito: `session.patientId` ya se actualizó — `RegisterTreatmentScreen`
-    // re-renderiza solo y deja de mostrar este prompt.
     setStatus('idle');
+    setInviteCode('');
+    onLinked?.();
   }
 
   return (
     <View style={styles.container}>
       <AuthCard staggerIndex={0}>
         <AccessibleText variant="title" bold style={styles.centerText}>
-          Vinculá a tu Adulto Mayor
+          {variant === 'otro' ? 'Sumá a otra persona' : 'Vinculá a tu Adulto Mayor'}
         </AccessibleText>
         <AccessibleText variant="body" color={colors.textSecondary} style={styles.centerText}>
-          Todavía no tenés ningún paciente vinculado a tu cuenta. Pedile el código de invitación y cargalo acá para
-          poder registrar sus tratamientos.
+          {variant === 'otro'
+            ? 'Pedile su código de invitación y cargalo acá. Después vas a poder elegir a cuál de las dos personas gestionás.'
+            : 'Todavía no tenés ningún paciente vinculado a tu cuenta. Pedile el código de invitación y cargalo acá para poder registrar sus tratamientos.'}
         </AccessibleText>
 
         <PairingCodeInput

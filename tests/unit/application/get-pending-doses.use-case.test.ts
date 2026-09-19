@@ -1,7 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { GetPendingDosesForPatientUseCase } from '../../../src/application';
-import { DoseStatus, PillShape, MeasurementUnit, TreatmentStatus } from '../../../src/domain';
-import { InMemoryStore, InMemoryTreatmentRepository, InMemoryDoseRepository } from '../../support/in-memory-repos';
+import { Err, DomainErrors, DoseStatus, PillShape, MeasurementUnit, TreatmentStatus } from '../../../src/domain';
+import {
+  InMemoryStore,
+  InMemoryTreatmentRepository,
+  InMemoryDoseRepository,
+  InMemoryProfileRepository,
+} from '../../support/in-memory-repos';
 import { FakeClock } from '../../support/fakes';
 import { buildTreatment, buildDose } from '../../support/fixtures';
 
@@ -14,7 +19,12 @@ describe('GetPendingDosesForPatientUseCase', () => {
     store = new InMemoryStore();
     const treatmentRepo = new InMemoryTreatmentRepository(store);
     const doseRepo = new InMemoryDoseRepository(store);
-    useCase = new GetPendingDosesForPatientUseCase(doseRepo, treatmentRepo, new FakeClock(now));
+    useCase = new GetPendingDosesForPatientUseCase(
+      doseRepo,
+      treatmentRepo,
+      new FakeClock(now),
+      new InMemoryProfileRepository(store),
+    );
   });
 
   it('NO muestra la toma de un tratamiento cancelado', async () => {
@@ -100,5 +110,96 @@ describe('GetPendingDosesForPatientUseCase', () => {
     const result = await useCase.execute({ patientId: 'p1' });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.doses).toHaveLength(1);
+  });
+
+  describe('quién cargó el tratamiento', () => {
+    function perfil(id: string, nombre: string | null) {
+      return { id, role: 'CUIDADOR' as const, displayName: nombre, inviteCode: null, isPatient: false, isCaregiver: true };
+    }
+
+    function tomaPendiente(idTratamiento: string, idDosis: string, idCuidador: string, hora: string) {
+      store.treatments.set(
+        idTratamiento,
+        buildTreatment({ id: idTratamiento, patientId: 'patient-1', caregiverId: idCuidador }),
+      );
+      store.doses.set(
+        idDosis,
+        buildDose({ id: idDosis, treatmentId: idTratamiento, scheduledAt: new Date(hora), status: DoseStatus.PENDING }),
+      );
+    }
+
+    it('devuelve el nombre de quien lo indicó', async () => {
+      store.profiles.set('caregiver-1', perfil('caregiver-1', 'Ana'));
+      tomaPendiente('t-1', 'd-1', 'caregiver-1', '2026-08-01T08:00:00.000Z');
+
+      const result = await useCase.execute({ patientId: 'patient-1', date: now });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.doses[0]?.caregiverName).toBe('Ana');
+    });
+
+    it('consulta el perfil UNA sola vez aunque el cuidador haya cargado varias tomas', async () => {
+      // Un pastillero típico viene de una sola persona: sin memoizar serían
+      // cuatro consultas idénticas por cada apertura de la pantalla.
+      store.profiles.set('caregiver-1', perfil('caregiver-1', 'Ana'));
+      tomaPendiente('t-1', 'd-1', 'caregiver-1', '2026-08-01T08:00:00.000Z');
+      tomaPendiente('t-2', 'd-2', 'caregiver-1', '2026-08-01T14:00:00.000Z');
+      tomaPendiente('t-3', 'd-3', 'caregiver-1', '2026-08-01T21:00:00.000Z');
+
+      const profileRepo = new InMemoryProfileRepository(store);
+      const espia = vi.spyOn(profileRepo, 'findById');
+      const conEspia = new GetPendingDosesForPatientUseCase(
+        new InMemoryDoseRepository(store),
+        new InMemoryTreatmentRepository(store),
+        new FakeClock(now),
+        profileRepo,
+      );
+
+      const result = await conEspia.execute({ patientId: 'patient-1', date: now });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.doses).toHaveLength(3);
+      expect(result.value.doses.every((d) => d.caregiverName === 'Ana')).toBe(true);
+      expect(espia).toHaveBeenCalledTimes(1);
+    });
+
+    it('muestra la toma igual si no se puede leer el perfil del cuidador', async () => {
+      // El Cuidador pudo haber sido desvinculado: la RLS deja de dejar ver
+      // su perfil. Cambiar un nombre accesorio por NO mostrar la medicación
+      // sería el peor canje posible en esta pantalla.
+      const profileRepo = new InMemoryProfileRepository(store);
+      vi.spyOn(profileRepo, 'findById').mockResolvedValue(
+        Err(DomainErrors.repositoryFailure(new Error('sin permiso'))),
+      );
+      tomaPendiente('t-1', 'd-1', 'caregiver-1', '2026-08-01T08:00:00.000Z');
+
+      const conRepoRoto = new GetPendingDosesForPatientUseCase(
+        new InMemoryDoseRepository(store),
+        new InMemoryTreatmentRepository(store),
+        new FakeClock(now),
+        profileRepo,
+      );
+
+      const result = await conRepoRoto.execute({ patientId: 'patient-1', date: now });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.doses).toHaveLength(1);
+      expect(result.value.doses[0]?.medicationName).toBeTruthy();
+      expect(result.value.doses[0]?.caregiverName).toBeNull();
+    });
+
+    it('trata un nombre en blanco como si no hubiera nombre', async () => {
+      store.profiles.set('caregiver-1', perfil('caregiver-1', '   '));
+      tomaPendiente('t-1', 'd-1', 'caregiver-1', '2026-08-01T08:00:00.000Z');
+
+      const result = await useCase.execute({ patientId: 'patient-1', date: now });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.doses[0]?.caregiverName).toBeNull();
+    });
   });
 });

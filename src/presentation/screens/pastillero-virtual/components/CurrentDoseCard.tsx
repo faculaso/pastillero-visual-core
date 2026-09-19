@@ -70,6 +70,22 @@ export function CurrentDoseCard({ dose }: CurrentDoseCardProps): React.JSX.Eleme
         {formatDosage(dose)}
       </AccessibleText>
 
+      {/* Quién se lo indicó. Sin esto, una pastilla que aparece sola en el
+          pastillero no tiene autor a la vista: lo primero que pregunta
+          alguien que no se acuerda por qué la toma es "¿quién me puso
+          esto?". Si el nombre no se pudo resolver no se escribe nada —
+          decir "tu Cuidador" a secas no agrega y suena a relleno. */}
+      {dose.caregiverName ? (
+        <View style={styles.autorChip}>
+          <AccessibleText variant="small" color={colors.textSecondary}>
+            Te lo indicó{' '}
+            <AccessibleText variant="small" bold color={colors.textPrimary}>
+              {dose.caregiverName}
+            </AccessibleText>
+          </AccessibleText>
+        </View>
+      ) : null}
+
       <VoiceGuidanceButton text={buildDoseVoiceMessage(dose)} />
     </View>
   );
@@ -85,6 +101,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     ...shadows.card,
+  },
+  autorChip: {
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: radii.pill,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
   },
   showcase: {
     width: '100%',

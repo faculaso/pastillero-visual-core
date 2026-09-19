@@ -32,6 +32,13 @@ export function buildDoseVoiceMessage(dose: PendingDoseView): string {
     sentences.push(`Referencia: ${dose.visualProfile.slotLabel}.`);
   }
 
+  // Antes de la instrucción final, no después: quien escucha esto puede no
+  // llegar a ver la tarjeta, así que el dato de quién se lo indicó tiene que
+  // llegarle por voz igual que al resto.
+  if (dose.caregiverName) {
+    sentences.push(`Te lo indicó ${dose.caregiverName}.`);
+  }
+
   sentences.push('Presioná el botón Confirmar Toma después de tomarla.');
 
   return sentences.join(' ');

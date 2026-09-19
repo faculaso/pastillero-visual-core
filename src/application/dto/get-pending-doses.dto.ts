@@ -8,6 +8,14 @@ export interface PendingDoseView {
   readonly medicationName: string;
   readonly visualProfile: VisualProfile;
   readonly dosagePerTake: Dosage;
+  /**
+   * Nombre de quien cargó este tratamiento. `null` cuando no se pudo
+   * resolver: el Cuidador ya no está vinculado (la RLS deja de dejar ver su
+   * perfil), nunca puso nombre, o la consulta falló. La pantalla omite la
+   * línea en ese caso — nunca inventa un "Cuidador" genérico, que sería
+   * peor que no decir nada.
+   */
+  readonly caregiverName: string | null;
 }
 
 export interface GetPendingDosesInput {

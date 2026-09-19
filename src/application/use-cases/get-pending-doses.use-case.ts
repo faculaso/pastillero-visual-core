@@ -7,6 +7,7 @@ import {
   type DomainError,
   type DoseRepository,
   type TreatmentRepository,
+  type ProfileRepository,
 } from '../../domain';
 import type { UseCase } from '../core/use-case';
 import type { Clock } from '../ports/clock.port';
@@ -23,6 +24,11 @@ import type { GetPendingDosesInput, GetPendingDosesOutput, PendingDoseView } fro
  * amerita una query SQL con JOIN dedicada en esta etapa. Si el volumen
  * creciera (varios tratamientos simultáneos), este es el primer lugar a
  * optimizar con una query de agregación en el repo.
+ *
+ * El nombre de quien cargó cada tratamiento se resuelve aparte y se
+ * memoiza por cuidador dentro de la misma llamada: un pastillero entero
+ * suele venir de una o dos personas, así que son una o dos consultas, no
+ * una por toma.
  */
 export class GetPendingDosesForPatientUseCase
   implements UseCase<GetPendingDosesInput, GetPendingDosesOutput>
@@ -31,7 +37,27 @@ export class GetPendingDosesForPatientUseCase
     private readonly doseRepository: DoseRepository,
     private readonly treatmentRepository: TreatmentRepository,
     private readonly clock: Clock,
+    private readonly profileRepository: ProfileRepository,
   ) {}
+
+  /**
+   * Best-effort a propósito: si no se puede resolver el nombre, la toma se
+   * muestra igual sin esa línea. Que el pastillero no abra porque no se
+   * pudo leer un nombre sería cambiar un dato accesorio por el dato que la
+   * persona necesita para tomar su medicación.
+   */
+  private async resolverNombre(
+    caregiverId: string,
+    cache: Map<string, string | null>,
+  ): Promise<string | null> {
+    const enCache = cache.get(caregiverId);
+    if (enCache !== undefined) return enCache;
+
+    const result = await this.profileRepository.findById(caregiverId);
+    const nombre = result.ok ? (result.value?.displayName?.trim() || null) : null;
+    cache.set(caregiverId, nombre);
+    return nombre;
+  }
 
   async execute(input: GetPendingDosesInput): Promise<Result<GetPendingDosesOutput, DomainError>> {
     const date = input.date ?? this.clock.now();
@@ -40,6 +66,7 @@ export class GetPendingDosesForPatientUseCase
     if (!dosesResult.ok) return dosesResult;
 
     const views: PendingDoseView[] = [];
+    const nombresPorCuidador = new Map<string, string | null>();
     for (const dose of dosesResult.value) {
       const treatmentResult = await this.treatmentRepository.findById(dose.treatmentId);
       if (!treatmentResult.ok) return treatmentResult;
@@ -62,6 +89,7 @@ export class GetPendingDosesForPatientUseCase
         medicationName: treatment.medication.name,
         visualProfile: treatment.visualProfile,
         dosagePerTake: treatment.dosageScheme.dosagePerTake,
+        caregiverName: await this.resolverNombre(treatment.caregiverId, nombresPorCuidador),
       });
     }
 

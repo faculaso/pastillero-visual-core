@@ -211,7 +211,12 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
       clock,
     ),
     getPausedTreatments: new GetPausedTreatmentsUseCase(treatmentRepository),
-    getPendingDoses: new GetPendingDosesForPatientUseCase(doseRepository, treatmentRepository, clock),
+    getPendingDoses: new GetPendingDosesForPatientUseCase(
+      doseRepository,
+      treatmentRepository,
+      clock,
+      profileRepository,
+    ),
     searchMedicationCatalog: new SearchMedicationCatalogUseCase(medicationCatalogRepository),
     suggestVisualProfile: new SuggestVisualProfileUseCase(
       new SqliteMedicationVisualSuggestionProvider(context),

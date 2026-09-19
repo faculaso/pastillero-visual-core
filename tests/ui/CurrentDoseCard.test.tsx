@@ -5,7 +5,7 @@ import { PillShape, MeasurementUnit } from '../../src/domain';
 import type { PendingDoseView } from '../../src/application';
 import { withProviders } from './test-utils';
 
-function buildDoseView(scheduledAt: string): PendingDoseView {
+function buildDoseView(scheduledAt: string, overrides: Partial<PendingDoseView> = {}): PendingDoseView {
   return {
     doseId: 'dose-1',
     treatmentId: 'treatment-1',
@@ -13,6 +13,8 @@ function buildDoseView(scheduledAt: string): PendingDoseView {
     medicationName: 'Paracetamol',
     visualProfile: { shape: PillShape.ROUND, color: '#FFFFFF' },
     dosagePerTake: { amount: 1, unit: MeasurementUnit.UNIT },
+    caregiverName: 'Ana',
+    ...overrides,
   };
 }
 
@@ -59,5 +61,21 @@ describe('CurrentDoseCard', () => {
   it('no deja hueco cuando la toma no tiene `slotLabel`', async () => {
     await render(withProviders(<CurrentDoseCard dose={buildDoseView('2026-08-01T08:00:00.000')} />));
     expect(screen.queryByText('250 MG')).toBeNull();
+  });
+
+  it('dice quién le indicó la toma', async () => {
+    await render(withProviders(<CurrentDoseCard dose={buildDoseView('2026-08-01T08:00:00.000Z', { caregiverName: 'Ana' })} />));
+
+    expect(screen.getByText('Ana')).toBeTruthy();
+  });
+
+  it('no escribe nada si no se pudo resolver el nombre', async () => {
+    // Pasa cuando el Cuidador ya no está vinculado y la RLS deja de dejar
+    // ver su perfil. "Te lo indicó tu Cuidador" a secas no agregaría nada.
+    await render(
+      withProviders(<CurrentDoseCard dose={buildDoseView('2026-08-01T08:00:00.000Z', { caregiverName: null })} />),
+    );
+
+    expect(screen.queryByText(/Te lo indicó/)).toBeNull();
   });
 });

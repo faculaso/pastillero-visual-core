@@ -11,6 +11,7 @@ function buildDoseView(overrides: Partial<PendingDoseView> = {}): PendingDoseVie
     medicationName: 'Paracetamol',
     visualProfile: { shape: PillShape.ROUND, color: '#FFFFFF' },
     dosagePerTake: { amount: 1, unit: MeasurementUnit.UNIT },
+    caregiverName: 'Ana',
     ...overrides,
   };
 }
@@ -49,5 +50,20 @@ describe('buildDoseVoiceMessage', () => {
       buildDoseView({ visualProfile: { shape: PillShape.CAPSULE, color: '#FFF' } }),
     );
     expect(message).toContain('Forma del comprimido: cápsula.');
+  });
+
+  it('dice quién indicó la toma, antes de la instrucción final', () => {
+    // Quien usa la guía por voz puede no llegar a ver la tarjeta: el dato
+    // tiene que llegarle igual.
+    const message = buildDoseVoiceMessage(buildDoseView({ caregiverName: 'Ana' }));
+
+    expect(message).toContain('Te lo indicó Ana.');
+    expect(message.indexOf('Te lo indicó Ana.')).toBeLessThan(message.indexOf('Confirmar Toma'));
+  });
+
+  it('no menciona a nadie si no se pudo resolver el nombre', () => {
+    const message = buildDoseVoiceMessage(buildDoseView({ caregiverName: null }));
+
+    expect(message).not.toContain('Te lo indicó');
   });
 });

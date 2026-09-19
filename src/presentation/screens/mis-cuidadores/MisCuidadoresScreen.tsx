@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, ScrollView, ActivityIndicator, Alert, Pressable, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AdultoMayorStackParamList } from '../../navigation/types';
 import type { GetPairingOverviewOutput } from '../../../application';
@@ -28,6 +29,12 @@ type ScreenStatus = 'loading' | 'ready' | 'error';
  */
 export function MisCuidadoresScreen({ patientId, navigation }: MisCuidadoresScreenProps): React.JSX.Element {
   const { getPairingOverview, createInviteCode, revokeInviteCode, unlinkCaregiver } = useUseCases();
+
+  // Mismo motivo que en `PastilleroVirtualScreen`: el `SafeAreaView` de este
+  // build no aplica el padding de arriba, así que el inset va a mano. Sin
+  // esto "Volver" queda medio tapado por la barra de estado y el toque en el
+  // centro del botón lo come el sistema.
+  const insets = useSafeAreaInsets();
 
   const [status, setStatus] = useState<ScreenStatus>('loading');
   const [data, setData] = useState<GetPairingOverviewOutput | null>(null);
@@ -117,7 +124,7 @@ export function MisCuidadoresScreen({ patientId, navigation }: MisCuidadoresScre
 
   return (
     <View style={styles.screen}>
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { paddingTop: insets.top + spacing.md }]}>
         <Pressable
           onPress={() => navigation.goBack()}
           accessibilityRole="button"

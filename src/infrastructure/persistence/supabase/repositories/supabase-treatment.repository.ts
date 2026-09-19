@@ -46,9 +46,14 @@ export class SupabaseTreatmentRepository implements TreatmentRepository {
       p_doses: doses.map(mapDoseToPayload),
     });
     if (error) return Err(DomainErrors.repositoryFailure(error));
-    // Los ids ya son los que generó `IdGenerator` del lado del cliente (ver
-    // la RPC) — no hace falta re-leer ni re-mapear la respuesta del server,
-    // `treatment`/`doses` ya reflejan exactamente lo que quedó persistido.
+    // La RPC inserta los ids que ya generó `IdGenerator` acá — por eso no
+    // hace falta re-leer la respuesta: `treatment`/`doses` reflejan lo que
+    // quedó persistido. Ese "por eso" es una condición de la función SQL, no
+    // algo que este código pueda garantizar: si la RPC dejara que Postgres
+    // generara los ids, el alta guardaría bien y todo lo que viene después
+    // (abrir la adherencia del tratamiento nuevo, confirmar una dosis desde
+    // su alarma) apuntaría a filas que no existen. Ya pasó una vez; ver
+    // `supabase/migrations/0012_el_alta_conserva_el_id.sql`.
     return Ok({ treatment, generatedDoses: doses });
   }
 

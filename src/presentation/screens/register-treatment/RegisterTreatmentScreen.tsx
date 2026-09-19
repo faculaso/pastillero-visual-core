@@ -111,15 +111,31 @@ export function RegisterTreatmentScreen({ navigation, route }: Props): React.JSX
   async function handleSubmit(): Promise<void> {
     if (!medication || !session) return;
 
+    setStatus('submitting');
+    setError(null);
+
+    // El `try` no es decorativo: sin él, cualquier excepción que no sea un
+    // `Result` (una librería nativa que tira, un fallo de red crudo) dejaba
+    // el botón en "Guardando…" para siempre, sin mensaje y sin forma de
+    // reintentar salvo cerrar la app. Un formulario largo de tratamiento es
+    // el peor lugar para eso: se pierde todo lo cargado.
+    try {
+      await guardar();
+    } catch {
+      setStatus('error');
+      setError('No pudimos guardar el tratamiento. Intentá de nuevo.');
+    }
+  }
+
+  async function guardar(): Promise<void> {
+    if (!medication || !session) return;
+
     const parsed = parseFormValues(dosage);
     if (!parsed.ok) {
       setStatus('error');
       setError(parsed.message);
       return;
     }
-
-    setStatus('submitting');
-    setError(null);
 
     const result = await registerTreatment.execute({
       caregiverId: session.caregiverId,

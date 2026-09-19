@@ -340,4 +340,37 @@ describe('RegisterTreatmentScreen', () => {
     await user.press(screen.getByText('Ver a quiénes cuido'));
     expect(navigation.navigate).toHaveBeenCalledWith('MisPacientes');
   });
+
+  it('no deja el botón trabado si el guardado tira una excepción', async () => {
+    // Sin try/catch, una excepción que no sea un `Result` (una librería
+    // nativa que tira, un fallo de red crudo) dejaba "Guardando…" para
+    // siempre: sin mensaje, sin reintento, y con todo el formulario
+    // cargado a punto de perderse.
+    const registerTreatment = { execute: jest.fn().mockRejectedValue(new Error('boom')) };
+    const searchMedicationCatalog = {
+      execute: jest.fn().mockResolvedValue(Ok({ medications: [buildMedication()] })),
+    };
+    const user = userEvent.setup();
+
+    await render(
+      withProviders(<RegisterTreatmentScreen navigation={buildNavigationMock()} route={baseRoute} />, {
+        role: 'CUIDADOR',
+        useCases: {
+          registerTreatment: registerTreatment as never,
+          searchMedicationCatalog: searchMedicationCatalog as never,
+          suggestVisualProfile: { execute: jest.fn().mockResolvedValue(Ok({ suggestion: null })) } as never,
+        },
+      }),
+    );
+
+    await user.type(screen.getByLabelText('Buscar medicamento por nombre o código de barras'), 'Para');
+    await waitFor(() => expect(screen.getByText('Paracetamol')).toBeTruthy());
+    await user.press(screen.getByText('Paracetamol'));
+    await user.press(screen.getByText('Guardar tratamiento'));
+
+    await waitFor(() =>
+      expect(screen.getByText('No pudimos guardar el tratamiento. Intentá de nuevo.')).toBeTruthy(),
+    );
+    expect(screen.getByText('Guardar tratamiento')).toBeTruthy();
+  });
 });

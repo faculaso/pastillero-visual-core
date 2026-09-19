@@ -37,12 +37,11 @@ const DEFAULT_HORIZON_DAYS = 30;
  * `calculateScheduledDoseTimes` ya corta en `endDate`, así que un
  * tratamiento terminado no genera nada por más veces que esto corra.
  *
- * LÍMITE CONOCIDO: el cotejo es por horario exacto. Si alguna vez se
- * reprograma la hora de una toma ya creada (la función SQL
- * `reschedule_treatment_time`), esa toma dejaría de coincidir con el
- * horario que el esquema predice y esta pasada crearía una nueva en el
- * horario viejo. Mientras no exista esa pantalla no puede pasar; cuando
- * exista, el cotejo tiene que mirar el día y no el instante.
+ * El cotejo mira DOS cosas, no solo el instante exacto: además de eso, un
+ * día que ya tiene tantas tomas como el esquema predice se considera
+ * cubierto aunque los instantes no coincidan. Sin esa segunda regla la
+ * idempotencia se cae con cualquier cambio de huso horario — ver
+ * `findMissingSlots`.
  */
 export class ExtendDoseHorizonUseCase
   implements UseCase<ExtendDoseHorizonInput, ExtendDoseHorizonOutput>
@@ -86,6 +85,11 @@ export class ExtendDoseHorizonUseCase
     return Ok({ createdCount, alarmWarnings });
   }
 
+  /** Clave de día en hora LOCAL — es el día que la persona ve en su pastillero, no el día UTC. */
+  private static diaLocal(date: Date): string {
+    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+  }
+
   private async findMissingSlots(
     treatment: Treatment,
     from: Date,
@@ -100,16 +104,50 @@ export class ExtendDoseHorizonUseCase
     const desde = new Date(from);
     desde.setHours(0, 0, 0, 0);
 
-    const existingResult = await this.doseRepository.findByTreatmentInRange(treatment.id, desde, to);
+    // Y por el mismo motivo hay que subir el otro extremo al FIN del día:
+    // el generador produce todos los horarios del último día, incluidos los
+    // posteriores a `to`. Preguntando hasta la hora exacta, una toma de la
+    // tarde de ese día no figuraba como existente y se volvía a crear.
+    const hasta = new Date(to);
+    hasta.setHours(23, 59, 59, 999);
+
+    const existingResult = await this.doseRepository.findByTreatmentInRange(treatment.id, desde, hasta);
     if (!existingResult.ok) return existingResult;
 
     // Cualquier estado cuenta como "ya existe": una toma saltada o no tomada
     // sigue ocupando su lugar en el pastillero y no hay que recrearla.
     const yaExisten = new Set(existingResult.value.map((d) => d.scheduledAt.getTime()));
 
+    // Cuántas tomas hay ya por día. Los horarios del esquema son hora de
+    // PARED ("05:30"), y `calculateScheduledDoseTimes` los resuelve con el
+    // huso del dispositivo: las mismas 05:30 dan un instante distinto en un
+    // teléfono argentino que en uno en GMT. Comparando solo por instante,
+    // abrir la app con otro huso no reconocía NINGUNA toma existente y
+    // duplicaba la serie entera — dos pastillas donde va una, la adherencia
+    // partida al medio y una alarma a una hora equivocada. Pasó de verdad.
+    const existentesPorDia = new Map<string, number>();
+    for (const dose of existingResult.value) {
+      const dia = ExtendDoseHorizonUseCase.diaLocal(dose.scheduledAt);
+      existentesPorDia.set(dia, (existentesPorDia.get(dia) ?? 0) + 1);
+    }
+
+    // Cuántas predice el esquema para cada día, para poder decir "este día
+    // ya está cubierto" sin exigir que los instantes coincidan.
+    const previstas = calculateScheduledDoseTimes(treatment.dosageScheme, from, to);
+    const previstasPorDia = new Map<string, number>();
+    for (const scheduledAt of previstas) {
+      const dia = ExtendDoseHorizonUseCase.diaLocal(scheduledAt);
+      previstasPorDia.set(dia, (previstasPorDia.get(dia) ?? 0) + 1);
+    }
+
     const slots: Dose[] = [];
-    for (const scheduledAt of calculateScheduledDoseTimes(treatment.dosageScheme, from, to)) {
+    for (const scheduledAt of previstas) {
       if (yaExisten.has(scheduledAt.getTime())) continue;
+
+      const dia = ExtendDoseHorizonUseCase.diaLocal(scheduledAt);
+      const yaEnEseDia = existentesPorDia.get(dia) ?? 0;
+      if (yaEnEseDia >= (previstasPorDia.get(dia) ?? 0)) continue;
+
       const slot = createDoseSlot({
         id: this.idGenerator.generate(),
         treatmentId: treatment.id,
@@ -117,6 +155,8 @@ export class ExtendDoseHorizonUseCase
       });
       if (!slot.ok) return slot;
       slots.push(slot.value);
+      // La recién creada ocupa lugar para las siguientes vueltas del mismo día.
+      existentesPorDia.set(dia, yaEnEseDia + 1);
     }
     return Ok(slots);
   }

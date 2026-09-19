@@ -141,4 +141,76 @@ describe('ExtendDoseHorizonUseCase', () => {
 
     expect(result.ok && result.value.createdCount).toBe(0);
   });
+
+  describe('tomas ya creadas en otro huso horario', () => {
+    it('NO duplica la serie cuando los instantes no coinciden pero el día ya está cubierto', async () => {
+      // Pasó de verdad, con un tratamiento real: los horarios del esquema
+      // son hora de PARED ("05:30"), y se resuelven con el huso del
+      // dispositivo. El mismo tratamiento cargado desde un teléfono
+      // argentino y abierto después en otro dispositivo en GMT daba
+      // instantes distintos para la misma toma. Comparando solo por
+      // instante exacto no se reconocía NINGUNA y se generaba la serie
+      // entera de nuevo: dos pastillas donde iba una, la adherencia partida
+      // al medio, y una alarma a una hora equivocada.
+      const treatment = buildCronico('t-huso');
+      store.treatments.set(treatment.id, treatment);
+
+      // Las que ya existen: mismo día local, pero corridas 3 horas — que es
+      // exactamente lo que produce el desfasaje de huso.
+      const DESFASAJE_MS = 3 * 60 * 60 * 1000;
+      for (let dia = 0; dia < 31; dia += 1) {
+        const scheduledAt = new Date(2026, 8, 16 + dia, 8, 0, 0);
+        scheduledAt.setTime(scheduledAt.getTime() + DESFASAJE_MS);
+        store.doses.set(`d-${dia}`, buildDose({
+          id: `d-${dia}`,
+          treatmentId: treatment.id,
+          scheduledAt,
+          status: DoseStatus.PENDING,
+        }));
+      }
+      const antes = store.doses.size;
+
+      const result = await useCase.execute({ patientId: 'patient-1' });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.createdCount).toBe(0);
+      expect(store.doses.size).toBe(antes);
+    });
+
+    it('igual completa un día al que de verdad le falta una toma', async () => {
+      // El guardia por día no puede volverse una excusa para no crear nada:
+      // si el esquema pide dos tomas y ese día hay una sola, falta una.
+      const treatment = buildTreatment({
+        id: 't-dos-veces',
+        patientId: 'patient-1',
+        status: TreatmentStatus.ACTIVE,
+        dosageScheme: {
+          frequency: DosageFrequency.DAILY,
+          timesOfDay: [{ hour: 8, minute: 0 }, { hour: 20, minute: 0 }],
+          dosagePerTake: { amount: 1, unit: MeasurementUnit.UNIT },
+          startDate: new Date(2026, 0, 1),
+        },
+      });
+      store.treatments.set(treatment.id, treatment);
+
+      // Un solo horario cubierto hoy, y corrido de huso para que tampoco
+      // coincida por instante.
+      const soloUna = new Date(2026, 8, 16, 8, 0, 0);
+      soloUna.setTime(soloUna.getTime() + 3 * 60 * 60 * 1000);
+      store.doses.set('d-unica', buildDose({
+        id: 'd-unica',
+        treatmentId: treatment.id,
+        scheduledAt: soloUna,
+        status: DoseStatus.PENDING,
+      }));
+
+      const result = await useCase.execute({ patientId: 'patient-1', horizonDays: 0 });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // Hoy tiene 1 de 2 previstas: falta exactamente una.
+      expect(result.value.createdCount).toBe(1);
+    });
+  });
 });

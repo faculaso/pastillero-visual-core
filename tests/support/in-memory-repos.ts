@@ -3,12 +3,15 @@ import type {
   Treatment,
   Dose,
   Medication,
+  Profile,
+  UserRole,
   StockInfo,
   Dosage,
   TreatmentRepository,
   DoseRepository,
   StockRepository,
   MedicationCatalogRepository,
+  ProfileRepository,
 } from '../../src/domain';
 
 /**
@@ -22,12 +25,14 @@ export class InMemoryStore {
   readonly treatments = new Map<string, Treatment>();
   readonly doses = new Map<string, Dose>();
   readonly medications = new Map<string, Medication>();
+  readonly profiles = new Map<string, Profile>();
 
   snapshot(): InMemoryStoreSnapshot {
     return {
       treatments: structuredClone([...this.treatments.entries()]),
       doses: structuredClone([...this.doses.entries()]),
       medications: structuredClone([...this.medications.entries()]),
+      profiles: structuredClone([...this.profiles.entries()]),
     };
   }
 
@@ -38,6 +43,8 @@ export class InMemoryStore {
     for (const [k, v] of snapshot.doses) this.doses.set(k, v);
     this.medications.clear();
     for (const [k, v] of snapshot.medications) this.medications.set(k, v);
+    this.profiles.clear();
+    for (const [k, v] of snapshot.profiles) this.profiles.set(k, v);
   }
 }
 
@@ -45,6 +52,28 @@ interface InMemoryStoreSnapshot {
   readonly treatments: readonly (readonly [string, Treatment])[];
   readonly doses: readonly (readonly [string, Dose])[];
   readonly medications: readonly (readonly [string, Medication])[];
+  readonly profiles: readonly (readonly [string, Profile])[];
+}
+
+/** Devuelve `null` para un id que no está, igual que el repo real: "no existe" no es un error. */
+export class InMemoryProfileRepository implements ProfileRepository {
+  constructor(private readonly store: InMemoryStore) {}
+
+  async findById(id: string): Promise<Result<Profile | null, DomainError>> {
+    return Ok(this.store.profiles.get(id) ?? null);
+  }
+
+  async enableRole(userId: string, role: UserRole): Promise<Result<Profile, DomainError>> {
+    const profile = this.store.profiles.get(userId);
+    if (!profile) return Err(DomainErrors.repositoryFailure(new Error('perfil inexistente')));
+    const actualizado: Profile = {
+      ...profile,
+      isPatient: profile.isPatient || role === 'ADULTO_MAYOR',
+      isCaregiver: profile.isCaregiver || role === 'CUIDADOR',
+    };
+    this.store.profiles.set(userId, actualizado);
+    return Ok(actualizado);
+  }
 }
 
 export class InMemoryTreatmentRepository implements TreatmentRepository {

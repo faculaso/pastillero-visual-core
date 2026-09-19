@@ -17,6 +17,7 @@ function buildDoseView(overrides: Partial<PendingDoseView> = {}): PendingDoseVie
     medicationName: 'Paracetamol',
     visualProfile: { shape: PillShape.ROUND, color: '#FFFFFF' },
     dosagePerTake: { amount: 1, unit: MeasurementUnit.UNIT },
+    caregiverName: 'Ana',
     ...overrides,
   };
 }

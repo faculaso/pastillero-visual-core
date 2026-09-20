@@ -29,6 +29,23 @@ import type {
 const FUTURE_DOSES_WINDOW_DAYS = 400;
 
 /**
+ * Ventana hacia ATRÁS, solo al apagar. Una toma que ya sonó y nadie tocó
+ * sigue PENDING y su notificación sigue en pantalla: se publica con
+ * `ongoing: true` y `autoCancel: false`, así que no se va ni deslizándola
+ * — espera a "Confirmar Toma" o "Posponer 15 min" para siempre.
+ *
+ * Sin esto, dar de baja un remedio recién sonado le dejaba al Adulto Mayor
+ * "Es hora de tomar X" clavado en el teléfono, sin poder sacárselo de
+ * encima, y con un botón que confirmaba una toma de un tratamiento que ya
+ * no existe.
+ *
+ * Dos días alcanzan de sobra: una notificación más vieja que eso ya fue
+ * atendida, pospuesta o se la llevó un reinicio. Cancelar una alarma que no
+ * existe es un no-op en notifee, así que pasarse tampoco rompe nada.
+ */
+const RECENT_DOSES_WINDOW_DAYS = 2;
+
+/**
  * Pausar, reanudar o dar de baja un tratamiento (CU-03).
  *
  * Era el agujero funcional más grande del lado del Cuidador: si el médico
@@ -95,27 +112,39 @@ export class ChangeTreatmentStatusUseCase
   }
 
   /**
-   * Apaga las alarmas futuras si el tratamiento dejó de estar activo, y las
-   * vuelve a programar si se reanudó. Solo mira tomas PENDING: una toma ya
-   * confirmada o vencida no tiene alarma viva que apagar.
+   * Apaga las alarmas si el tratamiento dejó de estar activo, y las vuelve a
+   * programar si se reanudó. Solo mira tomas PENDING: una confirmada o
+   * saltada no tiene alarma viva que apagar.
+   *
+   * Las ventanas son asimétricas a propósito. Al APAGAR mira también un
+   * poco hacia atrás, porque una toma que ya sonó dejó una notificación
+   * `ongoing` en pantalla (ver `RECENT_DOSES_WINDOW_DAYS`). Al REANUDAR
+   * solo mira hacia adelante: programar una alarma con timestamp pasado la
+   * dispara en el acto, y nadie quiere que reanudar un tratamiento haga
+   * sonar de golpe las tomas de ayer.
    */
   private async syncFutureAlarms(
     treatment: Treatment,
     now: Date,
   ): Promise<{ alarmsAffected: number; alarmWarnings: readonly string[] }> {
+    const reanudando = treatment.status === TreatmentStatus.ACTIVE;
+
     const hasta = new Date(now);
     hasta.setDate(hasta.getDate() + FUTURE_DOSES_WINDOW_DAYS);
 
-    const dosesResult = await this.doseRepository.findByTreatmentInRange(treatment.id, now, hasta);
+    const desde = new Date(now);
+    if (!reanudando) desde.setDate(desde.getDate() - RECENT_DOSES_WINDOW_DAYS);
+
+    const dosesResult = await this.doseRepository.findByTreatmentInRange(treatment.id, desde, hasta);
     // Una lectura fallida acá no invalida el cambio de estado, que ya está
     // guardado: se reporta como "ninguna alarma tocada" y sigue.
     if (!dosesResult.ok) return { alarmsAffected: 0, alarmWarnings: [] };
 
     const pendientes = dosesResult.value.filter(
-      (dose) => dose.status === DoseStatus.PENDING && dose.scheduledAt.getTime() > now.getTime(),
+      (dose) =>
+        dose.status === DoseStatus.PENDING &&
+        (reanudando ? dose.scheduledAt.getTime() > now.getTime() : true),
     );
-
-    const reanudando = treatment.status === TreatmentStatus.ACTIVE;
     const alarmWarnings: string[] = [];
     let alarmsAffected = 0;
 

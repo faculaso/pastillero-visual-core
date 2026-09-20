@@ -16,9 +16,14 @@ describe('ChangeTreatmentStatusUseCase', () => {
   let scheduler: FakeNotificationScheduler;
   let useCase: ChangeTreatmentStatusUseCase;
 
-  /** Una toma pasada, una futura y una futura ya tomada — solo la futura pendiente tiene alarma viva. */
+  /**
+   * `recien-sono` es la que importa acá: sonó hace una hora, nadie la tocó,
+   * y su notificación sigue en pantalla (se publica `ongoing`, no se
+   * descarta deslizándola). `vieja` quedó fuera de la ventana hacia atrás.
+   */
   function seedDoses(treatmentId: string): void {
-    store.doses.set('pasada', buildDose({ id: 'pasada', treatmentId, scheduledAt: new Date(2026, 8, 17, 8, 0, 0) }));
+    store.doses.set('vieja', buildDose({ id: 'vieja', treatmentId, scheduledAt: new Date(2026, 8, 10, 8, 0, 0) }));
+    store.doses.set('recien-sono', buildDose({ id: 'recien-sono', treatmentId, scheduledAt: new Date(2026, 8, 17, 8, 0, 0) }));
     store.doses.set('futura', buildDose({ id: 'futura', treatmentId, scheduledAt: new Date(2026, 8, 18, 8, 0, 0) }));
     store.doses.set(
       'futura-tomada',
@@ -64,11 +69,28 @@ describe('ChangeTreatmentStatusUseCase', () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(scheduler.cancelledAlarms).toEqual(['futura']);
-    if (result.ok) expect(result.value.alarmsAffected).toBe(1);
+    expect(scheduler.cancelledAlarms).toContain('futura');
+    if (result.ok) expect(result.value.alarmsAffected).toBe(2);
   });
 
-  it('no toca la alarma de una toma que ya pasó ni la de una ya confirmada', async () => {
+  it('APAGA también la toma que recién sonó: su notificación sigue en pantalla', async () => {
+    // Una toma que ya sonó y nadie confirmó sigue PENDING, y notifee la
+    // publica con `ongoing: true` — no se va ni deslizándola. Sin apagarla,
+    // dar de baja un remedio recién sonado le dejaba al Adulto Mayor
+    // "Es hora de tomar X" clavado, con un botón que confirmaba una toma de
+    // un tratamiento que ya no existe.
+    seedDoses('t1');
+
+    await useCase.execute({
+      treatmentId: 't1',
+      requestingCaregiverId: 'caregiver-1',
+      newStatus: TreatmentStatus.CANCELLED,
+    });
+
+    expect(scheduler.cancelledAlarms).toContain('recien-sono');
+  });
+
+  it('no toca la alarma de una toma vieja ni la de una ya confirmada', async () => {
     seedDoses('t1');
 
     await useCase.execute({
@@ -77,8 +99,22 @@ describe('ChangeTreatmentStatusUseCase', () => {
       newStatus: TreatmentStatus.PAUSED,
     });
 
-    expect(scheduler.cancelledAlarms).not.toContain('pasada');
+    expect(scheduler.cancelledAlarms).not.toContain('vieja');
     expect(scheduler.cancelledAlarms).not.toContain('futura-tomada');
+  });
+
+  it('reanudar NO reprograma las tomas pasadas: una alarma con hora vieja suena al instante', async () => {
+    seedDoses('t1');
+    store.treatments.set('t1', buildTreatment({ id: 't1', caregiverId: 'caregiver-1', status: TreatmentStatus.PAUSED }));
+
+    await useCase.execute({
+      treatmentId: 't1',
+      requestingCaregiverId: 'caregiver-1',
+      newStatus: TreatmentStatus.ACTIVE,
+    });
+
+    expect(scheduler.scheduledAlarms).not.toContain('recien-sono');
+    expect(scheduler.scheduledAlarms).not.toContain('vieja');
   });
 
   it('reanudar vuelve a programar las alarmas que la pausa había apagado', async () => {
@@ -105,7 +141,7 @@ describe('ChangeTreatmentStatusUseCase', () => {
       newStatus: TreatmentStatus.PAUSED,
     });
 
-    expect(store.doses.size).toBe(3);
+    expect(store.doses.size).toBe(4);
   });
 
   it('un tratamiento ya dado de baja no se reanuda — lo rechaza el dominio', async () => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, ScrollView, Alert, Pressable } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, ScrollView, Pressable } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,6 +10,7 @@ import { usePastilleroVirtualStore } from '../../hooks/usePastilleroVirtualStore
 import { useStaggeredEntrance } from '../../hooks/useStaggeredEntrance';
 import { NativeConfirmationFeedback } from '../../services/confirmation-feedback.service';
 import { AccessibleText } from '../../design-system/AccessibleText';
+import { AppDialog } from '../../design-system/AppDialog';
 import { colors, spacing, radii, touchTarget } from '../../design-system/tokens';
 import { getTimeOfDayTheme } from '../../utils/time-of-day-theme';
 import { DoseCarousel } from './components/DoseCarousel';
@@ -128,15 +129,7 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
   const instructionEntrance = useStaggeredEntrance(3);
   const pillboxEntrance = useStaggeredEntrance(4);
 
-  // "Cambiar de rol" no cierra sesión: lleva al selector, que es también el
-  // único lugar desde donde se activa el otro rol con el mismo correo.
-  function handleAccountPress(): void {
-    Alert.alert('Tu cuenta', '¿Qué querés hacer?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Cambiar de rol', onPress: switchRole },
-      { text: 'Cerrar sesión', style: 'destructive', onPress: () => void signOut() },
-    ]);
-  }
+  const [cuentaAbierta, setCuentaAbierta] = useState(false);
 
   return (
     <View
@@ -164,7 +157,7 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
           </AccessibleText>
         </Pressable>
         <Pressable
-          onPress={handleAccountPress}
+          onPress={() => setCuentaAbierta(true)}
           accessibilityRole="button"
           accessibilityLabel="Tu cuenta: cambiar de rol o cerrar sesión"
           hitSlop={8}
@@ -271,6 +264,33 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
         trigger={celebrationTrigger}
         pillColor={confirmedDose?.color}
         medicationName={confirmedDose?.name}
+      />
+
+      {/* "Cambiar de rol" no cierra sesión: lleva al selector, que es también
+          el único lugar desde donde se activa el otro rol con el mismo correo. */}
+      <AppDialog
+        visible={cuentaAbierta}
+        title="Tu cuenta"
+        message="¿Qué querés hacer?"
+        onDismiss={() => setCuentaAbierta(false)}
+        actions={[
+          {
+            label: 'Cambiar de rol',
+            onPress: () => {
+              setCuentaAbierta(false);
+              switchRole();
+            },
+          },
+          {
+            label: 'Cerrar sesión',
+            variant: 'danger',
+            onPress: () => {
+              setCuentaAbierta(false);
+              void signOut();
+            },
+          },
+          { label: 'Cancelar', variant: 'secondary', onPress: () => setCuentaAbierta(false) },
+        ]}
       />
     </View>
   );

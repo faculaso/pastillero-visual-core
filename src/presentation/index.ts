@@ -1,6 +1,7 @@
 export * from './design-system/tokens';
 export * from './design-system/AccessibleText';
 export * from './design-system/AccessibleButton';
+export * from './design-system/AppDialog';
 
 export * from './services/confirmation-feedback.service';
 

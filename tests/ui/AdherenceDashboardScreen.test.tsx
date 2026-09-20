@@ -1,9 +1,8 @@
 import React from 'react';
-import { render, screen, waitFor, userEvent, act } from '@testing-library/react-native';
+import { render, screen, waitFor, userEvent } from '@testing-library/react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AdherenceDashboardScreen } from '../../src/presentation/screens/adherence-dashboard/AdherenceDashboardScreen';
 import type { CuidadorStackParamList } from '../../src/presentation/navigation/types';
-import { Alert } from 'react-native';
 import { Ok, Err, DomainErrors, StockAlertLevel, MeasurementUnit, TreatmentStatus } from '../../src/domain';
 import { withProviders } from './test-utils';
 import type { AdherenceMetrics } from '../../src/domain';
@@ -175,7 +174,6 @@ describe('AdherenceDashboardScreen', () => {
     it('dar de baja PIDE confirmación antes de tocar nada', async () => {
       const monitorAdherence = { execute: jest.fn().mockResolvedValue(Ok(buildOutput())) };
       const changeTreatmentStatus = { execute: jest.fn().mockResolvedValue(okCambio()) };
-      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
       const user = userEvent.setup();
 
       await render(
@@ -188,19 +186,18 @@ describe('AdherenceDashboardScreen', () => {
       await waitFor(() => expect(screen.getByText('Dar de baja')).toBeTruthy());
       await user.press(screen.getByText('Dar de baja'));
 
-      expect(alertSpy).toHaveBeenCalled();
-      // Nada se ejecuta hasta que la persona confirma en el diálogo.
+      // Nada se ejecuta hasta que la persona confirma en el cartel.
       expect(changeTreatmentStatus.execute).not.toHaveBeenCalled();
-
-      const [, mensaje, botones] = alertSpy.mock.calls[0] as [string, string, { text: string; onPress?: () => void }[]];
+      expect(screen.getByText('Dar de baja el tratamiento')).toBeTruthy();
       // El medicamento se nombra: dar de baja el equivocado no tiene vuelta atrás.
-      expect(mensaje).toContain('Paracetamol');
+      expect(screen.getByText(/^Paracetamol deja de sonar/)).toBeTruthy();
 
-      // El diálogo del SO vive fuera de React: sin `act` la actualización de
-      // estado que dispara su callback queda huérfana y React avisa.
-      await act(async () => {
-        botones.find((b) => b.text === 'Dar de baja')?.onPress?.();
-      });
+      // "Dar de baja" está dos veces: el botón de la pantalla y el del cartel,
+      // que se monta después. El del cartel es el último.
+      const confirmaciones = screen.getAllByLabelText('Dar de baja');
+      const enElCartel = confirmaciones[confirmaciones.length - 1];
+      if (!enElCartel) throw new Error('el cartel no montó su botón de confirmar');
+      await user.press(enElCartel);
 
       await waitFor(() =>
         expect(changeTreatmentStatus.execute).toHaveBeenCalledWith({
@@ -211,8 +208,6 @@ describe('AdherenceDashboardScreen', () => {
       );
       // Volver al pastillero ES el comprobante: el medicamento ya no está en la grilla.
       await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
-
-      alertSpy.mockRestore();
     });
 
     it('avisa cuando quedaron alarmas sin apagar — es lo único peor que no haber hecho nada', async () => {

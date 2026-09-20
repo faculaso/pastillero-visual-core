@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, ActivityIndicator, type StyleProp, type ViewStyl
 import { AccessibleText } from './AccessibleText';
 import { colors, radii, spacing, touchTarget, shadows } from './tokens';
 
-export type AccessibleButtonVariant = 'primary' | 'success' | 'secondary';
+export type AccessibleButtonVariant = 'primary' | 'success' | 'secondary' | 'danger';
 
 export interface AccessibleButtonProps {
   readonly label: string;
@@ -20,6 +20,10 @@ const VARIANT_BACKGROUND: Record<AccessibleButtonVariant, { base: string; presse
   primary: { base: colors.primary, pressed: colors.primaryPressed },
   success: { base: colors.successStrong, pressed: colors.success },
   secondary: { base: colors.surface, pressed: colors.borderLight },
+  // Solo para lo que borra o saca acceso (dar de baja un tratamiento, quitarle
+  // el acceso a un cuidador). Va en rojo lleno, no en texto rojo: en un
+  // diálogo el color del texto solo no alcanza para frenar a alguien.
+  danger: { base: colors.critical, pressed: colors.criticalPressed },
 };
 
 /** Sombra de color a juego con el fondo del botón — solo primary/success la llevan (mockup: `.btn-primary`/`.btn-confirm`). `secondary` queda plano (outline). */
@@ -27,6 +31,7 @@ const VARIANT_SHADOW: Record<AccessibleButtonVariant, ViewStyle | undefined> = {
   primary: shadows.buttonPrimary,
   success: shadows.buttonSuccess,
   secondary: undefined,
+  danger: undefined,
 };
 
 /**

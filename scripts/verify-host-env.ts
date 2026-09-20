@@ -18,7 +18,7 @@
  *
  * Exit code 1 si hay algún check en estado `fail`; los `warn` no bloquean.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail';
@@ -54,6 +54,15 @@ export const REQUIRED_MANIFEST_PERMISSIONS = [
 ] as const;
 
 const MEDICAL_ALARM_PATH = 'android/app/src/main/res/raw/medical_alarm.mp3';
+const RES_DIR = 'android/app/src/main/res';
+/**
+ * `notifee-notification-scheduler.ts` pide este ícono POR NOMBRE
+ * (`smallIcon: 'ic_notification'`). Sin él Android no degrada: rechaza la
+ * notificación entera con "Invalid notification (no valid small icon)" y no
+ * muestra NADA. La alarma dispara puntual, el log tiene el error, y el
+ * Adulto Mayor no se entera de que le toca la pastilla.
+ */
+const NOTIFICATION_ICON_NAME = 'ic_notification';
 /**
  * Subcarpeta `custom/` OBLIGATORIA: es el `path` por defecto de
  * `moveAssetsDatabase` en op-sqlite. Fuera de ahí no tira excepción —
@@ -163,6 +172,38 @@ export function checkMedicalAlarmAsset(projectRoot: string): CheckResult {
   };
 }
 
+/**
+ * Busca `ic_notification.*` en cualquier `res/drawable*` o `res/mipmap*`:
+ * sirve igual como vector XML o como PNG por densidad, y el nombre de la
+ * carpeta depende de cuál se haya elegido.
+ */
+export function checkNotificationIcon(projectRoot: string): CheckResult {
+  const resDir = join(projectRoot, RES_DIR);
+  const name = 'Ícono de notificación';
+  if (!existsSync(resDir)) {
+    return { name, status: 'fail', detail: `No se encontró ${RES_DIR}` };
+  }
+
+  const carpetas = readdirSync(resDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && (e.name.startsWith('drawable') || e.name.startsWith('mipmap')))
+    .map((e) => e.name);
+
+  for (const carpeta of carpetas) {
+    const encontrado = readdirSync(join(resDir, carpeta)).find(
+      (archivo) => archivo.replace(/\.[^.]+$/, '') === NOTIFICATION_ICON_NAME,
+    );
+    if (encontrado) {
+      return { name, status: 'ok', detail: `${RES_DIR}/${carpeta}/${encontrado}` };
+    }
+  }
+
+  return {
+    name,
+    status: 'fail',
+    detail: `No se encontró ${NOTIFICATION_ICON_NAME} en ${RES_DIR}/drawable* — Android rechaza TODA notificación sin small icon válido y no se muestra ninguna alarma de toma`,
+  };
+}
+
 export function checkBundledCatalogAsset(projectRoot: string): CheckResult {
   const assetPath = join(projectRoot, CATALOG_ASSET_PATH);
   if (existsSync(assetPath)) {
@@ -250,6 +291,7 @@ export function runAllChecks(options: RunChecksOptions): readonly CheckResult[] 
     checkNodeModulesInstalled(options.projectRoot),
     checkAndroidManifest(options.projectRoot),
     checkMedicalAlarmAsset(options.projectRoot),
+    checkNotificationIcon(options.projectRoot),
     checkBundledCatalogAsset(options.projectRoot),
     checkIndexJsBackgroundHandlerOrder(options.projectRoot),
     checkEnvVar('ANDROID_HOME', options.env),

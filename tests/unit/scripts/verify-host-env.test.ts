@@ -8,6 +8,7 @@ import {
   checkNodeModulesInstalled,
   checkAndroidManifest,
   checkMedicalAlarmAsset,
+  checkNotificationIcon,
   checkBundledCatalogAsset,
   checkIndexJsBackgroundHandlerOrder,
   checkEnvVar,
@@ -156,6 +157,40 @@ describe('checks basados en filesystem', () => {
       mkdirSync(rawDir, { recursive: true });
       writeFileSync(join(rawDir, 'medical_alarm.mp3'), 'contenido-falso');
       expect(checkMedicalAlarmAsset(dir).status).toBe('ok');
+    });
+  });
+
+  describe('checkNotificationIcon', () => {
+    it('fail si no existe ni la carpeta res/', () => {
+      expect(checkNotificationIcon(dir).status).toBe('fail');
+    });
+
+    it('fail si hay drawable/ pero sin el ícono — Android rechaza la notificación entera', () => {
+      mkdirSync(join(dir, 'android/app/src/main/res/drawable'), { recursive: true });
+      const result = checkNotificationIcon(dir);
+      expect(result.status).toBe('fail');
+      expect(result.detail).toContain('ic_notification');
+    });
+
+    it('ok con el vector XML en drawable/', () => {
+      const drawableDir = join(dir, 'android/app/src/main/res/drawable');
+      mkdirSync(drawableDir, { recursive: true });
+      writeFileSync(join(drawableDir, 'ic_notification.xml'), '<vector/>');
+      expect(checkNotificationIcon(dir).status).toBe('ok');
+    });
+
+    it('ok con un PNG por densidad: sirve cualquier formato, en cualquier drawable*', () => {
+      const drawableDir = join(dir, 'android/app/src/main/res/drawable-xxhdpi');
+      mkdirSync(drawableDir, { recursive: true });
+      writeFileSync(join(drawableDir, 'ic_notification.png'), 'contenido-falso');
+      expect(checkNotificationIcon(dir).status).toBe('ok');
+    });
+
+    it('fail si el nombre no es exacto — notifee lo pide por nombre, no por prefijo', () => {
+      const drawableDir = join(dir, 'android/app/src/main/res/drawable');
+      mkdirSync(drawableDir, { recursive: true });
+      writeFileSync(join(drawableDir, 'ic_notification_grande.xml'), '<vector/>');
+      expect(checkNotificationIcon(dir).status).toBe('fail');
     });
   });
 

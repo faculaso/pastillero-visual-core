@@ -31,6 +31,7 @@ export const colors = {
   successStrong: '#16A34A', // fondo del botón de confirmar toma
   successBackground: '#F0FDF4',
   critical: '#B91C1C', // ~6.1:1 sobre blanco
+  criticalPressed: '#991B1B', // fondo presionado del botón destructivo
   criticalBackground: '#FEF2F2',
   warning: '#C2410C', // ~5.0:1 sobre blanco
   warningBackground: '#FFF7ED',

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Alert, Pressable, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { CuidadorStackParamList } from './types';
 import { MisPacientesScreen } from '../screens/mis-pacientes/MisPacientesScreen';
@@ -7,6 +7,7 @@ import { CuidadorHomeScreen } from '../screens/cuidador-home/CuidadorHomeScreen'
 import { RegisterTreatmentScreen } from '../screens/register-treatment/RegisterTreatmentScreen';
 import { AdherenceDashboardScreen } from '../screens/adherence-dashboard/AdherenceDashboardScreen';
 import { AccessibleText } from '../design-system/AccessibleText';
+import { AppDialog } from '../design-system/AppDialog';
 import { colors, spacing, typography } from '../design-system/tokens';
 import { useSession } from '../providers/SessionContext';
 
@@ -15,27 +16,34 @@ const Stack = createNativeStackNavigator<CuidadorStackParamList>();
 /** "Cambiar de rol" no cierra sesión: lleva al selector, que es también el único lugar desde donde se activa el otro rol con el mismo correo. */
 function AccountHeaderButton(): React.JSX.Element {
   const { signOut, switchRole } = useSession();
-
-  function handlePress(): void {
-    Alert.alert('Tu cuenta', '¿Qué querés hacer?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Cambiar de rol', onPress: switchRole },
-      { text: 'Cerrar sesión', style: 'destructive', onPress: () => void signOut() },
-    ]);
-  }
+  const [abierto, setAbierto] = useState(false);
 
   return (
-    <Pressable
-      onPress={handlePress}
-      accessibilityRole="button"
-      accessibilityLabel="Tu cuenta: cambiar de rol o cerrar sesión"
-      hitSlop={8}
-      style={styles.accountButton}
-    >
-      <AccessibleText variant="small" bold color={colors.primary}>
-        Cuenta
-      </AccessibleText>
-    </Pressable>
+    <>
+      <Pressable
+        onPress={() => setAbierto(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Tu cuenta: cambiar de rol o cerrar sesión"
+        hitSlop={8}
+        style={styles.accountButton}
+      >
+        <AccessibleText variant="small" bold color={colors.primary}>
+          Cuenta
+        </AccessibleText>
+      </Pressable>
+
+      <AppDialog
+        visible={abierto}
+        title="Tu cuenta"
+        message="¿Qué querés hacer?"
+        onDismiss={() => setAbierto(false)}
+        actions={[
+          { label: 'Cambiar de rol', onPress: () => { setAbierto(false); switchRole(); } },
+          { label: 'Cerrar sesión', variant: 'danger', onPress: () => { setAbierto(false); void signOut(); } },
+          { label: 'Cancelar', variant: 'secondary', onPress: () => setAbierto(false) },
+        ]}
+      />
+    </>
   );
 }
 

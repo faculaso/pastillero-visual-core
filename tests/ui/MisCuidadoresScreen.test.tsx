@@ -1,6 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
-import { act, render, screen, waitFor, userEvent } from '@testing-library/react-native';
+import { render, screen, waitFor, userEvent } from '@testing-library/react-native';
 
 /**
  * La pantalla usa `useFocusEffect` (se recarga al volver, p. ej. después de
@@ -35,30 +34,7 @@ const codigoLibre = {
   redeemedBy: null,
 };
 
-/**
- * Dispara el botón del `Alert.alert` cuyo texto coincide — los
- * confirmatorios de esta pantalla son nativos, no tocables por el renderer.
- * Va dentro de `act` porque el handler arranca estado (`setBusy`).
- */
-async function pressAlertButton(texto: string): Promise<void> {
-  const spy = Alert.alert as unknown as jest.Mock;
-  const botones = spy.mock.calls[spy.mock.calls.length - 1]?.[2] as
-    | ReadonlyArray<{ text: string; onPress?: () => void }>
-    | undefined;
-  await act(async () => {
-    botones?.find((b) => b.text === texto)?.onPress?.();
-  });
-}
-
 describe('MisCuidadoresScreen', () => {
-  beforeEach(() => {
-    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
   it('muestra por nombre a quién te cuida y cuántos lugares quedan', async () => {
     const getPairingOverview = {
       execute: jest.fn().mockResolvedValue(
@@ -161,11 +137,13 @@ describe('MisCuidadoresScreen', () => {
     await waitFor(() => expect(screen.getByText('Quitarle el acceso')).toBeTruthy());
     await user.press(screen.getByText('Quitarle el acceso'));
 
-    // Cortar un vínculo no se hace de un toque: primero confirma.
+    // Cortar un vínculo no se hace de un toque: primero confirma. Y el cartel
+    // nombra a la persona — "¿estás seguro?" a secas no deja comprobar que
+    // se está por cortar el vínculo correcto.
     expect(unlinkCaregiver.execute).not.toHaveBeenCalled();
-    expect(Alert.alert).toHaveBeenCalled();
+    expect(screen.getByText('Quitarle el acceso a Ana')).toBeTruthy();
 
-    await pressAlertButton('Quitar el acceso');
+    await user.press(screen.getByLabelText('Quitar el acceso'));
     await waitFor(() => expect(unlinkCaregiver.execute).toHaveBeenCalledWith({ caregiverId: 'g1' }));
   });
 

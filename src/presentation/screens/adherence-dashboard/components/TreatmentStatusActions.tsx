@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Alert, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { TreatmentStatus } from '../../../../domain';
 import { AccessibleText } from '../../../design-system/AccessibleText';
 import { AccessibleButton } from '../../../design-system/AccessibleButton';
+import { AppDialog } from '../../../design-system/AppDialog';
 import { colors, radii, spacing } from '../../../design-system/tokens';
 
 export interface TreatmentStatusActionsProps {
@@ -68,16 +69,7 @@ export function TreatmentStatusActions({
   const puedeReanudar = status === TreatmentStatus.PAUSED;
   const puedeDarDeBaja = status === TreatmentStatus.ACTIVE || status === TreatmentStatus.PAUSED;
 
-  function confirmarBaja(): void {
-    Alert.alert(
-      'Dar de baja el tratamiento',
-      `${medicationName} deja de sonar y desaparece del pastillero. Esto no se puede deshacer: para volver a usarlo habría que cargarlo de nuevo.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Dar de baja', style: 'destructive', onPress: () => onChange(TreatmentStatus.CANCELLED) },
-      ],
-    );
-  }
+  const [bajaAbierta, setBajaAbierta] = useState(false);
 
   return (
     <View style={styles.card}>
@@ -118,7 +110,7 @@ export function TreatmentStatusActions({
           label="Dar de baja"
           variant="secondary"
           disabled={busy}
-          onPress={confirmarBaja}
+          onPress={() => setBajaAbierta(true)}
           accessibilityHint="El tratamiento termina definitivamente. Pide confirmación."
         />
       ) : null}
@@ -128,6 +120,24 @@ export function TreatmentStatusActions({
           Para volver a usar este medicamento hay que cargarlo como un tratamiento nuevo.
         </AccessibleText>
       ) : null}
+
+      <AppDialog
+        visible={bajaAbierta}
+        title="Dar de baja el tratamiento"
+        message={`${medicationName} deja de sonar y desaparece del pastillero. Esto no se puede deshacer: para volver a usarlo habría que cargarlo de nuevo.`}
+        onDismiss={() => setBajaAbierta(false)}
+        actions={[
+          {
+            label: 'Dar de baja',
+            variant: 'danger',
+            onPress: () => {
+              setBajaAbierta(false);
+              onChange(TreatmentStatus.CANCELLED);
+            },
+          },
+          { label: 'Cancelar', variant: 'secondary', onPress: () => setBajaAbierta(false) },
+        ]}
+      />
     </View>
   );
 }

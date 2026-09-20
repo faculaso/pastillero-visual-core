@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { UserRole } from '../../../domain';
 import { useSession } from '../../providers/SessionContext';
 import { AccessibleText } from '../../design-system/AccessibleText';
+import { AppDialog } from '../../design-system/AppDialog';
 import { colors, spacing } from '../../design-system/tokens';
 import { AuthGradientBackground } from './components/AuthGradientBackground';
 import { AuthBrandHeader } from './components/AuthBrandHeader';
@@ -57,12 +58,9 @@ export function ChooseRoleScreen(): React.JSX.Element {
   const faltantes = TODOS.filter((role) => !roles.includes(role));
   const nombre = roleChoice?.displayName?.trim();
 
-  function confirmarActivacion(role: UserRole): void {
-    Alert.alert('Activar el otro rol', COPY[role].confirmar, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Activar', onPress: () => void activar(role) },
-    ]);
-  }
+  /** `null` = ningún cartel abierto. */
+  const [porActivar, setPorActivar] = useState<UserRole | null>(null);
+  const [salidaAbierta, setSalidaAbierta] = useState(false);
 
   async function activar(role: UserRole): Promise<void> {
     setBusy(true);
@@ -70,13 +68,6 @@ export function ChooseRoleScreen(): React.JSX.Element {
     const result = await enableRole(role);
     setBusy(false);
     if (!result.ok) setError('No pudimos activar el otro rol. Intentá de nuevo.');
-  }
-
-  function confirmarSalida(): void {
-    Alert.alert('Cerrar sesión', '¿Querés salir de tu cuenta?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Cerrar sesión', style: 'destructive', onPress: () => void signOut() },
-    ]);
   }
 
   return (
@@ -112,7 +103,7 @@ export function ChooseRoleScreen(): React.JSX.Element {
                 label={COPY[role].activar}
                 hint={COPY[role].activarHint}
                 disabled={busy}
-                onPress={() => confirmarActivacion(role)}
+                onPress={() => setPorActivar(role)}
               />
             ))}
           </AuthCard>
@@ -125,7 +116,7 @@ export function ChooseRoleScreen(): React.JSX.Element {
         ) : null}
 
         <Pressable
-          onPress={confirmarSalida}
+          onPress={() => setSalidaAbierta(true)}
           accessibilityRole="button"
           accessibilityLabel="Cerrar sesión"
           hitSlop={8}
@@ -136,6 +127,42 @@ export function ChooseRoleScreen(): React.JSX.Element {
           </AccessibleText>
         </Pressable>
       </ScrollView>
+
+      <AppDialog
+        visible={porActivar !== null}
+        title="Activar el otro rol"
+        message={porActivar ? COPY[porActivar].confirmar : undefined}
+        onDismiss={() => setPorActivar(null)}
+        actions={[
+          {
+            label: 'Activar',
+            onPress: () => {
+              const role = porActivar;
+              setPorActivar(null);
+              if (role) void activar(role);
+            },
+          },
+          { label: 'Cancelar', variant: 'secondary', onPress: () => setPorActivar(null) },
+        ]}
+      />
+
+      <AppDialog
+        visible={salidaAbierta}
+        title="Cerrar sesión"
+        message="¿Querés salir de tu cuenta?"
+        onDismiss={() => setSalidaAbierta(false)}
+        actions={[
+          {
+            label: 'Cerrar sesión',
+            variant: 'danger',
+            onPress: () => {
+              setSalidaAbierta(false);
+              void signOut();
+            },
+          },
+          { label: 'Cancelar', variant: 'secondary', onPress: () => setSalidaAbierta(false) },
+        ]}
+      />
     </View>
   );
 }

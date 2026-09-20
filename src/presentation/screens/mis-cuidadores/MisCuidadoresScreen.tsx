@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, ScrollView, ActivityIndicator, Alert, Pressable, StyleSheet } from 'react-native';
+import { View, ScrollView, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,6 +8,7 @@ import type { GetPairingOverviewOutput } from '../../../application';
 import { useUseCases } from '../../providers/UseCasesProvider';
 import { AccessibleText } from '../../design-system/AccessibleText';
 import { AccessibleButton } from '../../design-system/AccessibleButton';
+import { AppDialog } from '../../design-system/AppDialog';
 import { colors, radii, spacing, shadows, touchTarget } from '../../design-system/tokens';
 
 export interface MisCuidadoresScreenProps {
@@ -40,6 +41,9 @@ export function MisCuidadoresScreen({ patientId, navigation }: MisCuidadoresScre
   const [data, setData] = useState<GetPairingOverviewOutput | null>(null);
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  /** `null` = ningún cartel abierto. Guardan lo que el cartel necesita nombrar. */
+  const [codigoABajar, setCodigoABajar] = useState<{ id: string; code: string } | null>(null);
+  const [cuidadorAQuitar, setCuidadorAQuitar] = useState<{ id: string; nombre: string } | null>(null);
 
   const load = useCallback(async () => {
     const result = await getPairingOverview.execute({ patientId });
@@ -74,16 +78,6 @@ export function MisCuidadoresScreen({ patientId, navigation }: MisCuidadoresScre
     await load();
   }
 
-  function confirmarBajaDeCodigo(codeId: string, code: string): void {
-    Alert.alert(
-      'Dar de baja este código',
-      `El código ${code} va a dejar de servir. Si ya se lo dictaste a alguien, no va a poder entrar con él.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Dar de baja', style: 'destructive', onPress: () => void darDeBaja(codeId) },
-      ],
-    );
-  }
 
   async function darDeBaja(codeId: string): Promise<void> {
     setBusy(true);
@@ -97,16 +91,6 @@ export function MisCuidadoresScreen({ patientId, navigation }: MisCuidadoresScre
     await load();
   }
 
-  function confirmarQuitar(caregiverId: string, nombre: string): void {
-    Alert.alert(
-      `Quitarle el acceso a ${nombre}`,
-      `${nombre} ya no va a ver tus tomas ni va a poder cargarte tratamientos. Los tratamientos que ya te cargó siguen como están, y vos los seguís viendo en tu pastillero.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Quitar el acceso', style: 'destructive', onPress: () => void quitar(caregiverId) },
-      ],
-    );
-  }
 
   async function quitar(caregiverId: string): Promise<void> {
     setBusy(true);
@@ -182,7 +166,7 @@ export function MisCuidadoresScreen({ patientId, navigation }: MisCuidadoresScre
                       variant="secondary"
                       disabled={busy}
                       accessibilityHint={`Deja de ver tus tomas. ${nombre} ya no te va a poder cargar tratamientos.`}
-                      onPress={() => confirmarQuitar(caregiver.caregiverId, nombre)}
+                      onPress={() => setCuidadorAQuitar({ id: caregiver.caregiverId, nombre })}
                     />
                   </View>
                 );
@@ -213,7 +197,7 @@ export function MisCuidadoresScreen({ patientId, navigation }: MisCuidadoresScre
                     label="Dar de baja este código"
                     variant="secondary"
                     disabled={busy}
-                    onPress={() => confirmarBajaDeCodigo(code.id, code.code)}
+                    onPress={() => setCodigoABajar({ id: code.id, code: code.code })}
                   />
                 </View>
               ))
@@ -246,6 +230,52 @@ export function MisCuidadoresScreen({ patientId, navigation }: MisCuidadoresScre
           )}
         </ScrollView>
       ) : null}
+
+      <AppDialog
+        visible={codigoABajar !== null}
+        title="Dar de baja este código"
+        message={
+          codigoABajar
+            ? `El código ${codigoABajar.code} va a dejar de servir. Si ya se lo dictaste a alguien, no va a poder entrar con él.`
+            : undefined
+        }
+        onDismiss={() => setCodigoABajar(null)}
+        actions={[
+          {
+            label: 'Dar de baja',
+            variant: 'danger',
+            onPress: () => {
+              const elegido = codigoABajar;
+              setCodigoABajar(null);
+              if (elegido) void darDeBaja(elegido.id);
+            },
+          },
+          { label: 'Cancelar', variant: 'secondary', onPress: () => setCodigoABajar(null) },
+        ]}
+      />
+
+      <AppDialog
+        visible={cuidadorAQuitar !== null}
+        title={cuidadorAQuitar ? `Quitarle el acceso a ${cuidadorAQuitar.nombre}` : ''}
+        message={
+          cuidadorAQuitar
+            ? `${cuidadorAQuitar.nombre} ya no va a ver tus tomas ni va a poder cargarte tratamientos. Los tratamientos que ya te cargó siguen como están, y vos los seguís viendo en tu pastillero.`
+            : undefined
+        }
+        onDismiss={() => setCuidadorAQuitar(null)}
+        actions={[
+          {
+            label: 'Quitar el acceso',
+            variant: 'danger',
+            onPress: () => {
+              const elegido = cuidadorAQuitar;
+              setCuidadorAQuitar(null);
+              if (elegido) void quitar(elegido.id);
+            },
+          },
+          { label: 'Cancelar', variant: 'secondary', onPress: () => setCuidadorAQuitar(null) },
+        ]}
+      />
     </View>
   );
 }

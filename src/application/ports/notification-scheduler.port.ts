@@ -18,6 +18,14 @@ import type { StockAlertLevel } from '../../domain';
 export interface NotificationScheduler {
   scheduleDoseAlarm(dose: Dose, treatment: Treatment): Promise<Result<void, DomainError>>;
   cancelDoseAlarm(doseId: string): Promise<Result<void, DomainError>>;
+  /**
+   * Ids de las tomas que HOY tienen una alarma viva en este dispositivo.
+   *
+   * Existe para que `SyncDoseAlarmsUseCase` pueda comparar contra lo que
+   * debería estar programado y tocar solo la diferencia. Sin esto, re-armar
+   * significaría reprogramar todas las tomas del horizonte en cada apertura.
+   */
+  scheduledDoseIds(): Promise<Result<readonly string[], DomainError>>;
   /** CU-03 paso 4: alerta de reposición temprana cuando el stock alcanza nivel CRITICAL. */
   dispatchStockAlert(
     treatment: Treatment,

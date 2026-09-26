@@ -38,6 +38,7 @@ import {
   SuggestVisualProfileUseCase,
   GetDailyProgressUseCase,
   ExtendDoseHorizonUseCase,
+  SyncDoseAlarmsUseCase,
   RedeemInviteCodeUseCase,
   GetLinkedPatientsUseCase,
   GetProfileUseCase,
@@ -70,6 +71,7 @@ export interface BootstrapResult {
   readonly voiceGuidance: VoiceGuidancePort;
   readonly getDailyProgress: GetDailyProgressUseCase;
   readonly extendDoseHorizon: ExtendDoseHorizonUseCase;
+  readonly syncDoseAlarms: SyncDoseAlarmsUseCase;
   readonly redeemInviteCode: RedeemInviteCodeUseCase;
   readonly getLinkedPatients: GetLinkedPatientsUseCase;
   readonly getProfile: GetProfileUseCase;
@@ -229,6 +231,12 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
       doseRepository,
       notificationScheduler,
       idGenerator,
+      clock,
+    ),
+    syncDoseAlarms: new SyncDoseAlarmsUseCase(
+      treatmentRepository,
+      doseRepository,
+      notificationScheduler,
       clock,
     ),
     redeemInviteCode: new RedeemInviteCodeUseCase(pairingRepository),

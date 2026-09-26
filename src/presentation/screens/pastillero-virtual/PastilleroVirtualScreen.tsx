@@ -53,7 +53,7 @@ export interface PastilleroVirtualScreenProps {
  * nada nuevo para ellos, solo los renderiza.
  */
 export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVirtualScreenProps): React.JSX.Element {
-  const { getPendingDoses, confirmDose, getDailyProgress, extendDoseHorizon } = useUseCases();
+  const { getPendingDoses, confirmDose, getDailyProgress, extendDoseHorizon, syncDoseAlarms } = useUseCases();
   const { signOut, switchRole } = useSession();
   // Se instancia una sola vez por montaje de pantalla (ver justificación en el hook).
   const confirmationFeedback = useMemo(() => new NativeConfirmationFeedback(), []);
@@ -84,6 +84,14 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
     void (async () => {
       const result = await extendDoseHorizon.execute({ patientId });
       if (result.ok && result.value.createdCount > 0) await loadPendingDoses(patientId);
+      // Re-armar va DESPUÉS de completar el horizonte, para que alcance
+      // también a las tomas que se acaban de crear.
+      //
+      // Este es el único lugar donde corre: las alarmas de notifee son
+      // locales al teléfono que las programa, y el teléfono que tiene que
+      // sonar es el del Adulto Mayor. El Cuidador NO las programa — si lo
+      // hiciera, le sonarían a él las pastillas de otra persona.
+      await syncDoseAlarms.execute({ patientId });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);

@@ -16,6 +16,9 @@ export class NoopNotificationScheduler implements NotificationScheduler {
   async cancelDoseAlarm(): Promise<Result<void, DomainError>> {
     return Ok(undefined);
   }
+  async scheduledDoseIds(): Promise<Result<readonly string[], DomainError>> {
+    return Ok([]);
+  }
   async dispatchStockAlert(): Promise<Result<void, DomainError>> {
     return Ok(undefined);
   }

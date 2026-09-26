@@ -22,6 +22,7 @@ import type {
   UnlinkCaregiverUseCase,
   GetWeeklyScheduleUseCase,
   ExtendDoseHorizonUseCase,
+  SyncDoseAlarmsUseCase,
   AuthPort,
   LeakedPasswordCheck,
 } from '../../application';
@@ -57,6 +58,7 @@ export interface UseCasesBundle {
   readonly unlinkCaregiver: UnlinkCaregiverUseCase;
   readonly getWeeklySchedule: GetWeeklyScheduleUseCase;
   readonly extendDoseHorizon: ExtendDoseHorizonUseCase;
+  readonly syncDoseAlarms: SyncDoseAlarmsUseCase;
   readonly auth: AuthPort;
   readonly leakedPasswordCheck: LeakedPasswordCheck;
 }

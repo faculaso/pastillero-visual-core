@@ -17,6 +17,7 @@ jest.mock('@notifee/react-native', () => ({
     createChannel: jest.fn().mockResolvedValue('channel-id'),
     deleteChannel: jest.fn().mockResolvedValue(undefined),
     getTriggerNotificationIds: jest.fn().mockResolvedValue([]),
+    getTriggerNotifications: jest.fn().mockResolvedValue([]),
     createTriggerNotification: jest.fn().mockResolvedValue({ id: 'mock-id' }),
     cancelNotification: jest.fn().mockResolvedValue(undefined),
     displayNotification: jest.fn().mockResolvedValue('notif-id'),
@@ -48,6 +49,7 @@ interface MockNotifee {
   createChannel: jest.Mock;
   deleteChannel: jest.Mock;
   getTriggerNotificationIds: jest.Mock;
+  getTriggerNotifications: jest.Mock;
   createTriggerNotification: jest.Mock;
   cancelNotification: jest.Mock;
   displayNotification: jest.Mock;
@@ -188,6 +190,44 @@ describe('NotifeeNotificationScheduler — puerto NotificationScheduler', () => 
     const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
     await scheduler.requestPermissions();
     expect(mockNotifee.requestPermission).toHaveBeenCalledTimes(1);
+  });
+
+  it('requestPermissions también deja los canales creados — en un teléfono de Cuidador es la única oportunidad', async () => {
+    // Ahí la app ya no programa ninguna alarma, así que si los canales se
+    // crearan recién al programar, el canal viejo no se borraría nunca.
+    const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
+    await scheduler.requestPermissions();
+    expect(mockNotifee.deleteChannel).toHaveBeenCalledWith(LEGACY_DOSE_CHANNEL);
+    expect(mockNotifee.createChannel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: NOTIFEE_CHANNELS.doseAlarms }),
+    );
+  });
+
+  it('scheduledDoseAlarms devuelve id + hora de cada alarma de toma, y descarta lo que no lo es', async () => {
+    // La hora es el dato que permite distinguir una alarma legítima de más
+    // allá del horizonte de una que quedó colgada de otro paciente.
+    mockNotifee.getTriggerNotifications.mockResolvedValueOnce([
+      { notification: { id: 'dose-abc' }, trigger: { type: 0, timestamp: 1_700_000_000_000 } },
+      { notification: { id: 'stock-xyz' }, trigger: { type: 0, timestamp: 1_700_000_000_000 } },
+      { notification: { id: 'dose-intervalo' }, trigger: { type: 1, interval: 30 } },
+    ]);
+    const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
+
+    const result = await scheduler.scheduledDoseAlarms();
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual([{ doseId: 'abc', scheduledAt: new Date(1_700_000_000_000) }]);
+  });
+
+  it('scheduledDoseAlarms falla como REPOSITORY_FAILURE si notifee no puede listar', async () => {
+    mockNotifee.getTriggerNotifications.mockRejectedValueOnce(new Error('notifee down'));
+    const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
+
+    const result = await scheduler.scheduledDoseAlarms();
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('REPOSITORY_FAILURE');
   });
 });
 

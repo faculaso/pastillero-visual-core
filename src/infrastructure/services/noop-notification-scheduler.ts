@@ -1,6 +1,6 @@
 import { Ok, type Result } from '../../domain';
 import type { DomainError } from '../../domain';
-import type { NotificationScheduler } from '../../application';
+import type { NotificationScheduler, ScheduledDoseAlarm } from '../../application';
 
 /**
  * STUB — no programa alarmas reales. Útil para tests o para builds que
@@ -16,7 +16,7 @@ export class NoopNotificationScheduler implements NotificationScheduler {
   async cancelDoseAlarm(): Promise<Result<void, DomainError>> {
     return Ok(undefined);
   }
-  async scheduledDoseIds(): Promise<Result<readonly string[], DomainError>> {
+  async scheduledDoseAlarms(): Promise<Result<readonly ScheduledDoseAlarm[], DomainError>> {
     return Ok([]);
   }
   async dispatchStockAlert(): Promise<Result<void, DomainError>> {

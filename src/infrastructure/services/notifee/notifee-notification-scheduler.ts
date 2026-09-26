@@ -10,7 +10,7 @@ import notifee, {
 } from '@notifee/react-native';
 import { Ok, Err, type Result, DomainErrors, type DomainError } from '../../../domain';
 import type { Dose, Treatment, StockAlertLevel } from '../../../domain';
-import type { NotificationScheduler } from '../../../application';
+import type { NotificationScheduler, ScheduledDoseAlarm } from '../../../application';
 import type { ConfirmDoseUseCase } from '../../../application';
 import {
   NOTIFEE_CHANNELS,
@@ -82,15 +82,25 @@ export class NotifeeNotificationScheduler implements NotificationScheduler {
     }
   }
 
-  async scheduledDoseIds(): Promise<Result<readonly string[], DomainError>> {
+  async scheduledDoseAlarms(): Promise<Result<readonly ScheduledDoseAlarm[], DomainError>> {
     try {
       // Solo los triggers pendientes: una notificación YA mostrada (la que
       // está sonando ahora) no cuenta como alarma por venir.
-      const ids = await notifee.getTriggerNotificationIds();
-      const doseIds = ids
-        .map((id) => doseIdFromNotificationId(id))
-        .filter((id): id is string => id !== null);
-      return Ok(doseIds);
+      //
+      // `getTriggerNotifications` en vez de `getTriggerNotificationIds`
+      // porque el id solo no alcanza: hace falta saber CUÁNDO suena cada
+      // una para distinguir una alarma legítima más allá del horizonte de
+      // uno de otro paciente que quedó dando vueltas.
+      const triggers = await notifee.getTriggerNotifications();
+      const alarms: ScheduledDoseAlarm[] = [];
+      for (const { notification, trigger } of triggers) {
+        const doseId = doseIdFromNotificationId(notification.id);
+        // Las alarmas de toma se programan siempre con un timestamp; si
+        // aparece otro tipo de trigger no es una de las nuestras.
+        if (doseId === null || trigger.type !== TriggerType.TIMESTAMP) continue;
+        alarms.push({ doseId, scheduledAt: new Date(trigger.timestamp) });
+      }
+      return Ok(alarms);
     } catch (cause) {
       return Err(DomainErrors.repositoryFailure(cause));
     }
@@ -158,6 +168,11 @@ export class NotifeeNotificationScheduler implements NotificationScheduler {
    */
   async requestPermissions(): Promise<void> {
     await notifee.requestPermission();
+    // Los canales también se crean acá, no solo al programar la primera
+    // alarma. En un teléfono de Cuidador la app ya no programa ninguna, así
+    // que si no fuera por esto el canal viejo de tomas no se borraría nunca
+    // y quedaría de adorno en los ajustes del sistema. Es idempotente.
+    await this.ensureChannelsCreated();
   }
 
   private handleEvent = async (event: NotifeeEvent): Promise<void> => {

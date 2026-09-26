@@ -34,7 +34,9 @@ const DEFAULT_HORIZON_DAYS = 30;
  *
  * Corriendo esto al abrir el pastillero, el teléfono se repara solo: no
  * importa quién creó el tratamiento, desde qué dispositivo se dio de baja,
- * ni si una actualización borró todo.
+ * ni si una actualización borró todo. También barre lo que dejó la versión
+ * vieja: las alarmas que el Cuidador se programó a sí mismo con las
+ * pastillas de otra persona, que si no seguirían sonando para siempre.
  *
  * Compara contra lo que ya está programado y toca SOLO la diferencia
  * (`scheduledDoseIds`). En régimen normal eso es cero llamadas; la pasada
@@ -77,30 +79,44 @@ export class SyncDoseAlarmsUseCase implements UseCase<SyncDoseAlarmsInput, SyncD
     );
     const deberianIds = new Set(deberian.map((d) => d.id));
 
-    const programadasResult = await this.notificationScheduler.scheduledDoseIds();
+    const programadasResult = await this.notificationScheduler.scheduledDoseAlarms();
     if (!programadasResult.ok) return programadasResult;
-    const programadas = new Set(programadasResult.value);
+    const programadas = programadasResult.value;
+    const programadasIds = new Set(programadas.map((a) => a.doseId));
 
     const alarmWarnings: string[] = [];
     let scheduledCount = 0;
     let cancelledCount = 0;
 
     for (const dose of deberian) {
-      if (programadas.has(dose.id)) continue;
+      if (programadasIds.has(dose.id)) continue;
       const treatment = activos.get(dose.treatmentId) as Treatment;
       const result = await this.notificationScheduler.scheduleDoseAlarm(dose, treatment);
       if (result.ok) scheduledCount += 1;
       else alarmWarnings.push(dose.id);
     }
 
-    // Apagar solo alarmas de tomas que EXISTEN en esta ventana y ya no
-    // corresponden. Las de más allá del horizonte no se tocan: no se leyeron
+    // Apagar toda alarma que suene DENTRO de esta ventana y no esté en la
+    // lista de las que corresponden. El criterio es la hora, no el id: una
+    // alarma de la ventana que no salió en la consulta no tiene excusa para
+    // existir — la toma se confirmó, el tratamiento se dio de baja desde
+    // otro teléfono, o directamente es de OTRO paciente.
+    //
+    // Ese último caso no es hipotético: los teléfonos que venían de la
+    // versión vieja arrastran las alarmas que el Cuidador programó sin
+    // querer, y esas suenan con las pastillas de otra persona. Sin esto se
+    // quedaban ahí para siempre, porque no pertenecen a ninguna toma que
+    // este dispositivo vaya a consultar nunca.
+    //
+    // Las alarmas POSTERIORES al horizonte se dejan intactas: no se leyeron
     // acá y apagarlas por no encontrarlas sería borrar lo que sí sirve.
-    for (const dose of enLaVentana) {
-      if (deberianIds.has(dose.id) || !programadas.has(dose.id)) continue;
-      const result = await this.notificationScheduler.cancelDoseAlarm(dose.id);
+    for (const alarma of programadas) {
+      if (deberianIds.has(alarma.doseId)) continue;
+      const t = alarma.scheduledAt.getTime();
+      if (t > hasta.getTime()) continue;
+      const result = await this.notificationScheduler.cancelDoseAlarm(alarma.doseId);
       if (result.ok) cancelledCount += 1;
-      else alarmWarnings.push(dose.id);
+      else alarmWarnings.push(alarma.doseId);
     }
 
     return Ok({ scheduledCount, cancelledCount, alarmWarnings });

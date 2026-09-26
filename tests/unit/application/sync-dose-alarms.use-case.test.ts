@@ -29,6 +29,12 @@ describe('SyncDoseAlarmsUseCase', () => {
     store.treatments.set('t1', buildTreatment({ id: 't1', patientId: 'p1', caregiverId: 'c1' }));
   });
 
+  /** Una alarma ya viva en el dispositivo. La hora importa: es lo que
+   *  distingue una legítima de más allá del horizonte de una que sobra. */
+  function armada(id: string, hoursFromNow: number) {
+    return { doseId: id, scheduledAt: new Date(now.getTime() + hoursFromNow * 60 * 60 * 1000) };
+  }
+
   function dose(id: string, hoursFromNow: number, overrides: Record<string, unknown> = {}): void {
     store.doses.set(
       id,
@@ -58,7 +64,7 @@ describe('SyncDoseAlarmsUseCase', () => {
   it('no reprograma lo que ya está armado: en régimen normal no toca nada', async () => {
     dose('d1', 2);
     dose('d2', 26);
-    scheduler.alreadyScheduled = ['d1', 'd2'];
+    scheduler.alreadyScheduled = [armada('d1', 2), armada('d2', 26)];
 
     const result = await useCase.execute({ patientId: 'p1' });
 
@@ -70,7 +76,7 @@ describe('SyncDoseAlarmsUseCase', () => {
 
   it('apaga la alarma de una toma ya confirmada', async () => {
     dose('d1', 2, { status: DoseStatus.TAKEN });
-    scheduler.alreadyScheduled = ['d1'];
+    scheduler.alreadyScheduled = [armada('d1', 2)];
 
     const result = await useCase.execute({ patientId: 'p1' });
 
@@ -87,7 +93,7 @@ describe('SyncDoseAlarmsUseCase', () => {
       buildTreatment({ id: 't1', patientId: 'p1', caregiverId: 'c1', status: TreatmentStatus.CANCELLED }),
     );
     dose('d1', 2);
-    scheduler.alreadyScheduled = ['d1'];
+    scheduler.alreadyScheduled = [armada('d1', 2)];
 
     const result = await useCase.execute({ patientId: 'p1' });
 
@@ -110,12 +116,27 @@ describe('SyncDoseAlarmsUseCase', () => {
     // `d-lejana` no se leyó en esta pasada; no encontrarla NO significa que
     // sobre. Apagarla sería borrar una alarma que sí corresponde.
     dose('d1', 2);
-    scheduler.alreadyScheduled = ['d1', 'd-lejana'];
+    scheduler.alreadyScheduled = [armada('d1', 2), armada('d-lejana', 24 * 40)];
 
     const result = await useCase.execute({ patientId: 'p1', horizonDays: 1 });
 
     expect(result.ok).toBe(true);
     expect(scheduler.cancelledAlarms).toEqual([]);
+  });
+
+  it('apaga la alarma de una toma de OTRO paciente — la herencia del teléfono del Cuidador', async () => {
+    // El caso real: este teléfono programó alarmas con las pastillas de la
+    // persona que cuida, porque el alta las armaba en el dispositivo
+    // equivocado. Esa toma no va a aparecer NUNCA entre las de su dueño, así
+    // que sin este barrido seguía sonando para siempre.
+    dose('d1', 2);
+    scheduler.alreadyScheduled = [armada('d1', 2), armada('de-otro-paciente', 5)];
+
+    const result = await useCase.execute({ patientId: 'p1' });
+
+    expect(result.ok).toBe(true);
+    expect(scheduler.cancelledAlarms).toEqual(['de-otro-paciente']);
+    expect(scheduler.scheduledAlarms).toEqual([]);
   });
 
   it('si no se puede leer lo ya programado, falla sin tocar ninguna alarma', async () => {

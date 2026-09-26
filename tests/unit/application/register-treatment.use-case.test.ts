@@ -61,11 +61,16 @@ describe('RegisterTreatmentUseCase', () => {
     expect(store.doses.size).toBe(result.value.generatedDoses.length);
   });
 
-  it('programa una alarma por cada dosis generada (best-effort)', async () => {
+  it('NO programa alarmas: el alta corre en el teléfono del Cuidador', async () => {
+    // Una alarma de notifee vive en el teléfono que la programó. Como esta
+    // es una pantalla del Cuidador, programarlas acá le hacía sonar a él las
+    // pastillas de otra persona — y dejaba al Adulto Mayor sin ninguna.
+    // Las arma `SyncDoseAlarmsUseCase` al abrir el pastillero.
     const result = await useCase.execute(validInput());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(notificationScheduler.scheduledAlarms.length).toBe(result.value.generatedDoses.length);
+    expect(result.value.generatedDoses.length).toBeGreaterThan(0);
+    expect(notificationScheduler.scheduledAlarms).toEqual([]);
     expect(result.value.notificationWarnings).toEqual([]);
   });
 

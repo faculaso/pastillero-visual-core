@@ -80,6 +80,20 @@ export class NotifeeNotificationScheduler implements NotificationScheduler {
     }
   }
 
+  async scheduledDoseIds(): Promise<Result<readonly string[], DomainError>> {
+    try {
+      // Solo los triggers pendientes: una notificación YA mostrada (la que
+      // está sonando ahora) no cuenta como alarma por venir.
+      const ids = await notifee.getTriggerNotificationIds();
+      const doseIds = ids
+        .map((id) => doseIdFromNotificationId(id))
+        .filter((id): id is string => id !== null);
+      return Ok(doseIds);
+    } catch (cause) {
+      return Err(DomainErrors.repositoryFailure(cause));
+    }
+  }
+
   async dispatchStockAlert(
     treatment: Treatment,
     alertLevel: StockAlertLevel,

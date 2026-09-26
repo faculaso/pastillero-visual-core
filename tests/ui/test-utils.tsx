@@ -61,6 +61,13 @@ export function createFakeUseCases(overrides: Partial<UseCasesBundle> = {}): Use
     extendDoseHorizon: {
       execute: jest.fn().mockResolvedValue({ ok: true, value: { createdCount: 0, alarmWarnings: [] } }),
     } as unknown as UseCasesBundle['extendDoseHorizon'],
+    // Igual que `extendDoseHorizon`: lo dispara el pastillero al montar y a
+    // casi ningún test le importa. El default honesto es "no faltaba nada".
+    syncDoseAlarms: {
+      execute: jest
+        .fn()
+        .mockResolvedValue({ ok: true, value: { scheduledCount: 0, cancelledCount: 0, alarmWarnings: [] } }),
+    } as unknown as UseCasesBundle['syncDoseAlarms'],
     // Default honesto para los tests: la contraseña no está filtrada. Los
     // que prueban lo contrario lo pisan explícitamente.
     leakedPasswordCheck: {

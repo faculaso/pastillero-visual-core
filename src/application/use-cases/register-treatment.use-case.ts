@@ -121,16 +121,19 @@ export class RegisterTreatmentUseCase
     );
     if (!persistResult.ok) return persistResult;
 
-    // --- 6. Alarmas del OS: best-effort, no bloquea ni revierte el alta ---
-    const notificationWarnings = await this.scheduleAlarmsBestEffort(
-      persistResult.value.generatedDoses,
-      treatment,
-    );
-
+    // --- 6. Las alarmas NO se programan acá ---
+    // El alta es una pantalla del Cuidador, y las alarmas de notifee son
+    // locales al teléfono que las programa: programarlas acá le hacía sonar
+    // al Cuidador las pastillas de otra persona, y dejaba al Adulto Mayor
+    // sin ninguna. Ahora las arma `SyncDoseAlarmsUseCase` al abrir el
+    // pastillero, en el teléfono que tiene que sonar.
+    //
+    // `notificationWarnings` queda vacío a propósito: el contrato del DTO no
+    // cambia, pero desde acá ya no hay alarma que pueda fallar.
     return Ok({
       treatment: persistResult.value.treatment,
       generatedDoses: persistResult.value.generatedDoses,
-      notificationWarnings,
+      notificationWarnings: [],
     });
   }
 
@@ -163,15 +166,4 @@ export class RegisterTreatmentUseCase
     return Ok(doses);
   }
 
-  private async scheduleAlarmsBestEffort(
-    doses: readonly Dose[],
-    treatment: Treatment,
-  ): Promise<readonly string[]> {
-    const warnings: string[] = [];
-    for (const dose of doses) {
-      const result = await this.notificationScheduler.scheduleDoseAlarm(dose, treatment);
-      if (!result.ok) warnings.push(dose.id);
-    }
-    return warnings;
-  }
 }

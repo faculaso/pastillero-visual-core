@@ -74,12 +74,11 @@ export class ExtendDoseHorizonUseCase
       if (!persisted.ok) return persisted;
       createdCount += persisted.value.length;
 
-      // Sin esto las tomas nuevas existirían pero no sonarían: un pastillero
-      // que se ve bien y nunca avisa es peor que uno vacío.
-      for (const dose of persisted.value) {
-        const scheduled = await this.notificationScheduler.scheduleDoseAlarm(dose, treatment);
-        if (!scheduled.ok) alarmWarnings.push(dose.id);
-      }
+      // Las alarmas NO se arman acá. Esto corre en los DOS teléfonos (el del
+      // Cuidador también), y una alarma de notifee vive en el teléfono que
+      // la programó: armarlas acá le sonaba al Cuidador. Las arma
+      // `SyncDoseAlarmsUseCase`, que corre solo en el del Adulto Mayor y
+      // alcanza también a estas tomas recién creadas.
     }
 
     return Ok({ createdCount, alarmWarnings });

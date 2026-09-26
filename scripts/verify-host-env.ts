@@ -53,7 +53,6 @@ export const REQUIRED_MANIFEST_PERMISSIONS = [
   'android.permission.READ_MEDIA_IMAGES',
 ] as const;
 
-const MEDICAL_ALARM_PATH = 'android/app/src/main/res/raw/medical_alarm.mp3';
 const RES_DIR = 'android/app/src/main/res';
 /**
  * `notifee-notification-scheduler.ts` pide este ícono POR NOMBRE
@@ -166,18 +165,6 @@ export function checkAndroidManifest(projectRoot: string): CheckResult {
     name: 'AndroidManifest.xml',
     status: 'fail',
     detail: `Faltan permisos: ${missing.join(', ')}`,
-  };
-}
-
-export function checkMedicalAlarmAsset(projectRoot: string): CheckResult {
-  const assetPath = join(projectRoot, MEDICAL_ALARM_PATH);
-  if (existsSync(assetPath)) {
-    return { name: 'Sonido de alarma médica', status: 'ok', detail: MEDICAL_ALARM_PATH };
-  }
-  return {
-    name: 'Sonido de alarma médica',
-    status: 'fail',
-    detail: `No se encontró ${MEDICAL_ALARM_PATH} — el canal dose-alarms caerá al sonido default sin avisar`,
   };
 }
 
@@ -318,7 +305,6 @@ export function runAllChecks(options: RunChecksOptions): readonly CheckResult[] 
     checkPackageJsonDependencies(options.projectRoot),
     checkNodeModulesInstalled(options.projectRoot),
     checkAndroidManifest(options.projectRoot),
-    checkMedicalAlarmAsset(options.projectRoot),
     checkNotificationIcon(options.projectRoot),
     checkFullScreenAlarmAttributes(options.projectRoot),
     checkBundledCatalogAsset(options.projectRoot),

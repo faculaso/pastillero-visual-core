@@ -19,6 +19,7 @@ import {
   stockNotificationId,
   doseIdFromNotificationId,
   LEGACY_DOSE_CHANNEL,
+  ALARM_SOUND_URI,
 } from './notifee-constants';
 import { formatDosageLabel } from './format-dosage-label';
 
@@ -312,7 +313,7 @@ async function createNotificationChannels(): Promise<void> {
     description: 'Suenan como un despertador hasta que confirmás o posponés la toma.',
     importance: AndroidImportance.HIGH,
     visibility: AndroidVisibility.PUBLIC,
-    sound: 'medical_alarm', // src/main/res/raw/medical_alarm.mp3 en la app RN — ver README
+    sound: ALARM_SOUND_URI, // el tono de despertador del propio teléfono — ver ALARM_SOUND_URI
     vibration: true,
     // Sin el `0` inicial (el atajo típico de Android para "empezar ya"):
     // notifee valida `vibrationPattern` como array de valores POSITIVOS —

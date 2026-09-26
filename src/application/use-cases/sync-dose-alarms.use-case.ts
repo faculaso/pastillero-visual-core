@@ -28,13 +28,14 @@ const DEFAULT_HORIZON_DAYS = 30;
  * Mayor no quedaba ninguna: cuando abría su app ya no faltaba ninguna toma
  * por crear, así que no programaba nada. Nunca le sonó el teléfono.
  *
- * Reinstalar la app agrava lo mismo: Android cancela todas las alarmas
- * pendientes al reemplazar el paquete, y el receptor de notifee solo
- * escucha el arranque del sistema (`BOOT_COMPLETED`), no la actualización.
+ * Las alarmas tampoco sobreviven siempre al dispositivo: medido en el
+ * emulador, después de un arranque en frío quedaban CERO programadas. (Lo
+ * que sí se comprobó que NO las borra es reinstalar el APK encima: 199
+ * antes y 199 después.)
  *
  * Corriendo esto al abrir el pastillero, el teléfono se repara solo: no
  * importa quién creó el tratamiento, desde qué dispositivo se dio de baja,
- * ni si una actualización borró todo.
+ * ni si el teléfono se reinició y perdió las alarmas.
  *
  * Compara contra lo que ya está programado y toca SOLO la diferencia
  * (`scheduledDoseIds`). En régimen normal eso es cero llamadas; la pasada

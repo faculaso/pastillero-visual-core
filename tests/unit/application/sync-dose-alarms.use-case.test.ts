@@ -41,9 +41,9 @@ describe('SyncDoseAlarmsUseCase', () => {
     );
   }
 
-  it('arma las alarmas que faltan — el caso del teléfono recién actualizado', async () => {
-    // Android cancela las alarmas pendientes al reemplazar el paquete, así
-    // que después de actualizar el teléfono no tiene ninguna.
+  it('arma las alarmas que faltan — el caso del teléfono que quedó sin ninguna', async () => {
+    // Pasa de verdad: un arranque en frío del emulador dejó cero alarmas
+    // programadas, con tratamientos activos y dosis pendientes.
     dose('d1', 2);
     dose('d2', 26);
     scheduler.alreadyScheduled = [];

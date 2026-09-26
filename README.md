@@ -136,7 +136,7 @@ npm run verify:host
 npx tsx scripts/verify-host-env.ts --project-root /ruta/al/proyecto-rn
 ```
 
-8 checks: versión de Node, dependencias nativas declaradas en `package.json` (incluyendo `peerDependencies`), esos mismos paquetes efectivamente instalados en `node_modules`, permisos requeridos presentes en el `AndroidManifest.xml`, el asset `medical_alarm.mp3`, el orden de registro en `index.js`, y las variables de entorno `ANDROID_HOME`/`JAVA_HOME`. Solo los `fail` bloquean (exit code 1); los `warn` no.
+10 checks: versión de Node, dependencias nativas declaradas en `package.json` (incluyendo `peerDependencies`), esos mismos paquetes efectivamente instalados en `node_modules`, permisos requeridos presentes en el `AndroidManifest.xml`, el asset `medical_alarm.mp3`, el ícono de notificación, los atributos de alarma a pantalla completa, el orden de registro en `index.js`, y las variables de entorno `ANDROID_HOME`/`JAVA_HOME`. Solo los `fail` bloquean (exit code 1); los `warn` no.
 
 Corrido dentro de este Core (no del host) va a reportar fallas esperables — es información correcta, no un bug: `android/`, `index.js` en la raíz, etc. genuinamente no existen acá, porque no es el host.
 
@@ -185,7 +185,7 @@ El catálogo local (`medications`) se puede enriquecer con el dataset abierto de
 
 - `android-config-reference/AndroidManifest.snippet.xml` — permisos (`POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM`, `USE_FULL_SCREEN_INTENT`, `VIBRATE`, `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK`) a fusionar en el manifest real del proyecto RN.
 - `android-config-reference/index.js.snippet.ts` — dónde registrar el handler de background.
-- Falta agregar `android/app/src/main/res/raw/medical_alarm.mp3` en el proyecto RN real (el canal `dose-reminders` lo referencia por nombre; sin el archivo, Android cae al sonido default sin avisar del error).
+- Falta agregar `android/app/src/main/res/raw/medical_alarm.mp3` en el proyecto RN real (el canal `dose-alarms` lo referencia por nombre; sin el archivo, Android cae al sonido default sin avisar del error). Ojo con el orden: el canal se crea la primera vez que arranca la app, y **Android no deja cambiarle el sonido a un canal ya creado** — si el mp3 llega después, hay que versionar el id del canal otra vez o reinstalar.
 - Falta agregar `android/app/src/main/res/drawable/ic_notification.xml` en el proyecto RN real. Este no degrada: sin el ícono **no se muestra ninguna notificación**, ni de toma ni de stock. Pasó de verdad — la alarma disparaba puntual, el log decía `Invalid notification (no valid small icon)`, y en el teléfono no aparecía nada.
 
 ### Tests

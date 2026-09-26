@@ -9,6 +9,7 @@ import {
   checkAndroidManifest,
   checkMedicalAlarmAsset,
   checkNotificationIcon,
+  checkFullScreenAlarmAttributes,
   checkBundledCatalogAsset,
   checkIndexJsBackgroundHandlerOrder,
   checkEnvVar,
@@ -191,6 +192,41 @@ describe('checks basados en filesystem', () => {
       mkdirSync(drawableDir, { recursive: true });
       writeFileSync(join(drawableDir, 'ic_notification_grande.xml'), '<vector/>');
       expect(checkNotificationIcon(dir).status).toBe('fail');
+    });
+  });
+
+  describe('checkFullScreenAlarmAttributes', () => {
+    const manifestDir = 'android/app/src/main';
+
+    function escribirManifest(contenido: string): void {
+      mkdirSync(join(dir, manifestDir), { recursive: true });
+      writeFileSync(join(dir, manifestDir, 'AndroidManifest.xml'), contenido);
+    }
+
+    it('fail si no existe el manifest', () => {
+      expect(checkFullScreenAlarmAttributes(dir).status).toBe('fail');
+    });
+
+    it('fail si la activity no los tiene — con el teléfono bloqueado la alarma no toma la pantalla', () => {
+      escribirManifest('<manifest><activity android:name=".MainActivity" /></manifest>');
+      const result = checkFullScreenAlarmAttributes(dir);
+      expect(result.status).toBe('fail');
+      expect(result.detail).toContain('showWhenLocked');
+    });
+
+    it('fail si está uno solo: los dos hacen falta', () => {
+      escribirManifest('<manifest><activity android:showWhenLocked="true" /></manifest>');
+      const result = checkFullScreenAlarmAttributes(dir);
+      expect(result.status).toBe('fail');
+      expect(result.detail).toContain('turnScreenOn');
+      expect(result.detail).not.toContain('showWhenLocked');
+    });
+
+    it('ok con los dos presentes', () => {
+      escribirManifest(
+        '<manifest><activity android:showWhenLocked="true" android:turnScreenOn="true" /></manifest>',
+      );
+      expect(checkFullScreenAlarmAttributes(dir).status).toBe('ok');
     });
   });
 

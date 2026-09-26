@@ -63,6 +63,15 @@ const RES_DIR = 'android/app/src/main/res';
  * Adulto Mayor no se entera de que le toca la pastilla.
  */
 const NOTIFICATION_ICON_NAME = 'ic_notification';
+
+/**
+ * La alarma de toma se muestra con `fullScreenAction`. Sin estos dos
+ * atributos en la activity, el intent de pantalla completa **degrada a una
+ * notificación normal con el teléfono bloqueado** — que es justo cuando la
+ * persona duerme y la alarma tiene que despertarla. No falla nada ni avisa:
+ * simplemente no toma la pantalla.
+ */
+const FULL_SCREEN_ACTIVITY_ATTRS = ['android:showWhenLocked="true"', 'android:turnScreenOn="true"'] as const;
 /**
  * Subcarpeta `custom/` OBLIGATORIA: es el `path` por defecto de
  * `moveAssetsDatabase` en op-sqlite. Fuera de ahí no tira excepción —
@@ -168,7 +177,7 @@ export function checkMedicalAlarmAsset(projectRoot: string): CheckResult {
   return {
     name: 'Sonido de alarma médica',
     status: 'fail',
-    detail: `No se encontró ${MEDICAL_ALARM_PATH} — el canal dose-reminders caerá al sonido default sin avisar`,
+    detail: `No se encontró ${MEDICAL_ALARM_PATH} — el canal dose-alarms caerá al sonido default sin avisar`,
   };
 }
 
@@ -201,6 +210,25 @@ export function checkNotificationIcon(projectRoot: string): CheckResult {
     name,
     status: 'fail',
     detail: `No se encontró ${NOTIFICATION_ICON_NAME} en ${RES_DIR}/drawable* — Android rechaza TODA notificación sin small icon válido y no se muestra ninguna alarma de toma`,
+  };
+}
+
+export function checkFullScreenAlarmAttributes(projectRoot: string): CheckResult {
+  const name = 'Alarma a pantalla completa';
+  const manifestPath = join(projectRoot, ANDROID_MANIFEST_PATH);
+  if (!existsSync(manifestPath)) {
+    return { name, status: 'fail', detail: `No se encontró ${ANDROID_MANIFEST_PATH}` };
+  }
+
+  const content = readFileSync(manifestPath, 'utf-8');
+  const missing = FULL_SCREEN_ACTIVITY_ATTRS.filter((attr) => !content.includes(attr));
+  if (missing.length === 0) {
+    return { name, status: 'ok', detail: 'showWhenLocked + turnScreenOn presentes' };
+  }
+  return {
+    name,
+    status: 'fail',
+    detail: `Faltan en la activity: ${missing.join(', ')} — con el teléfono bloqueado la alarma no toma la pantalla`,
   };
 }
 
@@ -292,6 +320,7 @@ export function runAllChecks(options: RunChecksOptions): readonly CheckResult[] 
     checkAndroidManifest(options.projectRoot),
     checkMedicalAlarmAsset(options.projectRoot),
     checkNotificationIcon(options.projectRoot),
+    checkFullScreenAlarmAttributes(options.projectRoot),
     checkBundledCatalogAsset(options.projectRoot),
     checkIndexJsBackgroundHandlerOrder(options.projectRoot),
     checkEnvVar('ANDROID_HOME', options.env),

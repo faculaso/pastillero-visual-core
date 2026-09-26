@@ -15,6 +15,8 @@ jest.mock('@notifee/react-native', () => ({
   __esModule: true,
   default: {
     createChannel: jest.fn().mockResolvedValue('channel-id'),
+    deleteChannel: jest.fn().mockResolvedValue(undefined),
+    getTriggerNotificationIds: jest.fn().mockResolvedValue([]),
     createTriggerNotification: jest.fn().mockResolvedValue({ id: 'mock-id' }),
     cancelNotification: jest.fn().mockResolvedValue(undefined),
     displayNotification: jest.fn().mockResolvedValue('notif-id'),
@@ -37,10 +39,15 @@ import {
   NotifeeNotificationScheduler,
   createBackgroundEventHandler,
 } from '../../src/infrastructure/services/notifee/notifee-notification-scheduler';
-import { NOTIFEE_CHANNELS } from '../../src/infrastructure/services/notifee/notifee-constants';
+import {
+  NOTIFEE_CHANNELS,
+  LEGACY_DOSE_CHANNEL,
+} from '../../src/infrastructure/services/notifee/notifee-constants';
 
 interface MockNotifee {
   createChannel: jest.Mock;
+  deleteChannel: jest.Mock;
+  getTriggerNotificationIds: jest.Mock;
   createTriggerNotification: jest.Mock;
   cancelNotification: jest.Mock;
   displayNotification: jest.Mock;
@@ -71,19 +78,56 @@ describe('NotifeeNotificationScheduler — puerto NotificationScheduler', () => 
     const result = await scheduler.scheduleDoseAlarm(dose, treatment);
 
     expect(result).toEqual({ ok: true, value: undefined });
-    expect(mockNotifee.createChannel).toHaveBeenCalledTimes(2); // dose-reminders + stock-alerts
+    expect(mockNotifee.createChannel).toHaveBeenCalledTimes(2); // dose-alarms + stock-alerts
 
     expect(mockNotifee.createTriggerNotification).toHaveBeenCalledTimes(1);
     const [notification, trigger] = mockNotifee.createTriggerNotification.mock.calls[0];
     expect(notification.id).toBe('dose-dose-1');
     expect(notification.title).toContain(treatment.medication.name);
     expect(notification.data).toEqual({ doseId: 'dose-1', treatmentId: 'treatment-1', patientId: 'patient-1' });
-    expect(notification.android.channelId).toBe(NOTIFEE_CHANNELS.doseReminders);
+    expect(notification.android.channelId).toBe(NOTIFEE_CHANNELS.doseAlarms);
     expect(notification.android.actions).toEqual([
       { title: 'Confirmar Toma', pressAction: { id: 'confirm-dose' } },
       { title: 'Posponer 15 min', pressAction: { id: 'snooze-15' } },
     ]);
     expect(trigger.timestamp).toBe(dose.scheduledAt.getTime());
+  });
+
+  it('la alarma de toma suena en loop: un solo pitido se duerme y la toma se pierde', async () => {
+    const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
+
+    await scheduler.scheduleDoseAlarm(buildDose({ id: 'd1' }), buildTreatment());
+
+    const [notification] = mockNotifee.createTriggerNotification.mock.calls[0];
+    expect(notification.android.loopSound).toBe(true);
+    // El loop solo es tolerable porque la notificación NO se descarta de un
+    // swipe: se apaga confirmando o posponiendo, como un despertador.
+    expect(notification.android.ongoing).toBe(true);
+    expect(notification.android.fullScreenAction).toEqual({ id: 'default' });
+  });
+
+  it('borra el canal viejo de tomas: sus ajustes de sonido son inmutables', async () => {
+    // Android no deja cambiarle el sonido ni la vibración a un canal ya
+    // creado. En un teléfono que ya tenía la app, dejarlo vivo significaba
+    // que la alarma seguiría sonando como una notificación cualquiera.
+    const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
+
+    await scheduler.scheduleDoseAlarm(buildDose({ id: 'd1' }), buildTreatment());
+
+    expect(mockNotifee.deleteChannel).toHaveBeenCalledWith(LEGACY_DOSE_CHANNEL);
+    expect(LEGACY_DOSE_CHANNEL).not.toBe(NOTIFEE_CHANNELS.doseAlarms);
+  });
+
+  it('el canal de alarmas ignora No Molestar y vibra con patrón largo', async () => {
+    const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
+
+    await scheduler.scheduleDoseAlarm(buildDose({ id: 'd1' }), buildTreatment());
+
+    const canalDeTomas = mockNotifee.createChannel.mock.calls
+      .map((call: unknown[]) => call[0] as { id: string; bypassDnd?: boolean; vibrationPattern?: number[] })
+      .find((canal) => canal.id === NOTIFEE_CHANNELS.doseAlarms);
+    expect(canalDeTomas?.bypassDnd).toBe(true);
+    expect(canalDeTomas?.vibrationPattern?.length).toBeGreaterThan(2);
   });
 
   it('crea los canales una sola vez aunque se programen varias alarmas', async () => {

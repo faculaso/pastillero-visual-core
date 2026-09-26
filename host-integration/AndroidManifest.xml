@@ -144,7 +144,16 @@
           android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
           android:launchMode="singleTask"
           android:windowSoftInputMode="adjustResize"
-          android:exported="true">
+          android:exported="true"
+          android:showWhenLocked="true"
+          android:turnScreenOn="true">
+            <!-- `showWhenLocked` + `turnScreenOn`: la alarma de toma usa
+                 `fullScreenAction`, y sin estos dos el intent de pantalla
+                 completa degrada a una notificación normal cuando el
+                 teléfono está bloqueado — que es JUSTO cuando hace falta.
+                 Con ellos, la alarma enciende la pantalla y se muestra por
+                 encima del bloqueo, como un despertador. -->
+
             <!-- notifee resuelve `pressAction`/`fullScreenAction` con
                  `id: 'default'` automáticamente contra esta activity — no
                  hace falta ningún intent-filter adicional para eso. Si en

@@ -18,6 +18,7 @@ import {
   doseNotificationId,
   stockNotificationId,
   doseIdFromNotificationId,
+  LEGACY_DOSE_CHANNEL,
 } from './notifee-constants';
 import { formatDosageLabel } from './format-dosage-label';
 
@@ -274,13 +275,19 @@ function buildDoseNotification(dose: Dose, treatment: Treatment): NotifeeNotific
       patientId: treatment.patientId,
     },
     android: {
-      channelId: NOTIFEE_CHANNELS.doseReminders,
+      channelId: NOTIFEE_CHANNELS.doseAlarms,
       importance: AndroidImportance.HIGH,
       smallIcon: 'ic_notification',
       category: AndroidCategory.ALARM,
       visibility: AndroidVisibility.PUBLIC, // contenido completo visible en pantalla de bloqueo
       ongoing: true, // no se descarta con un swipe accidental — solo con una acción explícita
       autoCancel: false,
+      // Sigue sonando hasta que alguien toque "Confirmar Toma" o "Posponer",
+      // como un despertador. Un solo pitido es fácil de dormir: la toma se
+      // pierde y nadie se entera. Va de la mano de `ongoing: true` — si la
+      // notificación se pudiera descartar de un swipe, el loop sería una
+      // tortura en vez de una ayuda.
+      loopSound: true,
       pressAction: { id: 'default' }, // tocar el cuerpo abre la app
       fullScreenAction: { id: 'default' }, // se muestra a pantalla completa incluso con el dispositivo bloqueado
       actions: [
@@ -292,10 +299,17 @@ function buildDoseNotification(dose: Dose, treatment: Treatment): NotifeeNotific
 }
 
 async function createNotificationChannels(): Promise<void> {
+  // El canal viejo de tomas se va: sus ajustes de sonido y vibración son
+  // inmutables, así que en un teléfono que ya tenía la app seguiría sonando
+  // como una notificación cualquiera. Borrarlo también lo saca de la lista
+  // de ajustes, donde quedaría como un canal muerto que el usuario puede
+  // tocar sin efecto. Si no existe, `deleteChannel` no hace nada.
+  await notifee.deleteChannel(LEGACY_DOSE_CHANNEL);
+
   await notifee.createChannel({
-    id: NOTIFEE_CHANNELS.doseReminders,
-    name: 'Recordatorios de medicación',
-    description: 'Avisos de toma programada — sonido de alarma y vibración continua.',
+    id: NOTIFEE_CHANNELS.doseAlarms,
+    name: 'Alarmas de toma',
+    description: 'Suenan como un despertador hasta que confirmás o posponés la toma.',
     importance: AndroidImportance.HIGH,
     visibility: AndroidVisibility.PUBLIC,
     sound: 'medical_alarm', // src/main/res/raw/medical_alarm.mp3 en la app RN — ver README

@@ -63,6 +63,33 @@ export class SupabaseAuthAdapter implements AuthPort {
     return Ok(undefined);
   }
 
+  async completePasswordReset(
+    email: string,
+    code: string,
+    newPassword: string,
+  ): Promise<Result<void, DomainError>> {
+    // Canjear el código abre sesión: es lo que habilita el `updateUser` de
+    // abajo. Sin este paso, cambiar la contraseña de alguien que no puede
+    // entrar sería justamente el agujero que el reseteo tiene que evitar.
+    const { error: verifyError } = await this.client.auth.verifyOtp({
+      email,
+      token: code,
+      type: 'recovery',
+    });
+    // Supabase devuelve el mismo error para un código mal tipeado y para uno
+    // vencido, y no hay por qué distinguirlos: en los dos casos la salida es
+    // pedir otro.
+    if (verifyError) return Err(DomainErrors.recoveryCodeInvalid());
+
+    const { error: updateError } = await this.client.auth.updateUser({ password: newPassword });
+    // Acá la sesión YA quedó abierta con la contraseña vieja todavía puesta.
+    // No se cierra a propósito: quien está del otro lado acaba de demostrar
+    // que tiene acceso al correo, y dejarlo adentro le permite reintentar
+    // sin pedir otro código.
+    if (updateError) return Err(DomainErrors.repositoryFailure(updateError));
+    return Ok(undefined);
+  }
+
   async getSession(): Promise<AuthSession | null> {
     const { data } = await this.client.auth.getSession();
     return data.session ? { user: mapUser(data.session.user) } : null;

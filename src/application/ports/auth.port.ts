@@ -45,6 +45,26 @@ export interface AuthPort {
    * un error de infraestructura (red, rate limit).
    */
   resetPasswordForEmail(email: string): Promise<Result<void, DomainError>>;
+  /**
+   * Cierra el reseteo con el código de 6 dígitos que llegó por mail.
+   *
+   * Es una sola operación del lado del puerto aunque abajo sean dos llamadas
+   * (canjear el código, que deja sesión abierta, y recién ahí guardar la
+   * contraseña): quien la usa no tiene nada que decidir en el medio, y
+   * partirla solo expondría un estado intermedio — con sesión y la
+   * contraseña vieja — que no le sirve a nadie.
+   *
+   * Por qué un código y no un link: el link de Supabase apunta al Site URL
+   * del proyecto, que en un teléfono no existe (`localhost` es el propio
+   * teléfono, y da ERR_CONNECTION_REFUSED). Un deep link sería la otra
+   * salida, pero obliga a registrar un esquema y depende de que el cliente
+   * de correo lo respete. El código no sale nunca de la app.
+   */
+  completePasswordReset(
+    email: string,
+    code: string,
+    newPassword: string,
+  ): Promise<Result<void, DomainError>>;
   getSession(): Promise<AuthSession | null>;
   /** Devuelve la función de limpieza (unsubscribe). */
   onAuthStateChange(callback: (session: AuthSession | null) => void): () => void;

@@ -61,6 +61,23 @@ export class FakeNotificationScheduler implements NotificationScheduler {
   dndSettingsOpened = 0;
   channelRefreshes = 0;
 
+  notificationsAllowed = true;
+  exactAlarmsAllowed = true;
+  notificationSettingsOpened = 0;
+
+  async notificationsEnabled(): Promise<Result<boolean, DomainError>> {
+    return Ok(this.notificationsAllowed);
+  }
+
+  async exactAlarmsEnabled(): Promise<Result<boolean, DomainError>> {
+    return Ok(this.exactAlarmsAllowed);
+  }
+
+  async openNotificationSettings(): Promise<Result<void, DomainError>> {
+    this.notificationSettingsOpened += 1;
+    return Ok(undefined);
+  }
+
   async doseAlarmBypassesDnd(): Promise<Result<boolean, DomainError>> {
     return Ok(this.bypassesDnd);
   }

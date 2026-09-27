@@ -22,6 +22,15 @@ export class NoopNotificationScheduler implements NotificationScheduler {
   async doseAlarmBypassesDnd(): Promise<Result<boolean, DomainError>> {
     return Ok(false);
   }
+  async notificationsEnabled(): Promise<Result<boolean, DomainError>> {
+    return Ok(false);
+  }
+  async exactAlarmsEnabled(): Promise<Result<boolean, DomainError>> {
+    return Ok(false);
+  }
+  async openNotificationSettings(): Promise<Result<void, DomainError>> {
+    return Ok(undefined);
+  }
   async openDndAccessSettings(): Promise<Result<void, DomainError>> {
     return Ok(undefined);
   }

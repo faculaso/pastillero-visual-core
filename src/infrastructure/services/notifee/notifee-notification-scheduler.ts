@@ -4,6 +4,8 @@ import notifee, {
   AndroidCategory,
   AlarmType,
   TriggerType,
+  AuthorizationStatus,
+  AndroidNotificationSetting,
   EventType,
   type Event as NotifeeEvent,
   type Notification as NotifeeNotification,
@@ -201,6 +203,36 @@ export class NotifeeNotificationScheduler implements NotificationScheduler {
       // `getChannel` devuelve lo que el dispositivo tiene de verdad, no lo
       // que se pidió al crearlo — que es justo la diferencia que importa acá.
       return Ok(channel?.bypassDnd === true);
+    } catch (cause) {
+      return Err(DomainErrors.repositoryFailure(cause));
+    }
+  }
+
+  async notificationsEnabled(): Promise<Result<boolean, DomainError>> {
+    try {
+      const settings = await notifee.getNotificationSettings();
+      return Ok(settings.authorizationStatus === AuthorizationStatus.AUTHORIZED);
+    } catch (cause) {
+      return Err(DomainErrors.repositoryFailure(cause));
+    }
+  }
+
+  async exactAlarmsEnabled(): Promise<Result<boolean, DomainError>> {
+    try {
+      const settings = await notifee.getNotificationSettings();
+      // Solo Android tiene este ajuste; en iOS no aplica y no hay nada roto
+      // que reportar.
+      if (Platform.OS !== 'android') return Ok(true);
+      return Ok(settings.android.alarm === AndroidNotificationSetting.ENABLED);
+    } catch (cause) {
+      return Err(DomainErrors.repositoryFailure(cause));
+    }
+  }
+
+  async openNotificationSettings(): Promise<Result<void, DomainError>> {
+    try {
+      await notifee.openNotificationSettings();
+      return Ok(undefined);
     } catch (cause) {
       return Err(DomainErrors.repositoryFailure(cause));
     }

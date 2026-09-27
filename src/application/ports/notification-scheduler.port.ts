@@ -47,6 +47,22 @@ export interface NotificationScheduler {
    * dispositivo realmente hace, no lo que se pidió.
    */
   doseAlarmBypassesDnd(): Promise<Result<boolean, DomainError>>;
+  /**
+   * ¿El sistema deja que la app muestre notificaciones?
+   *
+   * Si está en `false` NADA se muestra, ni la alarma de toma ni la de stock,
+   * y Android no avisa de ninguna forma. El permiso se pide UNA sola vez al
+   * instalar: si esa vez se rechazó, la app no puede volver a preguntar.
+   */
+  notificationsEnabled(): Promise<Result<boolean, DomainError>>;
+  /**
+   * ¿Puede programar alarmas a una hora exacta? Sin esto Android agrupa y
+   * demora los disparos para ahorrar batería, y "las 8:00" pasa a ser "en
+   * algún momento de la mañana".
+   */
+  exactAlarmsEnabled(): Promise<Result<boolean, DomainError>>;
+  /** Abre los ajustes de notificaciones de la app — el único lugar donde se puede volver a permitirlas. */
+  openNotificationSettings(): Promise<Result<void, DomainError>>;
   /** Abre la pantalla del sistema donde se concede el acceso a No Molestar. Solo la persona puede darlo. */
   openDndAccessSettings(): Promise<Result<void, DomainError>>;
   /**

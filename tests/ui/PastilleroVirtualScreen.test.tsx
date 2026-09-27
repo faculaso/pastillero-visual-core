@@ -48,6 +48,25 @@ describe('PastilleroVirtualScreen', () => {
       await waitFor(() => expect(screen.getByText(/la alarma no va a sonar/i)).toBeTruthy());
     });
 
+    it('avisa TAMBIÉN con el pastillero vacío — es cuando más importa', async () => {
+      // El aviso habla de la alarma que todavía no sonó. Estuvo dentro del
+      // pie que solo existe cuando hay una toma en pantalla, así que no
+      // aparecía nunca en el único momento en que sirve.
+      const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [] })) };
+
+      await render(
+        withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
+          useCases: {
+            getPendingDoses: getPendingDoses as never,
+            notificationScheduler: schedulerQueNoSuena() as never,
+          },
+        }),
+      );
+
+      await waitFor(() => expect(screen.getByText(/no tenés tomas pendientes/i)).toBeTruthy());
+      expect(screen.getByText(/la alarma no va a sonar/i)).toBeTruthy();
+    });
+
     it('no avisa nada cuando ya suena — el caso normal', async () => {
       const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [buildDoseView()] })) };
 

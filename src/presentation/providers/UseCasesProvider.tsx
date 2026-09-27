@@ -25,6 +25,7 @@ import type {
   SyncDoseAlarmsUseCase,
   AuthPort,
   LeakedPasswordCheck,
+  NotificationScheduler,
 } from '../../application';
 
 /**
@@ -59,6 +60,7 @@ export interface UseCasesBundle {
   readonly getWeeklySchedule: GetWeeklyScheduleUseCase;
   readonly extendDoseHorizon: ExtendDoseHorizonUseCase;
   readonly syncDoseAlarms: SyncDoseAlarmsUseCase;
+  readonly notificationScheduler: NotificationScheduler;
   readonly auth: AuthPort;
   readonly leakedPasswordCheck: LeakedPasswordCheck;
 }

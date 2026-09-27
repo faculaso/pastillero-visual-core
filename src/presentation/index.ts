@@ -7,6 +7,7 @@ export * from './services/confirmation-feedback.service';
 
 export * from './state/pastillero-virtual.store';
 export * from './hooks/usePastilleroVirtualStore';
+export * from './hooks/useDndAccess';
 
 export * from './utils/pill-shape-labels';
 export * from './utils/format-dosage-label';

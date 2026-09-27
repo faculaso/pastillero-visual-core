@@ -55,6 +55,27 @@ export class FakeNotificationScheduler implements NotificationScheduler {
     return Ok(undefined);
   }
 
+  /** Lo que el dispositivo responde sobre No Molestar; `refreshDoseAlarmChannel` lo pasa a `dndAfterRefresh`. */
+  bypassesDnd = false;
+  dndAfterRefresh = false;
+  dndSettingsOpened = 0;
+  channelRefreshes = 0;
+
+  async doseAlarmBypassesDnd(): Promise<Result<boolean, DomainError>> {
+    return Ok(this.bypassesDnd);
+  }
+
+  async openDndAccessSettings(): Promise<Result<void, DomainError>> {
+    this.dndSettingsOpened += 1;
+    return Ok(undefined);
+  }
+
+  async refreshDoseAlarmChannel(): Promise<Result<boolean, DomainError>> {
+    this.channelRefreshes += 1;
+    this.bypassesDnd = this.dndAfterRefresh;
+    return Ok(this.bypassesDnd);
+  }
+
   async dispatchStockAlert(treatment: Treatment): Promise<Result<void, DomainError>> {
     if (this.shouldFailDispatch) {
       return Err(DomainErrors.repositoryFailure(new Error('dispatch down')));

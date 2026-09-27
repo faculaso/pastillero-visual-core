@@ -68,6 +68,14 @@ export function createFakeUseCases(overrides: Partial<UseCasesBundle> = {}): Use
         .fn()
         .mockResolvedValue({ ok: true, value: { scheduledCount: 0, cancelledCount: 0, alarmWarnings: [] } }),
     } as unknown as UseCasesBundle['syncDoseAlarms'],
+    // El pastillero le pregunta al dispositivo si la alarma suena en No
+    // Molestar. El default honesto es que SÍ: así el aviso no aparece y no
+    // ensucia a los tests que miran otra cosa. El que lo prueba lo pisa.
+    notificationScheduler: {
+      doseAlarmBypassesDnd: jest.fn().mockResolvedValue({ ok: true, value: true }),
+      openDndAccessSettings: jest.fn().mockResolvedValue({ ok: true, value: undefined }),
+      refreshDoseAlarmChannel: jest.fn().mockResolvedValue({ ok: true, value: true }),
+    } as unknown as UseCasesBundle['notificationScheduler'],
     // Default honesto para los tests: la contraseña no está filtrada. Los
     // que prueban lo contrario lo pisan explícitamente.
     leakedPasswordCheck: {

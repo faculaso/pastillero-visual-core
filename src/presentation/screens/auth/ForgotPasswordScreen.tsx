@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { useSession } from '../../providers/SessionContext';
 import { AccessibleText } from '../../design-system/AccessibleText';
+import { AccessibleButton } from '../../design-system/AccessibleButton';
 import { colors, spacing } from '../../design-system/tokens';
 import { AuthGradientBackground } from './components/AuthGradientBackground';
 import { AuthBrandHeader } from './components/AuthBrandHeader';
@@ -13,51 +14,97 @@ import { PrimaryAuthButton } from './components/PrimaryAuthButton';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
+const MIN_PASSWORD_LENGTH = 6;
+const CODE_LENGTH = 6;
+
 /**
- * Solo dispara el email de recuperación de Supabase Auth — no hay pantalla
- * de "elegir nueva contraseña" acá porque completar el reset requiere un
- * deep link de vuelta a la app (`redirectTo` + manejo de `Linking`), fuera
- * de alcance de esta feature. El usuario termina el flujo en el link que le
- * llega por correo y vuelve a `SignIn` con la contraseña nueva.
+ * Reseteo en dos pasos, los dos DENTRO de la app: se pide el código por
+ * correo y después se tipea ahí mismo junto con la contraseña nueva.
+ *
+ * Por qué un código y no el link del correo. El link de Supabase apunta al
+ * Site URL del proyecto, que en un teléfono no existe — `localhost` es el
+ * propio teléfono y devuelve ERR_CONNECTION_REFUSED. Pasó de verdad, con el
+ * correo llegando perfecto. Un deep link era la otra salida, pero obliga a
+ * registrar un esquema propio y a confiar en que el cliente de correo lo
+ * respete; el código no depende de nada de eso y además es un gesto que
+ * cualquiera ya tiene aprendido del banco.
+ *
+ * El correo NO se puede editar en el segundo paso: el código se emitió para
+ * esa dirección, así que dejarlo cambiar solo serviría para que el código
+ * deje de funcionar sin explicación. Para corregirlo está "Usar otro correo",
+ * que vuelve al paso 1 en limpio.
  */
 export function ForgotPasswordScreen({ navigation }: Props): React.JSX.Element {
-  const { requestPasswordReset } = useSession();
+  const { requestPasswordReset, completePasswordReset } = useSession();
+  const [paso, setPaso] = useState<'pedir-codigo' | 'elegir-contrasena' | 'listo'>('pedir-codigo');
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'error' | 'sent'>('idle');
+  const [codigo, setCodigo] = useState('');
+  const [password, setPassword] = useState('');
+  const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(): Promise<void> {
-    setStatus('submitting');
+  async function pedirCodigo(): Promise<void> {
+    setEnviando(true);
     setError(null);
     const result = await requestPasswordReset(email.trim());
+    setEnviando(false);
     if (!result.ok) {
-      setStatus('error');
       setError('No pudimos enviar el correo. Intentá de nuevo.');
       return;
     }
-    setStatus('sent');
+    setPaso('elegir-contrasena');
   }
 
-  const canSubmit = email.trim().length > 0 && status !== 'submitting';
+  async function guardarContrasena(): Promise<void> {
+    setEnviando(true);
+    setError(null);
+    const result = await completePasswordReset(email.trim(), codigo.trim(), password);
+    setEnviando(false);
+    if (!result.ok) {
+      setError(
+        result.errorCode === 'RECOVERY_CODE_INVALID'
+          ? 'Ese código no es válido o ya venció. Pedí uno nuevo.'
+          : 'No pudimos cambiar la contraseña. Intentá de nuevo.',
+      );
+      return;
+    }
+    setPaso('listo');
+  }
 
-  if (status === 'sent') {
+  function volverAlInicio(): void {
+    setPaso('pedir-codigo');
+    setCodigo('');
+    setPassword('');
+    setError(null);
+  }
+
+  if (paso === 'listo') {
     return (
       <View style={styles.screen}>
         <AuthGradientBackground />
         <View style={styles.centered}>
           <AuthCard staggerIndex={0}>
             <AccessibleText variant="title" bold style={styles.centerText}>
-              Revisá tu correo
+              Listo, ya podés entrar
             </AccessibleText>
             <AccessibleText variant="body" color={colors.textSecondary} style={styles.centerText}>
-              Si {email.trim()} tiene una cuenta, te mandamos un enlace para elegir una contraseña nueva.
+              Tu contraseña quedó cambiada.
             </AccessibleText>
-            <PrimaryAuthButton label="Volver a iniciar sesión" onPress={() => navigation.replace('SignIn')} staggerIndex={2} />
+            <PrimaryAuthButton
+              label="Iniciar sesión"
+              onPress={() => navigation.replace('SignIn')}
+              staggerIndex={2}
+            />
           </AuthCard>
         </View>
       </View>
     );
   }
+
+  const enPasoDelCodigo = paso === 'elegir-contrasena';
+  const puedeEnviar = enPasoDelCodigo
+    ? codigo.trim().length === CODE_LENGTH && password.length >= MIN_PASSWORD_LENGTH && !enviando
+    : email.trim().length > 0 && !enviando;
 
   return (
     <View style={styles.screen}>
@@ -66,18 +113,43 @@ export function ForgotPasswordScreen({ navigation }: Props): React.JSX.Element {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <AuthBrandHeader
             title="Recuperar contraseña"
-            subtitle="Te mandamos un enlace a tu correo para elegir una nueva"
+            subtitle={
+              enPasoDelCodigo
+                ? `Te mandamos un código de ${CODE_LENGTH} números a ${email.trim()}`
+                : 'Te mandamos un código a tu correo para elegir una nueva'
+            }
           />
 
           <AuthCard staggerIndex={2}>
-            <AuthTextField
-              label="Correo electrónico"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="tu@email.com"
-              keyboardType="email-address"
-              hasError={status === 'error'}
-            />
+            {enPasoDelCodigo ? (
+              <>
+                <AuthTextField
+                  label="Código del correo"
+                  value={codigo}
+                  onChangeText={setCodigo}
+                  placeholder="123456"
+                  keyboardType="number-pad"
+                  hasError={error !== null}
+                />
+                <AuthTextField
+                  label="Contraseña nueva"
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`}
+                  secureTextEntry
+                />
+              </>
+            ) : (
+              <AuthTextField
+                label="Correo electrónico"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="tu@email.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                hasError={error !== null}
+              />
+            )}
 
             {error ? (
               <AccessibleText color={colors.critical} bold style={styles.centerText}>
@@ -86,11 +158,15 @@ export function ForgotPasswordScreen({ navigation }: Props): React.JSX.Element {
             ) : null}
 
             <PrimaryAuthButton
-              label="Enviar enlace"
-              onPress={handleSubmit}
-              disabled={!canSubmit}
-              loading={status === 'submitting'}
+              label={enPasoDelCodigo ? 'Cambiar la contraseña' : 'Enviarme el código'}
+              onPress={enPasoDelCodigo ? guardarContrasena : pedirCodigo}
+              disabled={!puedeEnviar}
+              loading={enviando}
             />
+
+            {enPasoDelCodigo ? (
+              <AccessibleButton label="Usar otro correo" variant="secondary" onPress={volverAlInicio} />
+            ) : null}
           </AuthCard>
         </ScrollView>
       </KeyboardAvoidingView>

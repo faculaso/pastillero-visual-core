@@ -24,7 +24,8 @@ export type DomainErrorCode =
   | 'INVITE_CODE_LIMIT_REACHED'
   | 'TOO_MANY_CAREGIVERS'
   | 'AUTH_INVALID_CREDENTIALS'
-  | 'AUTH_EMAIL_ALREADY_IN_USE';
+  | 'AUTH_EMAIL_ALREADY_IN_USE'
+  | 'RECOVERY_CODE_INVALID';
 
 export class DomainError extends Error {
   public readonly code: DomainErrorCode;
@@ -108,4 +109,12 @@ export const DomainErrors = {
 
   authEmailAlreadyInUse: (email: string) =>
     new DomainError('AUTH_EMAIL_ALREADY_IN_USE', `Ya existe una cuenta con el correo ${email}`),
+
+  /**
+   * El código de 6 dígitos del mail de recuperación no sirve. Supabase no
+   * distingue "mal tipeado" de "vencido" y está bien que no lo haga: la
+   * salida es la misma, pedir uno nuevo.
+   */
+  recoveryCodeInvalid: () =>
+    new DomainError('RECOVERY_CODE_INVALID', 'El código no es válido o ya venció'),
 } as const;

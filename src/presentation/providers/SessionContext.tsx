@@ -42,6 +42,7 @@ export type AuthActionErrorCode =
   | 'INVITE_CODE_ALREADY_USED'
   | 'TOO_MANY_CAREGIVERS'
   | 'PASSWORD_LEAKED'
+  | 'RECOVERY_CODE_INVALID'
   | 'UNKNOWN';
 
 export interface AuthActionResult {
@@ -70,6 +71,8 @@ interface SessionContextValue {
   signOut(): Promise<void>;
   /** No requiere sesión activa — se llama desde el login, antes de autenticar. */
   requestPasswordReset(email: string): Promise<AuthActionResult>;
+  /** Cierra el reseteo con el código del mail. Tampoco requiere sesión previa. */
+  completePasswordReset(email: string, code: string, newPassword: string): Promise<AuthActionResult>;
   /** CUIDADOR ya logueado, sin paciente vinculado todavía (p. ej. tipeó mal el código al registrarse) — redime uno nuevo y refresca `session.patientId`. */
   linkPatient(inviteCode: string): Promise<AuthActionResult>;
   /** Entra con uno de los roles disponibles — solo tiene efecto con `roleChoice` pendiente. */
@@ -324,6 +327,16 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
    * lo decide la persona en `MisPacientesScreen`, que se recarga al volver a
    * tener foco y muestra al recién vinculado en la lista.
    */
+  async function completePasswordReset(
+    email: string,
+    code: string,
+    newPassword: string,
+  ): Promise<AuthActionResult> {
+    const result = await auth.completePasswordReset(email, code, newPassword);
+    if (!result.ok) return { ok: false, errorCode: mapErrorCode(result.error.code) };
+    return { ok: true };
+  }
+
   async function linkPatient(inviteCode: string): Promise<AuthActionResult> {
     if (!session || session.role !== 'CUIDADOR') return { ok: false, errorCode: 'UNKNOWN' };
 
@@ -344,6 +357,7 @@ export function SessionProvider({ children, initialRole, initialPatientId }: Ses
     signOut,
     linkPatient,
     requestPasswordReset,
+    completePasswordReset,
     chooseRole,
     switchRole,
     enableRole,
@@ -360,7 +374,8 @@ function mapErrorCode(code: string): AuthActionErrorCode {
     code === 'INVITE_CODE_INVALID' ||
     code === 'CANNOT_LINK_TO_SELF' ||
     code === 'INVITE_CODE_ALREADY_USED' ||
-    code === 'TOO_MANY_CAREGIVERS'
+    code === 'TOO_MANY_CAREGIVERS' ||
+    code === 'RECOVERY_CODE_INVALID'
   ) {
     return code;
   }

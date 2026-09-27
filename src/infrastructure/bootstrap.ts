@@ -81,6 +81,13 @@ export interface BootstrapResult {
   readonly revokeInviteCode: RevokeInviteCodeUseCase;
   readonly unlinkCaregiver: UnlinkCaregiverUseCase;
   readonly getWeeklySchedule: GetWeeklyScheduleUseCase;
+  /**
+   * Se expone tal cual (como `auth` y `voiceGuidance`) porque la pantalla
+   * necesita preguntarle al dispositivo si la alarma suena en No Molestar y
+   * mandar a la persona a los ajustes. Son capacidades del dispositivo, no
+   * reglas de negocio: no hay use case que envolver.
+   */
+  readonly notificationScheduler: NotificationScheduler;
   readonly auth: AuthPort;
   readonly leakedPasswordCheck: LeakedPasswordCheck;
 }
@@ -248,6 +255,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
     revokeInviteCode: new RevokeInviteCodeUseCase(pairingRepository),
     unlinkCaregiver: new UnlinkCaregiverUseCase(pairingRepository),
     getWeeklySchedule: new GetWeeklyScheduleUseCase(doseRepository, treatmentRepository, clock),
+    notificationScheduler,
     auth: authAdapter,
     leakedPasswordCheck: new HibpLeakedPasswordCheck(),
   };

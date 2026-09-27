@@ -7,6 +7,7 @@ import type { AdultoMayorStackParamList } from '../../navigation/types';
 import { useUseCases } from '../../providers/UseCasesProvider';
 import { useSession } from '../../providers/SessionContext';
 import { usePastilleroVirtualStore } from '../../hooks/usePastilleroVirtualStore';
+import { useDndAccess } from '../../hooks/useDndAccess';
 import { useStaggeredEntrance } from '../../hooks/useStaggeredEntrance';
 import { NativeConfirmationFeedback } from '../../services/confirmation-feedback.service';
 import { AccessibleText } from '../../design-system/AccessibleText';
@@ -18,6 +19,7 @@ import { InviteCodeButton } from './components/InviteCodeButton';
 import { EmptyState } from './components/EmptyState';
 import { ErrorBanner } from './components/ErrorBanner';
 import { StockNoticeBanner } from './components/StockNoticeBanner';
+import { DndAccessNotice } from './components/DndAccessNotice';
 import { DailyProgressBar } from './components/DailyProgressBar';
 import { InstructionBadge } from './components/InstructionBadge';
 import { CelebrationOverlay } from './components/CelebrationOverlay';
@@ -53,11 +55,13 @@ export interface PastilleroVirtualScreenProps {
  * nada nuevo para ellos, solo los renderiza.
  */
 export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVirtualScreenProps): React.JSX.Element {
-  const { getPendingDoses, confirmDose, getDailyProgress, extendDoseHorizon, syncDoseAlarms } = useUseCases();
+  const { getPendingDoses, confirmDose, getDailyProgress, extendDoseHorizon, syncDoseAlarms, notificationScheduler } =
+    useUseCases();
   const { signOut, switchRole } = useSession();
   // Se instancia una sola vez por montaje de pantalla (ver justificación en el hook).
   const confirmationFeedback = useMemo(() => new NativeConfirmationFeedback(), []);
   const useStore = usePastilleroVirtualStore({ getPendingDoses, confirmDose, getDailyProgress, confirmationFeedback });
+  const dndAccess = useDndAccess(notificationScheduler);
 
   const status = useStore((s) => s.status);
   const doses = useStore((s) => s.doses);
@@ -242,6 +246,8 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
             {stockNotice ? (
               <StockNoticeBanner message={stockNotice} onDismiss={dismissStockNotice} />
             ) : null}
+
+            {dndAccess.needsAccess ? <DndAccessNotice onOpenSettings={dndAccess.openSettings} /> : null}
 
             {error ? (
               <ErrorBanner message={error} onDismiss={dismissError} />

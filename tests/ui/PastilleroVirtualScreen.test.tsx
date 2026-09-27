@@ -23,6 +23,77 @@ function buildDoseView(overrides: Partial<PendingDoseView> = {}): PendingDoseVie
 }
 
 describe('PastilleroVirtualScreen', () => {
+  describe('aviso de No Molestar', () => {
+    function schedulerQueNoSuena(overrides: Record<string, unknown> = {}) {
+      return {
+        doseAlarmBypassesDnd: jest.fn().mockResolvedValue(Ok(false)),
+        openDndAccessSettings: jest.fn().mockResolvedValue(Ok(undefined)),
+        refreshDoseAlarmChannel: jest.fn().mockResolvedValue(Ok(false)),
+        ...overrides,
+      };
+    }
+
+    it('avisa cuando el dispositivo confirma que la alarma NO suena en silencio', async () => {
+      const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [buildDoseView()] })) };
+
+      await render(
+        withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
+          useCases: {
+            getPendingDoses: getPendingDoses as never,
+            notificationScheduler: schedulerQueNoSuena() as never,
+          },
+        }),
+      );
+
+      await waitFor(() => expect(screen.getByText(/la alarma no va a sonar/i)).toBeTruthy());
+    });
+
+    it('no avisa nada cuando ya suena — el caso normal', async () => {
+      const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [buildDoseView()] })) };
+
+      await render(
+        withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
+          useCases: { getPendingDoses: getPendingDoses as never },
+        }),
+      );
+
+      await waitFor(() => expect(screen.getByText('Paracetamol')).toBeTruthy());
+      expect(screen.queryByText(/la alarma no va a sonar/i)).toBeNull();
+    });
+
+    it('tampoco avisa si no se pudo consultar: un aviso sin comprobar es ruido', async () => {
+      const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [buildDoseView()] })) };
+      const scheduler = schedulerQueNoSuena({
+        doseAlarmBypassesDnd: jest.fn().mockResolvedValue(Err(DomainErrors.repositoryFailure(new Error('sin canal')))),
+      });
+
+      await render(
+        withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
+          useCases: { getPendingDoses: getPendingDoses as never, notificationScheduler: scheduler as never },
+        }),
+      );
+
+      await waitFor(() => expect(screen.getByText('Paracetamol')).toBeTruthy());
+      expect(screen.queryByText(/la alarma no va a sonar/i)).toBeNull();
+    });
+
+    it('el botón manda a los ajustes del sistema, que es lo único que la app puede hacer', async () => {
+      const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [buildDoseView()] })) };
+      const scheduler = schedulerQueNoSuena();
+
+      await render(
+        withProviders(<PastilleroVirtualScreen patientId="patient-1" navigation={buildNavigationMock()} />, {
+          useCases: { getPendingDoses: getPendingDoses as never, notificationScheduler: scheduler as never },
+        }),
+      );
+
+      const boton = await screen.findByText('Que suene siempre');
+      await userEvent.setup().press(boton);
+
+      expect(scheduler.openDndAccessSettings).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('muestra la toma pendiente tras cargar', async () => {
     const getPendingDoses = { execute: jest.fn().mockResolvedValue(Ok({ doses: [buildDoseView()] })) };
 

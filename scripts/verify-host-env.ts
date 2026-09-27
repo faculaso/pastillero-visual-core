@@ -49,6 +49,8 @@ export const REQUIRED_MANIFEST_PERMISSIONS = [
   'android.permission.SCHEDULE_EXACT_ALARM',
   'android.permission.USE_FULL_SCREEN_INTENT',
   'android.permission.VIBRATE',
+  // Sin esto Android ignora el `bypassDnd` del canal de alarma en silencio.
+  'android.permission.ACCESS_NOTIFICATION_POLICY',
   'android.permission.CAMERA',
   'android.permission.READ_MEDIA_IMAGES',
 ] as const;

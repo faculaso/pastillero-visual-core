@@ -18,6 +18,7 @@ jest.mock('@notifee/react-native', () => ({
     deleteChannel: jest.fn().mockResolvedValue(undefined),
     getTriggerNotificationIds: jest.fn().mockResolvedValue([]),
     getTriggerNotifications: jest.fn().mockResolvedValue([]),
+    getChannel: jest.fn().mockResolvedValue(null),
     createTriggerNotification: jest.fn().mockResolvedValue({ id: 'mock-id' }),
     cancelNotification: jest.fn().mockResolvedValue(undefined),
     displayNotification: jest.fn().mockResolvedValue('notif-id'),
@@ -50,6 +51,7 @@ interface MockNotifee {
   deleteChannel: jest.Mock;
   getTriggerNotificationIds: jest.Mock;
   getTriggerNotifications: jest.Mock;
+  getChannel: jest.Mock;
   createTriggerNotification: jest.Mock;
   cancelNotification: jest.Mock;
   displayNotification: jest.Mock;
@@ -192,6 +194,20 @@ describe('NotifeeNotificationScheduler — puerto NotificationScheduler', () => 
     expect(mockNotifee.requestPermission).toHaveBeenCalledTimes(1);
   });
 
+  it('crea los canales ANTES de pedir el permiso: el diálogo del sistema bloquea hasta que contesten', async () => {
+    // Si el orden fuera al revés, alguien que descarta el diálogo sin
+    // responder se queda sin canales — y sin canales no hay alarma posible.
+    mockNotifee.requestPermission.mockReturnValueOnce(new Promise(() => {})); // nunca resuelve
+    const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
+
+    void scheduler.requestPermissions();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(mockNotifee.createChannel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: NOTIFEE_CHANNELS.doseAlarms }),
+    );
+  });
+
   it('requestPermissions también deja los canales creados — en un teléfono de Cuidador es la única oportunidad', async () => {
     // Ahí la app ya no programa ninguna alarma, así que si los canales se
     // crearan recién al programar, el canal viejo no se borraría nunca.
@@ -218,6 +234,46 @@ describe('NotifeeNotificationScheduler — puerto NotificationScheduler', () => 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value).toEqual([{ doseId: 'abc', scheduledAt: new Date(1_700_000_000_000) }]);
+  });
+
+  it('doseAlarmBypassesDnd lee lo que el dispositivo hace, no lo que se pidió', async () => {
+    // Android ignora `bypassDnd` en silencio si la app no tiene acceso a No
+    // Molestar: el canal se crea igual, con el valor en false. Preguntar por
+    // el canal creado es la única forma de saberlo.
+    mockNotifee.getChannel.mockResolvedValueOnce({ id: NOTIFEE_CHANNELS.doseAlarms, bypassDnd: false });
+    const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
+
+    const result = await scheduler.doseAlarmBypassesDnd();
+
+    expect(mockNotifee.getChannel).toHaveBeenCalledWith(NOTIFEE_CHANNELS.doseAlarms);
+    expect(result).toEqual({ ok: true, value: false });
+  });
+
+  it('doseAlarmBypassesDnd da false si el canal todavía no existe', async () => {
+    mockNotifee.getChannel.mockResolvedValueOnce(null);
+    const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
+
+    expect(await scheduler.doseAlarmBypassesDnd()).toEqual({ ok: true, value: false });
+  });
+
+  it('refreshDoseAlarmChannel borra y recrea el canal — `bypassDnd` no se puede editar', async () => {
+    mockNotifee.getChannel.mockResolvedValueOnce({ id: NOTIFEE_CHANNELS.doseAlarms, bypassDnd: true });
+    const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
+
+    const result = await scheduler.refreshDoseAlarmChannel();
+
+    expect(mockNotifee.deleteChannel).toHaveBeenCalledWith(NOTIFEE_CHANNELS.doseAlarms);
+    expect(mockNotifee.createChannel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: NOTIFEE_CHANNELS.doseAlarms, bypassDnd: true }),
+    );
+    expect(result).toEqual({ ok: true, value: true });
+  });
+
+  it('refreshDoseAlarmChannel devuelve false si el acceso sigue sin estar dado', async () => {
+    mockNotifee.getChannel.mockResolvedValueOnce({ id: NOTIFEE_CHANNELS.doseAlarms, bypassDnd: false });
+    const scheduler = new NotifeeNotificationScheduler(buildConfirmDoseUseCase() as never);
+
+    expect(await scheduler.refreshDoseAlarmChannel()).toEqual({ ok: true, value: false });
   });
 
   it('scheduledDoseAlarms falla como REPOSITORY_FAILURE si notifee no puede listar', async () => {

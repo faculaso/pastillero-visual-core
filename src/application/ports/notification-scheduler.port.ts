@@ -39,6 +39,23 @@ export interface NotificationScheduler {
    * que apagarla). Con la hora, esa distinción es exacta.
    */
   scheduledDoseAlarms(): Promise<Result<readonly ScheduledDoseAlarm[], DomainError>>;
+  /**
+   * ¿La alarma de toma suena hoy aunque el teléfono esté en No Molestar?
+   *
+   * No alcanza con pedirlo al crear el canal: Android lo ignora en silencio
+   * si la app no tiene concedido el acceso a No Molestar. Esto lee lo que el
+   * dispositivo realmente hace, no lo que se pidió.
+   */
+  doseAlarmBypassesDnd(): Promise<Result<boolean, DomainError>>;
+  /** Abre la pantalla del sistema donde se concede el acceso a No Molestar. Solo la persona puede darlo. */
+  openDndAccessSettings(): Promise<Result<void, DomainError>>;
+  /**
+   * Vuelve a crear el canal de alarma para que tome un acceso a No Molestar
+   * recién concedido, y devuelve si quedó sonando en No Molestar. Se llama al
+   * volver de los ajustes del sistema: el canal ya existente nació sin el
+   * permiso y esos ajustes no se pueden editar, solo rehacer.
+   */
+  refreshDoseAlarmChannel(): Promise<Result<boolean, DomainError>>;
   /** CU-03 paso 4: alerta de reposición temprana cuando el stock alcanza nivel CRITICAL. */
   dispatchStockAlert(
     treatment: Treatment,

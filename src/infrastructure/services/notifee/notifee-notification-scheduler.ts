@@ -8,6 +8,7 @@ import notifee, {
   type Event as NotifeeEvent,
   type Notification as NotifeeNotification,
 } from '@notifee/react-native';
+import { Linking, Platform } from 'react-native';
 import { Ok, Err, type Result, DomainErrors, type DomainError } from '../../../domain';
 import type { Dose, Treatment, StockAlertLevel } from '../../../domain';
 import type { NotificationScheduler, ScheduledDoseAlarm } from '../../../application';
@@ -22,6 +23,14 @@ import {
   ALARM_SOUND_URI,
 } from './notifee-constants';
 import { formatDosageLabel } from './format-dosage-label';
+
+/**
+ * La pantalla del sistema donde se concede "Acceso a No molestar". No hay
+ * diálogo de permiso para esto: es un acceso especial que solo se otorga
+ * entrando a los ajustes, así que lo único que puede hacer la app es
+ * llevar a la persona hasta ahí.
+ */
+const DND_ACCESS_SETTINGS_ACTION = 'android.settings.NOTIFICATION_POLICY_ACCESS_SETTINGS';
 
 const SNOOZE_MINUTES = 15;
 
@@ -167,17 +176,60 @@ export class NotifeeNotificationScheduler implements NotificationScheduler {
    * alarmas, solo con confirmación manual dentro de `PastilleroVirtualScreen`.
    */
   async requestPermissions(): Promise<void> {
-    await notifee.requestPermission();
-    // Los canales también se crean acá, no solo al programar la primera
-    // alarma. En un teléfono de Cuidador la app ya no programa ninguna, así
-    // que si no fuera por esto el canal viejo de tomas no se borraría nunca
-    // y quedaría de adorno en los ajustes del sistema. Es idempotente.
+    // Los canales van PRIMERO, y no es cosmético: `requestPermission()`
+    // muestra el diálogo del sistema y no resuelve hasta que la persona
+    // contesta. Con los canales detrás, alguien que descarta el diálogo sin
+    // responder dejaba la app sin ningún canal — o sea, sin ninguna alarma
+    // posible. Crear un canal no necesita el permiso.
+    //
+    // Además se crean acá y no solo al programar la primera alarma: en un
+    // teléfono de Cuidador la app ya no programa ninguna, así que si no
+    // fuera por esto el canal viejo de tomas no se borraría nunca. Es
+    // idempotente.
     await this.ensureChannelsCreated();
+    await notifee.requestPermission();
   }
 
   private handleEvent = async (event: NotifeeEvent): Promise<void> => {
     await handleNotifeeEvent(event, this.confirmDoseUseCase);
   };
+
+  async doseAlarmBypassesDnd(): Promise<Result<boolean, DomainError>> {
+    try {
+      await this.ensureChannelsCreated();
+      const channel = await notifee.getChannel(NOTIFEE_CHANNELS.doseAlarms);
+      // `getChannel` devuelve lo que el dispositivo tiene de verdad, no lo
+      // que se pidió al crearlo — que es justo la diferencia que importa acá.
+      return Ok(channel?.bypassDnd === true);
+    } catch (cause) {
+      return Err(DomainErrors.repositoryFailure(cause));
+    }
+  }
+
+  async openDndAccessSettings(): Promise<Result<void, DomainError>> {
+    if (Platform.OS !== 'android') return Ok(undefined);
+    try {
+      await Linking.sendIntent(DND_ACCESS_SETTINGS_ACTION);
+      return Ok(undefined);
+    } catch (cause) {
+      return Err(DomainErrors.repositoryFailure(cause));
+    }
+  }
+
+  async refreshDoseAlarmChannel(): Promise<Result<boolean, DomainError>> {
+    try {
+      // Borrar y volver a crear es la Única forma: `bypassDnd` no se puede
+      // editar en un canal existente. Medido en un dispositivo real: al
+      // recrearlo Android SÍ toma el valor nuevo — lo que conserva de un
+      // canal borrado son los campos que la persona cambió a mano.
+      await notifee.deleteChannel(NOTIFEE_CHANNELS.doseAlarms);
+      await notifee.createChannel(doseAlarmChannel());
+      const channel = await notifee.getChannel(NOTIFEE_CHANNELS.doseAlarms);
+      return Ok(channel?.bypassDnd === true);
+    } catch (cause) {
+      return Err(DomainErrors.repositoryFailure(cause));
+    }
+  }
 
   /** Cachea la promesa de creación de canales — idempotente, pero evita repetir la llamada nativa en cada notificación. */
   private ensureChannelsCreated(): Promise<void> {
@@ -314,15 +366,12 @@ function buildDoseNotification(dose: Dose, treatment: Treatment): NotifeeNotific
   };
 }
 
-async function createNotificationChannels(): Promise<void> {
-  // El canal viejo de tomas se va: sus ajustes de sonido y vibración son
-  // inmutables, así que en un teléfono que ya tenía la app seguiría sonando
-  // como una notificación cualquiera. Borrarlo también lo saca de la lista
-  // de ajustes, donde quedaría como un canal muerto que el usuario puede
-  // tocar sin efecto. Si no existe, `deleteChannel` no hace nada.
-  await notifee.deleteChannel(LEGACY_DOSE_CHANNEL);
-
-  await notifee.createChannel({
+/**
+ * La definición del canal de alarma, en un solo lugar: se usa al crearlo y
+ * también al recrearlo cuando la persona concede el acceso a No Molestar.
+ */
+function doseAlarmChannel() {
+  return {
     id: NOTIFEE_CHANNELS.doseAlarms,
     name: 'Alarmas de toma',
     description: 'Suenan como un despertador hasta que confirmás o posponés la toma.',
@@ -337,8 +386,24 @@ async function createNotificationChannels(): Promise<void> {
     // tumbando la creación del canal (y con eso, CUALQUIER notificación de
     // toma). Sin el 0 el patrón arranca inmediato igual.
     vibrationPattern: [500, 250, 500, 250, 500, 250], // patrón largo, distinguible de una notificación genérica
-    bypassDnd: true, // una alarma de medicación debe sonar incluso en No Molestar
-  });
+    // Android IGNORA esto en silencio si la app no tiene acceso a No
+    // Molestar: el canal se crea igual, con `bypassDnd` en false. Por eso
+    // existe `refreshDoseAlarmChannel`, que lo vuelve a crear cuando la
+    // persona concede el acceso — medido: al recrearlo, Android SÍ toma el
+    // valor nuevo (solo conserva los campos que la persona tocó a mano).
+    bypassDnd: true,
+  };
+}
+
+async function createNotificationChannels(): Promise<void> {
+  // El canal viejo de tomas se va: sus ajustes de sonido y vibración son
+  // inmutables, así que en un teléfono que ya tenía la app seguiría sonando
+  // como una notificación cualquiera. Borrarlo también lo saca de la lista
+  // de ajustes, donde quedaría como un canal muerto que el usuario puede
+  // tocar sin efecto. Si no existe, `deleteChannel` no hace nada.
+  await notifee.deleteChannel(LEGACY_DOSE_CHANNEL);
+
+  await notifee.createChannel(doseAlarmChannel());
 
   await notifee.createChannel({
     id: NOTIFEE_CHANNELS.stockAlerts,

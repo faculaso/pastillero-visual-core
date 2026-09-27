@@ -51,6 +51,14 @@
          como para procesar un evento de acción en background. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Deja que la alarma de toma suene con el teléfono en No Molestar.
+         OJO: declararlo no alcanza. Es un acceso especial que solo se
+         concede a mano en Ajustes → "Acceso a No molestar"; sin ese paso
+         Android ignora el `bypassDnd` del canal EN SILENCIO y la alarma
+         queda muda en modo silencio. La app detecta esa situación y ofrece
+         ir a la pantalla del sistema — ver `useDndAccess`. -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
     <!-- Captura de fotos de la caja (react-native-image-picker) -->
 
     <uses-permission android:name="android.permission.CAMERA" />

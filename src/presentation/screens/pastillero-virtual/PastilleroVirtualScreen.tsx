@@ -247,8 +247,6 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
               <StockNoticeBanner message={stockNotice} onDismiss={dismissStockNotice} />
             ) : null}
 
-            {dndAccess.needsAccess ? <DndAccessNotice onOpenSettings={dndAccess.openSettings} /> : null}
-
             {error ? (
               <ErrorBanner message={error} onDismiss={dismissError} />
             ) : (
@@ -273,6 +271,16 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
           <EmptyState dailyProgress={dailyProgress} />
         </View>
       )}
+
+      {/* FUERA de la rama de "hay una toma ahora": el aviso habla de la
+          alarma que todavía no sonó, así que importa sobre todo cuando no
+          hay nada pendiente en pantalla. Anclado abajo para no competir con
+          la toma, que es lo único que esta pantalla tiene que gritar. */}
+      {dndAccess.needsAccess ? (
+        <View style={styles.dndNotice}>
+          <DndAccessNotice onOpenSettings={dndAccess.openSettings} />
+        </View>
+      ) : null}
 
       <CelebrationOverlay
         trigger={celebrationTrigger}
@@ -311,6 +319,7 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
 }
 
 const styles = StyleSheet.create({
+  dndNotice: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   safeArea: {
     flex: 1,
   },

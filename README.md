@@ -97,10 +97,9 @@ Este repo es el **Core** — para correrlo en un dispositivo hace falta embeberl
 
 1. Copiar `src/` a tu proyecto RN (o publicarlo como paquete interno).
 2. Copiar los artefactos de **`host-integration/`** — `index.js` (entry point con el handler de background de notifee) y `AndroidManifest.xml` (todos los permisos/queries que requieren notifee, la captura de fotos y TTS). Ver `host-integration/README.md` para el detalle paso a paso.
-3. Agregar `android/app/src/main/res/raw/medical_alarm.mp3` — el único asset binario que este Core no puede proveer.
-4. Agregar `android/app/src/main/res/drawable/ic_notification.xml` (o `.png` por densidad) — el ícono chico de la barra de estado, que `notifee-notification-scheduler.ts` pide por nombre. **Sin él no se muestra NINGUNA alarma de toma**: Android rechaza la notificación entera con `Invalid notification (no valid small icon)`. Silueta blanca sobre transparente; el sistema la recolorea.
-5. Pod install / gradle sync — todos los módulos nativos ya están en `dependencies` de `package.json`.
-6. **Correr el preflight antes de compilar**: `npm run verify:host` (o `npx tsx scripts/verify-host-env.ts --project-root <path>` si tu proyecto RN vive en otra carpeta). Chequea dependencias, permisos del manifest, el asset de sonido, el ícono de notificación, y que `index.js` registre el handler de background en el orden correcto — antes de que un problema de config se descubra como un crash en el dispositivo.
+3. Agregar `android/app/src/main/res/drawable/ic_notification.xml` (o `.png` por densidad) — el ícono chico de la barra de estado, que `notifee-notification-scheduler.ts` pide por nombre. **Sin él no se muestra NINGUNA alarma de toma**: Android rechaza la notificación entera con `Invalid notification (no valid small icon)`. Silueta blanca sobre transparente; el sistema la recolorea.
+4. Pod install / gradle sync — todos los módulos nativos ya están en `dependencies` de `package.json`.
+5. **Correr el preflight antes de compilar**: `npm run verify:host` (o `npx tsx scripts/verify-host-env.ts --project-root <path>` si tu proyecto RN vive en otra carpeta). Chequea dependencias, permisos del manifest, el ícono de notificación, y que `index.js` registre el handler de background en el orden correcto — antes de que un problema de config se descubra como un crash en el dispositivo.
 
 `src/presentation/App.tsx` es el componente raíz de producción: llama a `bootstrap()`, maneja los estados de carga/error con reintento, y envuelve la navegación en un `ErrorBoundary`.
 
@@ -136,7 +135,7 @@ npm run verify:host
 npx tsx scripts/verify-host-env.ts --project-root /ruta/al/proyecto-rn
 ```
 
-10 checks: versión de Node, dependencias nativas declaradas en `package.json` (incluyendo `peerDependencies`), esos mismos paquetes efectivamente instalados en `node_modules`, permisos requeridos presentes en el `AndroidManifest.xml`, el asset `medical_alarm.mp3`, el ícono de notificación, los atributos de alarma a pantalla completa, el orden de registro en `index.js`, y las variables de entorno `ANDROID_HOME`/`JAVA_HOME`. Solo los `fail` bloquean (exit code 1); los `warn` no.
+9 checks: versión de Node, dependencias nativas declaradas en `package.json` (incluyendo `peerDependencies`), esos mismos paquetes efectivamente instalados en `node_modules`, permisos requeridos presentes en el `AndroidManifest.xml`, el ícono de notificación, los atributos de alarma a pantalla completa, el orden de registro en `index.js`, y las variables de entorno `ANDROID_HOME`/`JAVA_HOME`. Solo los `fail` bloquean (exit code 1); los `warn` no.
 
 Corrido dentro de este Core (no del host) va a reportar fallas esperables — es información correcta, no un bug: `android/`, `index.js` en la raíz, etc. genuinamente no existen acá, porque no es el host.
 
@@ -185,7 +184,7 @@ El catálogo local (`medications`) se puede enriquecer con el dataset abierto de
 
 - `android-config-reference/AndroidManifest.snippet.xml` — permisos (`POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM`, `USE_FULL_SCREEN_INTENT`, `VIBRATE`, `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK`) a fusionar en el manifest real del proyecto RN.
 - `android-config-reference/index.js.snippet.ts` — dónde registrar el handler de background.
-- Falta agregar `android/app/src/main/res/raw/medical_alarm.mp3` en el proyecto RN real (el canal `dose-alarms` lo referencia por nombre; sin el archivo, Android cae al sonido default sin avisar del error). Ojo con el orden: el canal se crea la primera vez que arranca la app, y **Android no deja cambiarle el sonido a un canal ya creado** — si el mp3 llega después, hay que versionar el id del canal otra vez o reinstalar.
+- **No hace falta ningún asset de sonido.** El canal `dose-alarms` usa `content://settings/system/alarm_alert`: el tono de despertador que la persona ya tiene elegido en su teléfono. Un mp3 en `res/raw` era la otra opción y se descartó por dos motivos medidos: si el archivo falta, notifee **no** cae al sonido default — deja el canal mudo — y el sonido de un canal es inmutable, así que la única salida sería versionar el id del canal; y el propio notifee avisa que un sonido cargado por id de recurso deja de sonar en el build siguiente (invertase/notifee#341).
 - Falta agregar `android/app/src/main/res/drawable/ic_notification.xml` en el proyecto RN real. Este no degrada: sin el ícono **no se muestra ninguna notificación**, ni de toma ni de stock. Pasó de verdad — la alarma disparaba puntual, el log decía `Invalid notification (no valid small icon)`, y en el teléfono no aparecía nada.
 
 ### Tests

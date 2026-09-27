@@ -1,5 +1,5 @@
 import { Ok, Err, type Result, DomainErrors, type DomainError, type Dose, type Treatment } from '../../src/domain';
-import type { Clock, IdGenerator, NotificationScheduler } from '../../src/application';
+import type { Clock, IdGenerator, NotificationScheduler, ScheduledDoseAlarm } from '../../src/application';
 
 export class FakeClock implements Clock {
   constructor(private current: Date) {}
@@ -29,7 +29,7 @@ export class FakeNotificationScheduler implements NotificationScheduler {
   shouldFailCancelFor: ReadonlySet<string> = new Set();
   shouldFailDispatch = false;
   /** Lo que el dispositivo "ya tiene armado" — el sync compara contra esto. */
-  alreadyScheduled: readonly string[] = [];
+  alreadyScheduled: readonly ScheduledDoseAlarm[] = [];
   shouldFailListing = false;
 
   async scheduleDoseAlarm(dose: Dose): Promise<Result<void, DomainError>> {
@@ -40,7 +40,7 @@ export class FakeNotificationScheduler implements NotificationScheduler {
     return Ok(undefined);
   }
 
-  async scheduledDoseIds(): Promise<Result<readonly string[], DomainError>> {
+  async scheduledDoseAlarms(): Promise<Result<readonly ScheduledDoseAlarm[], DomainError>> {
     if (this.shouldFailListing) {
       return Err(DomainErrors.repositoryFailure(new Error('scheduler down')));
     }

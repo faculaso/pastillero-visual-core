@@ -4,6 +4,13 @@ import type { Dose } from '../../domain';
 import type { Treatment } from '../../domain';
 import type { StockAlertLevel } from '../../domain';
 
+/** Una alarma de toma ya programada en este dispositivo. */
+export interface ScheduledDoseAlarm {
+  readonly doseId: string;
+  /** Cuándo va a sonar. */
+  readonly scheduledAt: Date;
+}
+
 /**
  * Puerto hacia ACT-03 (Servicio de Notificaciones/OS del DCU). Se ejecuta
  * best-effort DESPUÉS de confirmar la persistencia principal: una falla al
@@ -19,13 +26,19 @@ export interface NotificationScheduler {
   scheduleDoseAlarm(dose: Dose, treatment: Treatment): Promise<Result<void, DomainError>>;
   cancelDoseAlarm(doseId: string): Promise<Result<void, DomainError>>;
   /**
-   * Ids de las tomas que HOY tienen una alarma viva en este dispositivo.
+   * Las alarmas de toma que HOY viven en este dispositivo, con la hora a la
+   * que van a sonar.
    *
    * Existe para que `SyncDoseAlarmsUseCase` pueda comparar contra lo que
    * debería estar programado y tocar solo la diferencia. Sin esto, re-armar
    * significaría reprogramar todas las tomas del horizonte en cada apertura.
+   *
+   * La hora no es un adorno: sin ella, una alarma que no aparece entre las
+   * tomas del paciente es ambigua — puede ser de una toma más allá del
+   * horizonte consultado (hay que dejarla) o basura de otro paciente (hay
+   * que apagarla). Con la hora, esa distinción es exacta.
    */
-  scheduledDoseIds(): Promise<Result<readonly string[], DomainError>>;
+  scheduledDoseAlarms(): Promise<Result<readonly ScheduledDoseAlarm[], DomainError>>;
   /** CU-03 paso 4: alerta de reposición temprana cuando el stock alcanza nivel CRITICAL. */
   dispatchStockAlert(
     treatment: Treatment,

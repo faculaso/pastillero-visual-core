@@ -7,7 +7,6 @@ import {
   checkPackageJsonDependencies,
   checkNodeModulesInstalled,
   checkAndroidManifest,
-  checkMedicalAlarmAsset,
   checkNotificationIcon,
   checkFullScreenAlarmAttributes,
   checkBundledCatalogAsset,
@@ -145,19 +144,6 @@ describe('checks basados en filesystem', () => {
       mkdirSync(assetsDir, { recursive: true });
       writeFileSync(join(assetsDir, 'pastillero-catalog.db'), 'contenido-falso');
       expect(checkBundledCatalogAsset(dir).status).toBe('fail');
-    });
-  });
-
-  describe('checkMedicalAlarmAsset', () => {
-    it('fail si no existe el archivo de sonido', () => {
-      expect(checkMedicalAlarmAsset(dir).status).toBe('fail');
-    });
-
-    it('ok si el archivo existe', () => {
-      const rawDir = join(dir, 'android/app/src/main/res/raw');
-      mkdirSync(rawDir, { recursive: true });
-      writeFileSync(join(rawDir, 'medical_alarm.mp3'), 'contenido-falso');
-      expect(checkMedicalAlarmAsset(dir).status).toBe('ok');
     });
   });
 

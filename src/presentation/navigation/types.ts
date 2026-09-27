@@ -2,6 +2,7 @@ export type AdultoMayorStackParamList = {
   PastilleroVirtual: undefined;
   MiSemana: undefined;
   MisCuidadores: undefined;
+  DiagnosticoAlarmas: undefined;
 };
 
 export type CuidadorStackParamList = {

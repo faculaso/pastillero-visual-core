@@ -4,6 +4,7 @@ import type { AdultoMayorStackParamList } from './types';
 import { PastilleroVirtualScreen } from '../screens/pastillero-virtual/PastilleroVirtualScreen';
 import { MiSemanaScreen } from '../screens/mi-semana/MiSemanaScreen';
 import { MisCuidadoresScreen } from '../screens/mis-cuidadores/MisCuidadoresScreen';
+import { DiagnosticoAlarmasScreen } from '../screens/diagnostico/DiagnosticoAlarmasScreen';
 import { useSession } from '../providers/SessionContext';
 
 const Stack = createNativeStackNavigator<AdultoMayorStackParamList>();
@@ -30,6 +31,9 @@ export function AdultoMayorStack(): React.JSX.Element {
       </Stack.Screen>
       <Stack.Screen name="MisCuidadores">
         {({ navigation }) => <MisCuidadoresScreen patientId={patientId} navigation={navigation} />}
+      </Stack.Screen>
+      <Stack.Screen name="DiagnosticoAlarmas">
+        {({ navigation }) => <DiagnosticoAlarmasScreen patientId={patientId} navigation={navigation} />}
       </Stack.Screen>
     </Stack.Navigator>
   );

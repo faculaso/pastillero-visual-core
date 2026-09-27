@@ -297,6 +297,17 @@ export function PastilleroVirtualScreen({ patientId, navigation }: PastilleroVir
         onDismiss={() => setCuentaAbierta(false)}
         actions={[
           {
+            // Primero de la lista a propósito: cuando alguien dice "no me
+            // suena", esta es la pantalla a la que hay que mandarlo, y la
+            // instrucción por teléfono tiene que ser corta.
+            label: '¿Van a sonar mis alarmas?',
+            variant: 'secondary',
+            onPress: () => {
+              setCuentaAbierta(false);
+              navigation.navigate('DiagnosticoAlarmas');
+            },
+          },
+          {
             label: 'Cambiar de rol',
             onPress: () => {
               setCuentaAbierta(false);

@@ -12,7 +12,7 @@ import type { WeekDoseView } from '../../../../application';
 import { DoseStatus } from '../../../../domain';
 import { PillVisual } from '../../pastillero-virtual/components/PillVisual';
 import { AccessibleText } from '../../../design-system/AccessibleText';
-import { colors, radii } from '../../../design-system/tokens';
+import { colors, radii, shadows } from '../../../design-system/tokens';
 
 export interface PastilleroCompartmentProps {
   readonly doses: readonly WeekDoseView[];
@@ -169,9 +169,8 @@ const styles = StyleSheet.create({
   well: {
     flex: 1,
     borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(2, 132, 199, 0.35)',
-    backgroundColor: 'rgba(224, 242, 254, 0.55)',
+    backgroundColor: colors.surfaceSubtle,
+    ...shadows.pillShowcase,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden', // recorta el gradiente SVG a las esquinas redondeadas del pozo — no afecta a la tapa, que es un hermano fuera de este View.
@@ -188,9 +187,7 @@ const styles = StyleSheet.create({
     height: '55%',
     borderTopLeftRadius: radii.sm,
     borderTopRightRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    backgroundColor: 'rgba(186, 230, 253, 0.35)',
+    backgroundColor: colors.surface,
     transformOrigin: ['50%', '0%', 0],
   },
   pillSlot: { alignItems: 'center', justifyContent: 'center' },

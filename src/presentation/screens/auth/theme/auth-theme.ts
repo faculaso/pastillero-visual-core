@@ -7,14 +7,21 @@
  * tokens globales: el contraste AAA es una decisión de producto, no de
  * esta pantalla en particular.
  */
+import { colors } from '../../../design-system/tokens';
+
 export const authPalette = {
-  gradientTop: '#F0F9FF',
-  gradientBottom: '#FFFFFF',
+  // Plano y del color de las superficies: el neumorfismo apoya la tarjeta
+  // sobre su MISMO color, asi que un degradado celeste debajo la delata.
+  gradientTop: colors.background,
+  gradientBottom: colors.background,
   clinicalBlue: '#0284C7',
   clinicalBlueLight: '#0EA5E9',
-  glow: 'rgba(14, 165, 233, 0.16)',
-  glowSoft: 'rgba(2, 132, 199, 0.08)',
-  cardBorder: 'rgba(2, 132, 199, 0.12)',
+  // Los glows y el borde de tarjeta quedan neutralizados, no borrados:
+  // siguen referenciados desde varios componentes y volverlos
+  // transparentes evita tocar JSX en cinco archivos por una decoracion.
+  glow: 'transparent',
+  glowSoft: 'transparent',
+  cardBorder: 'transparent',
   inputIdleBorder: '#E2E8F0',
   inputFilledBorder: '#CBD5E1',
 } as const;

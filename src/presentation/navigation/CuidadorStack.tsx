@@ -64,7 +64,12 @@ export function CuidadorStack(): React.JSX.Element {
     <Stack.Navigator
       initialRouteName="MisPacientes"
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
+        // El fondo de escena lo fijamos nosotros: sin esto React Navigation
+        // pone su gris por defecto, y con material extruido una tarjeta que
+        // no comparte el color del fondo se ve como un bloque pegado encima.
+        contentStyle: { backgroundColor: colors.background },
+        headerStyle: { backgroundColor: colors.background },
+        headerShadowVisible: false,
         headerTitleStyle: { fontSize: typography.label, color: colors.textPrimary },
         headerTintColor: colors.primary,
         headerRight: () => <AccountHeaderButton />,

@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 import type { WeekDayBucket } from '../../../utils/group-doses-by-week';
 import { AccessibleText } from '../../../design-system/AccessibleText';
-import { colors, radii, spacing } from '../../../design-system/tokens';
+import { colors, radii, spacing, shadows } from '../../../design-system/tokens';
 import { useStaggeredEntrance } from '../../../hooks/useStaggeredEntrance';
 import { TurnoRow } from './TurnoRow';
 
@@ -65,9 +65,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.md,
     borderRadius: radii.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+    backgroundColor: colors.surface,
+    ...shadows.card,
   },
   containerToday: {
     backgroundColor: colors.primarySoft,

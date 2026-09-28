@@ -7,7 +7,7 @@ import { useUseCases } from '../../providers/UseCasesProvider';
 import { useAlarmDiagnostics } from '../../hooks/useAlarmDiagnostics';
 import { AccessibleText } from '../../design-system/AccessibleText';
 import { AccessibleButton } from '../../design-system/AccessibleButton';
-import { colors, spacing, radii, touchTarget } from '../../design-system/tokens';
+import { colors, spacing, radii, touchTarget, shadows } from '../../design-system/tokens';
 import { describeNextAlarm } from '../../utils/describe-next-alarm';
 
 export interface DiagnosticoAlarmasScreenProps {
@@ -192,6 +192,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     padding: spacing.lg,
     gap: spacing.lg,
+    ...shadows.card,
   },
   tarjetaAlerta: { backgroundColor: colors.criticalBackground },
   fila: { gap: spacing.sm },

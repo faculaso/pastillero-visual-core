@@ -4,7 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import type { WeekDoseView } from '../../../../application';
 import { DoseStatus } from '../../../../domain';
 import { AccessibleText } from '../../../design-system/AccessibleText';
-import { colors, radii, spacing, touchTarget } from '../../../design-system/tokens';
+import { colors, radii, spacing, touchTarget, shadows } from '../../../design-system/tokens';
 import { PRESS_SPRING } from '../../../design-system/motion';
 import { vibrateTap } from '../../../utils/haptics';
 
@@ -131,13 +131,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rowActive: {
-    backgroundColor: colors.surface,
-    borderColor: colors.borderLight,
+    backgroundColor: colors.surfaceSubtle,
+    borderColor: 'transparent',
+    ...shadows.pillShowcase,
   },
   rowEmpty: {
     backgroundColor: colors.surfaceSubtle,
-    borderColor: colors.borderLight,
+    borderColor: 'transparent',
     opacity: 0.6,
+    ...shadows.pillShowcase,
   },
   meds: { gap: 2 },
   medRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

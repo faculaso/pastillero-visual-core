@@ -5,7 +5,7 @@ import type { WeekDoseView } from '../../../../application';
 import type { WeekDayBucket } from '../../../utils/group-doses-by-week';
 import { buildQuadBuckets, QUAD_TURNOS, type QuadTurno } from '../../../utils/pastillero-quad-turno';
 import { AccessibleText } from '../../../design-system/AccessibleText';
-import { colors, radii, spacing } from '../../../design-system/tokens';
+import { colors, radii, spacing, shadows } from '../../../design-system/tokens';
 import { PastilleroCompartment } from './PastilleroCompartment';
 
 export type Turno = QuadTurno;
@@ -49,12 +49,17 @@ export function WeekGrid({ buckets, onCellPress }: WeekGridProps): React.JSX.Ele
         <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
           <Defs>
             <LinearGradient id="chassisGradient" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#38BDF8" stopOpacity={0.22} />
-              <Stop offset="0.5" stopColor="#0284C7" stopOpacity={0.12} />
-              <Stop offset="1" stopColor="#0284C7" stopOpacity={0.2} />
+              {/* La placa era celeste translúcida — el lenguaje de vidrio. Ahora
+                  es el mismo material que el resto: el volumen lo da la sombra
+                  de `chassis`, no un color propio. Los pozos SÍ conservan su
+                  gradiente: son la ilustración de un objeto físico, no una
+                  superficie de interfaz. */}
+              <Stop offset="0" stopColor={colors.surface} stopOpacity={1} />
+              <Stop offset="0.5" stopColor={colors.surface} stopOpacity={1} />
+              <Stop offset="1" stopColor={colors.surface} stopOpacity={1} />
             </LinearGradient>
             <LinearGradient id="chassisSheen" x1="0" y1="0" x2="1" y2="0.4">
-              <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.35} />
+              <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.18} />
               <Stop offset="0.3" stopColor="#FFFFFF" stopOpacity={0} />
             </LinearGradient>
           </Defs>
@@ -108,16 +113,10 @@ export function WeekGrid({ buckets, onCellPress }: WeekGridProps): React.JSX.Ele
 const styles = StyleSheet.create({
   chassis: {
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(2, 132, 199, 0.4)',
-    backgroundColor: 'rgba(240, 249, 255, 0.6)',
+    backgroundColor: colors.surface,
     padding: spacing.sm,
     gap: 6,
-    elevation: 3,
-    shadowColor: '#0284C7',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
+    ...shadows.card,
   },
   chassisBackground: {
     position: 'absolute',

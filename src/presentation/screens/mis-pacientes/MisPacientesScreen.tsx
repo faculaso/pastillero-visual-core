@@ -31,7 +31,7 @@ function nombreDe(patient: LinkedPatient): string {
  * `session.patientId`, como siempre.
  */
 export function MisPacientesScreen({ navigation }: Props): React.JSX.Element {
-  const { getLinkedPatients } = useUseCases();
+  const { getLinkedPatients, clearPatientDoseAlarms } = useUseCases();
   const { session, selectPatient, clearSelectedPatient } = useSession();
 
   const [status, setStatus] = useState<ScreenStatus>('loading');
@@ -50,6 +50,16 @@ export function MisPacientesScreen({ navigation }: Props): React.JSX.Element {
     }
     setPatients(result.value.patients);
     setStatus('ready');
+
+    // Barrido de alarmas ajenas. Este es el ÚNICO lugar del stack del
+    // Cuidador por el que se pasa siempre, y un teléfono que nunca entra
+    // como Adulto Mayor nunca llega a `PastilleroVirtualScreen`, que es
+    // donde vive el otro barrido. Sin esto, las alarmas que la versión
+    // vieja le programó con las pastillas de quien cuida le suenan para
+    // siempre. No bloquea el render: lo que se ve en pantalla es la lista.
+    void clearPatientDoseAlarms.execute({
+      patientIds: result.value.patients.map((p) => p.patientId),
+    });
 
     // El paciente elegido puede haber desaparecido mientras tanto: desde su
     // propio teléfono puede quitarle el acceso a este Cuidador. Dejar el id

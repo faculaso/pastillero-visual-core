@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { View, ActivityIndicator, StatusBar, StyleSheet } from 'react-native';
+import { NavigationContainer, DefaultTheme, DarkTheme, type Theme } from '@react-navigation/native';
 import { SessionProvider, useSession } from '../providers/SessionContext';
 import { AuthStack } from './AuthStack';
 import { ChooseRoleScreen } from '../screens/auth/ChooseRoleScreen';
 import { AdultoMayorStack } from './AdultoMayorStack';
 import { CuidadorStack } from './CuidadorStack';
-import { colors } from '../design-system/tokens';
+import { colors, esquemaOscuro } from '../design-system/tokens';
 
 /**
  * El switch de roles vive ACÁ, no dentro de cada Stack — así
@@ -37,10 +37,35 @@ function RoleSwitch(): React.JSX.Element {
   return <CuidadorStack />;
 }
 
+/**
+ * React Navigation tiene su propio tema, independiente del nuestro, y lo usa
+ * para lo que pinta ÉL: el fondo que asoma durante las transiciones entre
+ * pantallas y el color de los headers. Si no se lo damos, usa su blanco por
+ * defecto — y en modo oscuro eso es un flash blanco en cada navegación.
+ */
+const temaNavegacion: Theme = {
+  ...(esquemaOscuro ? DarkTheme : DefaultTheme),
+  colors: {
+    ...(esquemaOscuro ? DarkTheme : DefaultTheme).colors,
+    background: colors.background,
+    card: colors.background,
+    text: colors.textPrimary,
+    border: colors.borderLight,
+    primary: colors.primary,
+    notification: colors.critical,
+  },
+};
+
 export function RootNavigator(): React.JSX.Element {
   return (
     <SessionProvider>
-      <NavigationContainer>
+      {/*
+        Los íconos de la barra de estado (hora, señal, batería) los dibuja el
+        sistema, no la app: sobre fondo oscuro hay que pedirle explícitamente
+        que los ponga claros, o quedan negros sobre negro.
+      */}
+      <StatusBar barStyle={esquemaOscuro ? 'light-content' : 'dark-content'} />
+      <NavigationContainer theme={temaNavegacion}>
         <RoleSwitch />
       </NavigationContainer>
     </SessionProvider>

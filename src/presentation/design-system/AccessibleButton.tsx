@@ -16,14 +16,20 @@ export interface AccessibleButtonProps {
   readonly style?: StyleProp<ViewStyle>;
 }
 
+/**
+ * Van los tokens `*Fill`, no `primary`/`critical` a secas: acá el color es el
+ * FONDO y lleva texto blanco encima, mientras que `colors.primary` está
+ * calibrado para leerse como texto sobre el fondo de la app. En claro los dos
+ * valen lo mismo; en oscuro no pueden — ver el docblock de `primaryFill`.
+ */
 const VARIANT_BACKGROUND: Record<AccessibleButtonVariant, { base: string; pressed: string }> = {
-  primary: { base: colors.primary, pressed: colors.primaryPressed },
+  primary: { base: colors.primaryFill, pressed: colors.primaryPressed },
   success: { base: colors.successStrong, pressed: colors.success },
   secondary: { base: colors.surface, pressed: colors.borderLight },
   // Solo para lo que borra o saca acceso (dar de baja un tratamiento, quitarle
   // el acceso a un cuidador). Va en rojo lleno, no en texto rojo: en un
   // diálogo el color del texto solo no alcanza para frenar a alguien.
-  danger: { base: colors.critical, pressed: colors.criticalPressed },
+  danger: { base: colors.criticalFill, pressed: colors.criticalPressed },
 };
 
 /** Sombra de color a juego con el fondo del botón — solo primary/success la llevan (mockup: `.btn-primary`/`.btn-confirm`). `secondary` queda plano (outline). */

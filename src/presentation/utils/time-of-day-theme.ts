@@ -1,3 +1,5 @@
+import { esquemaOscuro } from '../design-system/tokens';
+
 export type TimeOfDayPeriod = 'morning' | 'afternoon' | 'night';
 
 export interface TimeOfDayTheme {
@@ -33,7 +35,18 @@ export interface TimeOfDayTheme {
   readonly instructionLabel: string;
 }
 
-const MORNING: TimeOfDayTheme = {
+/**
+ * Cada turno existe en dos versiones. En claro, mañana y tarde son fondos
+ * CLAROS (celeste y ambar): dejarlos asi con el telefono en modo oscuro seria
+ * una pantalla blanca en la mano a las 8 de la manana, o sea lo contrario de
+ * lo que el modo oscuro resuelve. Las versiones oscuras conservan el tinte
+ * que identifica al turno — frio a la manana, calido a la tarde, indigo de
+ * noche — pero con la luminancia invertida.
+ *
+ * Los contrastes de las dos versiones los verifica
+ * `tests/unit/presentation/time-of-day-contrast.test.ts`, que recorre ambas.
+ */
+const MORNING_CLARO: TimeOfDayTheme = {
   period: 'morning',
   label: 'Mañana',
   emoji: '🌅',
@@ -47,7 +60,24 @@ const MORNING: TimeOfDayTheme = {
   instructionLabel: 'Tomar con agua',
 };
 
-const AFTERNOON: TimeOfDayTheme = {
+const MORNING_OSCURO: TimeOfDayTheme = {
+  ...MORNING_CLARO,
+  background: '#1B2A3A', // el mismo celeste, llevado a la sombra
+  accentText: '#BFDBFE', // 10.3:1 sobre background (AAA)
+  mutedText: '#C7D2E0', // 9.5:1 sobre background
+  // El chip ahora OSCURECE en vez de aclarar: sobre fondo oscuro, aclararlo
+  // lo acercaria al texto claro en vez de alejarlo — el mismo error que ya
+  // se corrigio una vez en el turno noche.
+  chipBackground: 'rgba(0, 0, 0, 0.30)',
+  chipBorder: 'rgba(191, 219, 254, 0.35)',
+  // La ranura ACLARA aunque el chip oscurezca, y no es contradictorio: son
+  // reglas distintas. El chip tiene que alejarse del texto (claro), la ranura
+  // tiene que distinguirse del fondo (oscuro). Oscurecerla sobre un fondo ya
+  // oscuro la dejaba en 1.18:1 — invisible; lo detecto el test de contraste.
+  recessedSurface: 'rgba(255, 255, 255, 0.22)',
+};
+
+const AFTERNOON_CLARO: TimeOfDayTheme = {
   period: 'afternoon',
   label: 'Tarde',
   emoji: '☀️',
@@ -61,7 +91,17 @@ const AFTERNOON: TimeOfDayTheme = {
   instructionLabel: 'Tomar después de comer',
 };
 
-const NIGHT: TimeOfDayTheme = {
+const AFTERNOON_OSCURO: TimeOfDayTheme = {
+  ...AFTERNOON_CLARO,
+  background: '#2E2416', // el mismo ambar, llevado a la sombra
+  accentText: '#FDBA74', // 9.0:1 sobre background (AAA)
+  mutedText: '#E2CDB0', // 9.9:1 sobre background
+  chipBackground: 'rgba(0, 0, 0, 0.30)',
+  chipBorder: 'rgba(253, 186, 116, 0.35)',
+  recessedSurface: 'rgba(255, 255, 255, 0.22)',
+};
+
+const NIGHT_CLARO: TimeOfDayTheme = {
   period: 'night',
   label: 'Noche',
   emoji: '🌙',
@@ -77,6 +117,22 @@ const NIGHT: TimeOfDayTheme = {
   instructionLabel: 'Tomar antes de dormir',
 };
 
+const NIGHT_OSCURO: TimeOfDayTheme = {
+  ...NIGHT_CLARO,
+  // Ya era oscuro en claro, pero el indigo saturado brilla al lado del resto
+  // de la app en modo oscuro. Se baja, no se cambia de tono.
+  background: '#171E3A', // 16.4:1 con el blanco del accentText
+  mutedText: 'rgba(255, 255, 255, 0.80)',
+};
+
+/** Las dos versiones completas, expuestas para que los tests recorran ambas. */
+export const TIME_OF_DAY_THEMES = {
+  claro: { morning: MORNING_CLARO, afternoon: AFTERNOON_CLARO, night: NIGHT_CLARO },
+  oscuro: { morning: MORNING_OSCURO, afternoon: AFTERNOON_OSCURO, night: NIGHT_OSCURO },
+} as const;
+
+const ACTIVOS = esquemaOscuro ? TIME_OF_DAY_THEMES.oscuro : TIME_OF_DAY_THEMES.claro;
+
 /**
  * Deriva el "turno" del horario programado de la toma — no de un campo de
  * instrucción explícito, porque `DosageScheme` no lo tiene (agregarlo es la
@@ -87,7 +143,7 @@ const NIGHT: TimeOfDayTheme = {
  */
 export function getTimeOfDayTheme(date: Date): TimeOfDayTheme {
   const hour = date.getHours();
-  if (hour >= 5 && hour < 12) return MORNING;
-  if (hour >= 12 && hour < 19) return AFTERNOON;
-  return NIGHT;
+  if (hour >= 5 && hour < 12) return ACTIVOS.morning;
+  if (hour >= 12 && hour < 19) return ACTIVOS.afternoon;
+  return ACTIVOS.night;
 }

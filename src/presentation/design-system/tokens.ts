@@ -1,4 +1,7 @@
+import { Appearance } from 'react-native';
 import { shadeColor } from '../utils/shade-color';
+import { PALETA_CLARA, PALETA_OSCURA, type Paleta } from './palettes';
+
 /**
  * Tokens de diseño accesibles para el perfil de usuario de ACT-01 (adulto
  * mayor). Decisiones que se apartan de defaults móviles "estándar":
@@ -10,49 +13,33 @@ import { shadeColor } from '../utils/shade-color';
  *  - Sin dependencia de color solo: cada estado (pendiente/confirmado/error)
  *    combina color + ícono + texto, para daltonismo y baja visión.
  *
- * Paleta y tratamiento visual (color, radios, sombras) alineados al mockup
- * de referencia aprobado por el usuario — azules más saturados, tarjetas
- * blancas muy redondeadas con sombra sobre un fondo gris-azulado, en vez
- * del tratamiento plano anterior. `spacing`, `typography` y `touchTarget`
- * NO se tocaron: son la parte que protege la usabilidad real (texto grande,
- * targets de 72px), independiente de qué tan "pulida" se vea la app.
+ * Tratamiento visual: superficies extruidas (neumorfismo) del MISMO color que
+ * el fondo, separadas por la sombra y no por un relleno distinto.
+ * `spacing`, `typography` y `touchTarget` NO dependen del tema: son la parte
+ * que protege la usabilidad real (texto grande, targets de 72px),
+ * independiente de qué tan "pulida" o de qué color se vea la app.
  */
-export const colors = {
-  // Neumorfismo: la superficie es del MISMO color que el fondo, y lo que
-  // separa una tarjeta del resto no es un relleno distinto sino la sombra —
-  // clara arriba a la izquierda, oscura abajo a la derecha, como si el
-  // material estuviera extruido desde atrás. Por eso `surface` y
-  // `surfaceSubtle` dejaron de ser blancos: si lo fueran, el efecto no
-  // existiría. El color se eligió a medio camino entre blanco y el gris de
-  // las sombras, porque necesita lugar para iluminarse Y oscurecerse.
-  // Valores exactos del generador con el que se eligió el estilo:
-  // design.dev/tools/neumorphism — raised, light, dist 12, blur 36,
-  // radius 24, intensity 7.
-  background: '#DDE3EC',
-  surface: '#DDE3EC',
-  surfaceSubtle: '#DDE3EC', // recesado: mismas sombras pero hacia adentro (`inset`)
-  textPrimary: '#3C4858', // 7.2:1 sobre `background` — sigue siendo AAA (el umbral es 7:1)
-  textSecondary: '#475569', // ~5.9:1 sobre `background` (AA)
-  primary: '#2563EB', // azul de acción (botones primarios, tabs/estado activo)
-  primaryDark: '#1E40AF', // texto sobre `primarySoft` (badges, chips seleccionados)
-  primaryLight: '#3B82F6', // bordes de foco / hover
-  primaryPressed: '#1D4ED8',
-  primarySoft: '#EFF6FF',
-  success: '#15803D', // ~5.9:1 sobre blanco — texto/valores
-  successStrong: '#16A34A', // fondo del botón de confirmar toma
-  successBackground: '#F0FDF4',
-  critical: '#B91C1C', // ~6.1:1 sobre blanco
-  criticalPressed: '#991B1B', // fondo presionado del botón destructivo
-  criticalBackground: '#FEF2F2',
-  warning: '#C2410C', // ~5.0:1 sobre blanco
-  warningBackground: '#FFF7ED',
-  border: '#CBD5E1',
-  // Casi invisible a propósito: con superficies extruidas, una línea marcada
-  // corta el efecto. `border` (más oscuro) NO se tocó — lo usa el contorno de
-  // los botones secundarios, que es lo que los hace legibles como botones.
-  borderLight: '#DDE3EC',
-  disabled: '#94A3B8',
-} as const;
+
+/**
+ * El tema se resuelve UNA VEZ, cuando carga este módulo.
+ *
+ * No es una preferencia estética: en React Native no hay variables CSS.
+ * `StyleSheet.create` copia el valor del color en el momento en que se
+ * ejecuta el módulo, y los 58 `StyleSheet.create` de la app corren al
+ * arrancar. Mutar la paleta después no repinta nada — habría que convertir
+ * cada hoja de estilos en una función del tema y enhebrar un hook por los 62
+ * archivos que importan `colors`.
+ *
+ * Consecuencia práctica, que conviene saber antes de reportarlo como bug: si
+ * alguien cambia el tema del teléfono con la app abierta, la app NO cambia
+ * hasta que se cierra y se vuelve a abrir. Tampoco la recrea Android por su
+ * cuenta, porque el `AndroidManifest` del host declara `uiMode` dentro de
+ * `configChanges` y con eso se hace cargo del cambio sin reiniciar la
+ * actividad.
+ */
+export const esquemaOscuro: boolean = Appearance.getColorScheme() === 'dark';
+
+export const colors: Paleta = esquemaOscuro ? PALETA_OSCURA : PALETA_CLARA;
 
 export const spacing = {
   xs: 4,
@@ -85,18 +72,23 @@ export const radii = {
   pill: 999,
 } as const;
 
+interface JuegoDeSombras {
+  readonly card: { readonly boxShadow: string };
+  readonly buttonPrimary: { readonly boxShadow: string };
+  readonly buttonSuccess: { readonly boxShadow: string };
+  readonly pillShowcase: { readonly boxShadow: string };
+}
+
 /**
  * Sombras de elevación, en **dos capas**: una de contacto (1px, casi sin
  * desenfoque) que dibuja el borde del elemento, y una difusa y grande que da
- * la profundidad. Es lo que separa una superficie que "flota" de una que se
- * ve pegada con un manchón gris debajo — el tratamiento de una sola capa
- * difusa es el que envejeció peor del diseño anterior.
+ * la profundidad.
  *
- * La capa de contacto además cumple una función de accesibilidad: sostiene
- * sola el contraste del borde del control cuando la sombra difusa se pierde,
- * que es exactamente lo que le pasa a alguien con la sensibilidad al
- * contraste reducida. Por eso NO se puede bajar su opacidad "para que quede
- * más sutil": es lo que evita que el botón de confirmar la toma desaparezca.
+ * La capa de contacto cumple una función de accesibilidad: sostiene sola el
+ * contorno del control cuando la sombra difusa se pierde, que es exactamente
+ * lo que le pasa a alguien con la sensibilidad al contraste reducida. Por eso
+ * NO se puede bajar su opacidad "para que quede más sutil": es lo que evita
+ * que el botón de confirmar la toma desaparezca.
  *
  * Se usa `boxShadow` y no los `shadow*` de siempre porque los viejos **no
  * funcionan en Android** (ahí sólo pesa `elevation`, que es una sola capa y
@@ -104,62 +96,75 @@ export const radii = {
  * las dos plataformas, pero **requiere la New Architecture** — que este
  * proyecto ya usa — y Android 9 o superior.
  */
-export const shadows = {
-  /**
-   * Superficie extruida. Los cuatro valores salen tal cual del generador
-   * (design.dev/tools/neumorphism, raised / light / dist 12 / blur 36 /
-   * intensity 7): las dos sombras grandes dan el volumen, y las dos `inset`
-   * de 1px son el filo que impide que el borde quede completamente difuso.
-   * Ese filo es lo único que sostiene el contorno de la tarjeta, así que no
-   * se toca.
-   */
+const SOMBRAS_CLARAS: JuegoDeSombras = {
   card: {
-    boxShadow: 'inset 1px 1px 1px rgba(255, 255, 255, 0.70), inset -1px -1px 1px rgba(156, 165, 178, 0.35), 12px 12px 36px rgba(156, 165, 178, 0.58), -12px -12px 36px rgba(251, 252, 253, 0.81)',
+    boxShadow:
+      'inset 1px 1px 1px rgba(255, 255, 255, 0.70), inset -1px -1px 1px rgba(156, 165, 178, 0.35), 12px 12px 36px rgba(156, 165, 178, 0.58), -12px -12px 36px rgba(251, 252, 253, 0.81)',
   },
-  /**
-   * Los botones de acción conservan su relleno de color. La referencia del
-   * generador no incluye ningún botón de acción sobre fondo de color, y
-   * pintarlos del color del fondo dejaría sin marcar lo único de la pantalla
-   * que hay que encontrar rápido.
-   */
   buttonPrimary: {
     boxShadow: '0px 1px 2px rgba(37, 99, 235, 0.40), 0px 10px 22px rgba(37, 99, 235, 0.28)',
   },
   buttonSuccess: {
     boxShadow: '0px 1px 2px rgba(21, 128, 61, 0.40), 0px 10px 22px rgba(21, 128, 61, 0.28)',
   },
-  /** Hundido — la pastilla y las fotos van "dentro" del material. */
   pillShowcase: {
-    boxShadow: 'inset 6px 6px 18px rgba(156, 165, 178, 0.68), inset -6px -6px 18px rgba(251, 252, 253, 0.81)',
+    boxShadow:
+      'inset 6px 6px 18px rgba(156, 165, 178, 0.68), inset -6px -6px 18px rgba(251, 252, 253, 0.81)',
   },
-} as const;
+};
+
+/**
+ * En oscuro la sombra no se "aclara": se invierte el reparto. La luz de
+ * arriba a la izquierda es mucho más tenue (un fondo oscuro no refleja como
+ * uno claro, y un borde blanco marcado se ve como un filo de neón), y la
+ * sombra de abajo a la derecha es más profunda y más opaca, porque sobre
+ * oscuro un gris medio no lee como sombra.
+ */
+const SOMBRAS_OSCURAS: JuegoDeSombras = {
+  card: {
+    boxShadow:
+      'inset 1px 1px 1px rgba(255, 255, 255, 0.07), inset -1px -1px 1px rgba(0, 0, 0, 0.45), 12px 12px 36px rgba(17, 19, 25, 0.80), -12px -12px 36px rgba(62, 70, 88, 0.50)',
+  },
+  buttonPrimary: {
+    boxShadow: '0px 1px 2px rgba(59, 130, 246, 0.55), 0px 10px 22px rgba(59, 130, 246, 0.30)',
+  },
+  buttonSuccess: {
+    boxShadow: '0px 1px 2px rgba(22, 163, 74, 0.55), 0px 10px 22px rgba(22, 163, 74, 0.30)',
+  },
+  pillShowcase: {
+    boxShadow:
+      'inset 6px 6px 18px rgba(17, 19, 25, 0.85), inset -6px -6px 18px rgba(62, 70, 88, 0.50)',
+  },
+};
+
+export const shadows: JuegoDeSombras = esquemaOscuro ? SOMBRAS_OSCURAS : SOMBRAS_CLARAS;
 
 /**
  * Sombra extruida derivada de CUALQUIER color de base, con la misma geometría
  * que `shadows.card` (12px de distancia, 36px de desenfoque, filo `inset` de
  * 1px).
  *
- * Existe por el pastillero: esa pantalla tiñe el fondo según el turno —
- * celeste a la mañana, ámbar a la tarde, índigo de noche — y el neumorfismo
- * exige que la superficie sea del MISMO color que el fondo sobre el que se
- * apoya. Una sombra gris fija sobre fondo ámbar se ve sucia, y una tarjeta
- * `#DDE3EC` sobre índigo vuelve a ser una mancha clara: justo lo que el
- * estilo evita. Derivándola del turno, cada pantalla conserva su identidad y
- * el material es el mismo.
+ * Existe por el pastillero: esa pantalla tiñe el fondo según el turno, y el
+ * neumorfismo exige que la superficie sea del MISMO color que el fondo sobre
+ * el que se apoya. Una sombra gris fija sobre fondo ámbar se ve sucia.
+ * Derivándola del turno, cada pantalla conserva su identidad y el material es
+ * el mismo.
  */
 export function extrudedShadow(base: string): { readonly boxShadow: string } {
-  const luz = shadeColor(base, 7);
-  const sombra = shadeColor(base, -9);
+  const luz = shadeColor(base, esquemaOscuro ? 9 : 7);
+  const sombra = shadeColor(base, esquemaOscuro ? -14 : -9);
+  const filoClaro = esquemaOscuro ? 'rgba(255, 255, 255, 0.07)' : 'rgba(255, 255, 255, 0.70)';
+  const filoOscuro = esquemaOscuro ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.08)';
   return {
     boxShadow:
-      `inset 1px 1px 1px rgba(255, 255, 255, 0.70), inset -1px -1px 1px rgba(0, 0, 0, 0.08), ` +
+      `inset 1px 1px 1px ${filoClaro}, inset -1px -1px 1px ${filoOscuro}, ` +
       `12px 12px 36px ${sombra}, -12px -12px 36px ${luz}`,
   };
 }
 
 /** La contracara hundida de `extrudedShadow` — un hueco en el mismo material. */
 export function recessedShadow(base: string): { readonly boxShadow: string } {
-  const luz = shadeColor(base, 7);
-  const sombra = shadeColor(base, -9);
+  const luz = shadeColor(base, esquemaOscuro ? 9 : 7);
+  const sombra = shadeColor(base, esquemaOscuro ? -14 : -9);
   return { boxShadow: `inset 6px 6px 18px ${sombra}, inset -6px -6px 18px ${luz}` };
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { authPalette } from '../theme/auth-theme';
-import { radii, spacing } from '../../../design-system/tokens';
+import { colors, radii, spacing, shadows } from '../../../design-system/tokens';
 import { useStaggeredEntrance } from '../../../hooks/useStaggeredEntrance';
 
 export interface AuthCardProps {
@@ -31,17 +31,10 @@ export function AuthCard({ children, staggerIndex = 2, style }: AuthCardProps): 
 const styles = StyleSheet.create({
   card: {
     borderRadius: radii.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderWidth: 1,
-    borderColor: authPalette.cardBorder,
+    backgroundColor: colors.surface,
     padding: spacing.lg,
     gap: spacing.lg,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 4,
-    overflow: 'hidden',
+    ...shadows.card,
   },
   innerGlow: {
     position: 'absolute',

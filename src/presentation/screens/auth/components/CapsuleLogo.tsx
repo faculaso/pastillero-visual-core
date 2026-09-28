@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, G, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { authPalette } from '../theme/auth-theme';
-import { radii } from '../../../design-system/tokens';
+import { colors, radii, shadows } from '../../../design-system/tokens';
 
 const SIZE = 64;
 
@@ -54,17 +54,11 @@ const styles = StyleSheet.create({
     width: SIZE,
     height: SIZE,
     borderRadius: radii.xl,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    shadowColor: authPalette.clinicalBlue,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: authPalette.cardBorder,
+    ...shadows.card,
   },
   shineClip: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: radii.xl, overflow: 'hidden' },
   shineBar: {

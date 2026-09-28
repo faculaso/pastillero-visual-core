@@ -9,7 +9,7 @@ import type { GetWeeklyScheduleOutput } from '../../../application';
 import { useUseCases } from '../../providers/UseCasesProvider';
 import { useStaggeredEntrance } from '../../hooks/useStaggeredEntrance';
 import { AccessibleText } from '../../design-system/AccessibleText';
-import { colors, radii, spacing, touchTarget } from '../../design-system/tokens';
+import { colors, radii, spacing, touchTarget, shadows } from '../../design-system/tokens';
 import { groupDosesByWeek } from '../../utils/group-doses-by-week';
 import { DaySection } from './components/DaySection';
 import { WeekBackdrop } from './components/WeekBackdrop';
@@ -126,9 +126,8 @@ const styles = StyleSheet.create({
     width: touchTarget.minWidth,
     height: touchTarget.minHeight,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: colors.surface,
+    ...shadows.card,
     alignItems: 'center',
     justifyContent: 'center',
   },

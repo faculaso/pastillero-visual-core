@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { colors } from '../design-system/tokens';
 import type { AuthStackParamList } from './types';
 import { SignInScreen } from '../screens/auth/SignInScreen';
 import { SignUpScreen } from '../screens/auth/SignUpScreen';
@@ -16,7 +17,7 @@ const Stack = createNativeStackNavigator<AuthStackParamList>();
  */
 export function AuthStack(): React.JSX.Element {
   return (
-    <Stack.Navigator initialRouteName="SignIn" screenOptions={{ headerShown: false }}>
+    <Stack.Navigator initialRouteName="SignIn" screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="SignIn" component={SignInScreen} />
       <Stack.Screen name="SignUp" component={SignUpScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

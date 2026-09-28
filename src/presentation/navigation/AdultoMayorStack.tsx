@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { colors } from '../design-system/tokens';
 import type { AdultoMayorStackParamList } from './types';
 import { PastilleroVirtualScreen } from '../screens/pastillero-virtual/PastilleroVirtualScreen';
 import { MiSemanaScreen } from '../screens/mi-semana/MiSemanaScreen';
@@ -22,7 +23,7 @@ export function AdultoMayorStack(): React.JSX.Element {
   const patientId = session!.patientId;
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="PastilleroVirtual">
         {({ navigation }) => <PastilleroVirtualScreen patientId={patientId} navigation={navigation} />}
       </Stack.Screen>

@@ -15,7 +15,23 @@ import { PrimaryAuthButton } from './components/PrimaryAuthButton';
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
 const MIN_PASSWORD_LENGTH = 6;
-const CODE_LENGTH = 6;
+
+/**
+ * Largo MÍNIMO del código, no exacto.
+ *
+ * Estaba fijo en 6 y dejaba el botón deshabilitado para siempre, porque este
+ * proyecto emite códigos de 8 dígitos. La documentación de Supabase se
+ * contradice —la tabla de variables de plantilla dice "6-digit
+ * One-Time-Password" y la guía de plantillas dice "8-digit"— y además el largo
+ * depende de la configuración del proyecto, así que no hay ningún número
+ * correcto para fijar acá.
+ *
+ * Si el código sirve o no lo decide el servidor en `verifyOtp`, y ese camino ya
+ * está cubierto con su propio mensaje. Del lado del cliente sólo se evita
+ * mandar algo obviamente incompleto, que es lo único que se puede saber sin
+ * preguntar.
+ */
+const MIN_CODE_LENGTH = 6;
 
 /**
  * Reseteo en dos pasos, los dos DENTRO de la app: se pide el código por
@@ -103,7 +119,7 @@ export function ForgotPasswordScreen({ navigation }: Props): React.JSX.Element {
 
   const enPasoDelCodigo = paso === 'elegir-contrasena';
   const puedeEnviar = enPasoDelCodigo
-    ? codigo.trim().length === CODE_LENGTH && password.length >= MIN_PASSWORD_LENGTH && !enviando
+    ? codigo.trim().length >= MIN_CODE_LENGTH && password.length >= MIN_PASSWORD_LENGTH && !enviando
     : email.trim().length > 0 && !enviando;
 
   return (
@@ -115,7 +131,7 @@ export function ForgotPasswordScreen({ navigation }: Props): React.JSX.Element {
             title="Recuperar contraseña"
             subtitle={
               enPasoDelCodigo
-                ? `Te mandamos un código de ${CODE_LENGTH} números a ${email.trim()}`
+                ? `Te mandamos un código a ${email.trim()}`
                 : 'Te mandamos un código a tu correo para elegir una nueva'
             }
           />
@@ -127,7 +143,7 @@ export function ForgotPasswordScreen({ navigation }: Props): React.JSX.Element {
                   label="Código del correo"
                   value={codigo}
                   onChangeText={setCodigo}
-                  placeholder="123456"
+                  placeholder="El código del correo"
                   keyboardType="number-pad"
                   hasError={error !== null}
                 />

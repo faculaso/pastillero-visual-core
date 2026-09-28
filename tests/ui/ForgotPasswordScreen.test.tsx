@@ -64,6 +64,30 @@ describe('ForgotPasswordScreen', () => {
     expect(auth.completePasswordReset).toHaveBeenCalledWith('adriana@example.com', '123456', 'nueva-clave');
   });
 
+  it('acepta un código de 8 dígitos — Supabase no manda siempre 6', async () => {
+    // El bug que esto habría evitado: la pantalla exigía `length === 6` y el
+    // proyecto emite códigos de 8, así que el botón quedaba deshabilitado para
+    // siempre y era imposible cambiar la contraseña. Los tests de acá usaban
+    // todos '123456' y pasaban igual con la validación rota.
+    //
+    // La documentación de Supabase se contradice sobre el largo (6 en la tabla
+    // de variables de plantilla, 8 en la guía de plantillas) y además depende
+    // de la configuración del proyecto: el cliente no puede saberlo.
+    const auth = buildAuth();
+    const user = await pedirElCodigo(auth);
+
+    await user.type(screen.getByLabelText('Código del correo'), '76414912');
+    await user.type(screen.getByLabelText('Contraseña nueva'), 'nueva-clave');
+    await user.press(screen.getByText('Cambiar la contraseña'));
+
+    await waitFor(() => expect(screen.getByText('Listo, ya podés entrar')).toBeTruthy());
+    expect(auth.completePasswordReset).toHaveBeenCalledWith(
+      'adriana@example.com',
+      '76414912',
+      'nueva-clave',
+    );
+  });
+
   it('un código vencido se explica y dice qué hacer, sin culpar a la contraseña', async () => {
     const auth = buildAuth({
       completePasswordReset: jest

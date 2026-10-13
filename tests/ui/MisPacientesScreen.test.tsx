@@ -55,6 +55,35 @@ describe('MisPacientesScreen', () => {
     expect(screen.getByText(/Cuidás a 2 personas\./)).toBeTruthy();
   });
 
+  it('al cargar la lista apaga las alarmas de quienes se cuida', async () => {
+    // El teléfono del Cuidador venía sonando con las pastillas de otra
+    // persona: las alarmas se las dejó la versión vieja, y el barrido que
+    // las limpia vive en el pastillero del Adulto Mayor — una pantalla a la
+    // que un Cuidador no entra nunca. Esta lista es el único lugar del
+    // stack por el que sí se pasa siempre.
+    const getLinkedPatients = {
+      execute: jest.fn().mockResolvedValue(Ok({ patients: [paciente('p1', 'Rosa'), paciente('p2', 'Hugo')] })),
+    };
+    const clearPatientDoseAlarms = {
+      execute: jest.fn().mockResolvedValue(Ok({ cancelledCount: 0, alarmWarnings: [] })),
+    };
+
+    await render(
+      withProviders(<MisPacientesScreen navigation={buildNavigationMock()} route={baseRoute} />, {
+        role: 'CUIDADOR',
+        patientId: '',
+        useCases: {
+          getLinkedPatients: getLinkedPatients as never,
+          clearPatientDoseAlarms: clearPatientDoseAlarms as never,
+        },
+      }),
+    );
+
+    await waitFor(() =>
+      expect(clearPatientDoseAlarms.execute).toHaveBeenCalledWith({ patientIds: ['p1', 'p2'] }),
+    );
+  });
+
   it('tocar un paciente abre su semana', async () => {
     const getLinkedPatients = {
       execute: jest.fn().mockResolvedValue(Ok({ patients: [paciente('p1', 'Rosa'), paciente('p2', 'Hugo')] })),

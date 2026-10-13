@@ -68,6 +68,11 @@ export function createFakeUseCases(overrides: Partial<UseCasesBundle> = {}): Use
         .fn()
         .mockResolvedValue({ ok: true, value: { scheduledCount: 0, cancelledCount: 0, alarmWarnings: [] } }),
     } as unknown as UseCasesBundle['syncDoseAlarms'],
+    // Lo dispara la lista de pacientes al cargar. Mismo criterio: el default
+    // honesto es "este teléfono no tenía ninguna alarma ajena".
+    clearPatientDoseAlarms: {
+      execute: jest.fn().mockResolvedValue({ ok: true, value: { cancelledCount: 0, alarmWarnings: [] } }),
+    } as unknown as UseCasesBundle['clearPatientDoseAlarms'],
     // El pastillero le pregunta al dispositivo si la alarma suena en No
     // Molestar. El default honesto es que SÍ: así el aviso no aparece y no
     // ensucia a los tests que miran otra cosa. El que lo prueba lo pisa.
